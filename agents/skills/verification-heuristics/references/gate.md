@@ -26,7 +26,24 @@ Copy the recipe for the project's stack. Change it only for a stated reason.
 - **TypeScript (Node + Vite):** `setup`: `pnpm install --frozen-lockfile`. Steps: `tsc --noEmit` for each
   tsconfig (server, web: each part of the code is in exactly one), then `vite build`.
 - **Python 3.11+:** `setup`: create the virtual environment and install the locked dependencies. Steps:
-  `python -m compileall -q <package>` (syntax), then `pyright` in strict mode (types).
+  `python -m compileall -q <package>` (syntax), then `pyright` (types). Every Python project follows these typing
+  rules from its first line:
+  - **Strict pyright** for the whole package (`typeCheckingMode = "strict"` in `pyproject.toml`), so values of
+    unknown type are errors, including those from untyped libraries. Why: an unchecked function looks clean.
+  - **Typed boundaries inside the code:** every function's parameters and return type, and every class field.
+    Local variables are annotated only when pyright cannot infer them. Why: errors cross between functions;
+    annotating `total = 0` adds noise, not safety.
+  - **Typed shapes at external boundaries:** data from sheets, APIs, databases and files becomes a typed model
+    (dataclass, `TypedDict` or a validation model) where it enters the code. No untyped `dict` travels past that
+    point. Why: most of our errors start as untyped outside data deep in the code.
+  - **Untyped libraries stay behind a small typed module** that the rest of the code calls. Why: one place absorbs
+    the missing types instead of every caller.
+  - **Ignores name the error and give a reason**, for example `# pyright: ignore[reportUnknownMemberType]  # gspread
+    has no stubs`. Bare `# type: ignore` is rejected (`enableTypeIgnoreComments = false`), and an ignore that no
+    longer silences anything is an error (`reportUnnecessaryTypeIgnoreComment = "error"`). Silencing an error to
+    pass the gate is never allowed.
+  - Pyright, not mypy: faster, checks unannotated functions, and matches the editor. Reconsider only for a framework
+    that needs a mypy plugin (Django).
 - **Plain JavaScript:** build only. A type check needs `checkJs` or a move to TypeScript; propose it to the human.
 - New projects start typed (TypeScript strict, or Python with pyright strict): the type checker is the cheapest gate.
 
