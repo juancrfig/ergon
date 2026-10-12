@@ -214,7 +214,8 @@ def evaluate_with_jev(request: PendingRequest, criteria: tuple[Criterion, ...], 
         return Evaluation("EVALUATION ERROR", "", {}, f"TypeSafe SDK unavailable: {exc}")
     questions = {criterion.criterion_id: Noul(instructions=_criterion_instructions(criterion)) for criterion in criteria}
     try:
-        with TypeSafeClient(model=model) as client:
+        # The SDK reads TYPESAFE_API_KEY by default; this workspace names the key SYSTEM_ONE_API.
+        with TypeSafeClient(api_key=os.environ["SYSTEM_ONE_API"], model=model) as client:
             response = client.system_one(state={"proposal": request.payload}, questions=questions, model=model)
         results = {criterion.criterion_id: float(response.nouls[criterion.criterion_id].noul) for criterion in criteria}
         effective_model = str(getattr(response, "model", None) or model or "jev")
