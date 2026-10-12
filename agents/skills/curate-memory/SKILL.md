@@ -85,6 +85,14 @@ internally for `decide`. The panel shows `Target` (`memory`, `user`, or
 question with its probability (higher = more likely problem). Do not average or
 convert results into a quality score. Show at most one request per turn.
 
+## System One routing (Jev)
+
+- **Shadow:** route every pending request with Jev `jev-1.13.0`; append choices, probabilities, confidence, Noul values, usage, and hashes to the ignored shadow log. Apply nothing. Keep labeled outcomes separate from model output.
+- **Gated:** after reviewing shadow evidence, set per-rule probability and confidence thresholds. Apply only a rule whose decision and thresholds pass; log `decided_by: jev`, model, and probabilities. Reset thresholds when the model changes.
+- **Live:** schedule the gated run daily and send a digest of decisions and items needing a human.
+
+The main agent may reword or split a request: it writes the new memory itself and rejects the original, without asking, only when Jev rates every new piece `durable-fact` with high confidence and no secret/contradiction flag; report each one in a line. Deleting a live entry still needs the human.
+
 ## Curation rules (human-approved)
 
 Apply these after the sweep, to each request in turn, before showing its panel. Read the live

@@ -286,6 +286,139 @@ def evaluate_request(
     return evaluate_with_jev(request, catalog.criteria, model)
 
 
+def _memory_limit(home: Path, target: str) -> int:
+    defaults = {"memory": 2200, "user": 1375}
+    config = home / "config.yaml"
+    try:
+        text = config.read_text(encoding="utf-8")
+    except OSError:
+        return defaults[target]
+    keys = ("memory_char_limit", "memory_max_chars", "memory_chars") if target == "memory" else (
+        "user_char_limit", "user_max_chars", "user_chars")
+    for key in keys:
+        match = re.search(rf"^\s*{re.escape(key)}\s*:\s*(\d+)\s*(?:#.*)?$", text, re.MULTILINE)
+        if match:
+            return int(match.group(1))
+    return defaults[target]
+
+
+def _live_memory_entries(home: Path, target: str) -> tuple[list[dict[str, Any]], int]:
+    path = home / "memories" / ("USER.md" if target == "user" else "MEMORY.md")
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        text = ""
+    entries = [{"text": part, "chars": len(part)} for part in re.split(r"(?m)^§\s*$", text) if part.strip()]
+    return entries, _memory_limit(home, target)
+
+
+def route_with_jev(
+    request: PendingRequest, live_entries: list[dict[str, Any]], other_pending: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Route one literal request with contextual memory and same-target pending work."""
+    from typesafe_sdk import Choice, Noul, TypeSafeClient
+
+    options = {
+        "durable-fact": "A durable preference, correction, decision, constraint, or useful fact that belongs in memory for every session.",
+        "procedure": "Instructions for how to perform a task; route to a skill under rule R2, not memory.",
+        "idea": "An unstarted future project or idea; route to the ideas vault under rule R3.",
+        "todo-or-progress": "A pending task, current progress, or time-bound status; reject under rule R4 because it will go stale.",
+        "reachable-elsewhere": "Already available in a skill, file, note, code, or other reachable source; a short pointer may suffice, or reject as duplicative.",
+    }
+    questions: dict[str, Any] = {
+        "home": Choice(
+            instructions={
+                "proposal": request.payload,
+                "task": "Select the best disposition for this request's main content. Choose exactly one option.",
+            },
+            criteria=options,
+        ),
+        "contradicts_live": Noul(instructions={
+            "proposal": request.payload, "live_entries": live_entries,
+            "question": "Would adding this request contradict any currently live entry? Yes only for a genuine contradiction, not mere overlap.",
+        }),
+        "contains_secret": Noul(instructions={
+            "proposal": request.payload,
+            "question": "Does the proposal contain a credential, password, token, private key, or other secret that must not be stored?",
+        }),
+        "mixes_facts": Noul(instructions={
+            "proposal": request.payload,
+            "question": "Does this request combine multiple unrelated durable facts that should be split into separate memory entries?",
+        }),
+        "dated_status": Noul(instructions={
+            "proposal": request.payload,
+            "question": "Does this request state time-bound status or a fact likely to become stale?",
+        }),
+        "drops_live_info": Noul(instructions={
+            "proposal": request.payload, "live_entries": live_entries,
+            "question": "Would applying a replace or remove operation discard information in the live entries that remains useful?",
+        }),
+    }
+    for item in other_pending:
+        questions[f"superseded_by_{item['id']}"] = Noul(instructions={
+            "proposal": request.payload,
+            "other_pending_request": {"id": item["id"], "payload": item["payload"]},
+            "question": "Does this other pending request supersede this proposal by replacing or containing its information?",
+        })
+    state = {
+        "request": {"id": request.pending_id, "payload": request.payload},
+        "live_entries": live_entries,
+        "memory_limit_chars": _memory_limit(request.home, str(request.payload.get("target", "memory"))),
+        "other_pending": other_pending,
+    }
+    with TypeSafeClient(api_key=os.environ["SYSTEM_ONE_API"], model="jev-1.13.0") as client:
+        response = client.system_one(state=state, questions=questions, model="jev-1.13.0")
+    choice = response.choices["home"]
+    nouls = {key: float(answer.noul) for key, answer in response.nouls.items()}
+    usage = getattr(response, "usage", None)
+    usage_tokens = {
+        "input_tokens": int(getattr(usage, "input_tokens", 0) or 0),
+        "output_tokens": int(getattr(usage, "output_tokens", 0) or 0),
+    }
+    return {
+        "model": str(getattr(response, "model", None) or "jev-1.13.0"),
+        "choice": str(choice.choice),
+        "confidence": float(choice.confidence),
+        "probabilities": {key: float(value) for key, value in choice.probabilities.items()},
+        "nouls": nouls,
+        "usage_tokens": usage_tokens,
+    }
+
+
+def shadow(inventory: Inventory, workspace: Path, instance: str) -> list[dict[str, Any]]:
+    """Route pending requests and append audit rows; never decide or mutate a request."""
+    if not os.environ.get("SYSTEM_ONE_API"):
+        load_checkout_env()
+    if not os.environ.get("SYSTEM_ONE_API"):
+        raise ReviewError("SYSTEM_ONE_API is not configured")
+    output = workspace / ".agents" / "memory-review" / "shadow" / (time.strftime("%Y-%m-%d") + ".jsonl")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    results: list[dict[str, Any]] = []
+    for request in inventory.requests:
+        target = str(request.payload.get("target", "memory"))
+        live, _limit = _live_memory_entries(request.home, target)
+        others = []
+        for other in inventory.requests:
+            if other is request or other.profile != request.profile or other.subsystem != request.subsystem:
+                continue
+            if str(other.payload.get("target", "memory")) != target:
+                continue
+            others.append({"id": other.pending_id, "payload": other.payload})
+        routed = route_with_jev(request, live, others)
+        row = {
+            "instance": instance, "request_id": request.pending_id,
+            "record_sha": request.record_sha256, "payload_sha": request.payload_sha256,
+            "model": routed["model"], "choice": routed["choice"],
+            "confidence": routed["confidence"], "probabilities": routed["probabilities"],
+            "nouls": routed["nouls"], "usage_tokens": routed["usage_tokens"],
+            "timestamp": time.time(),
+        }
+        with output.open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
+        results.append(row)
+    return results
+
+
 def _review_state_path(root: Path) -> Path:
     path = root / "curate-memory" / "state.json"
     legacy = root / "memory-request-review" / "state.json"
@@ -814,8 +947,11 @@ def _default_catalog_path() -> Path:
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("inventory", "show", "decide", "native-apply", "sweep"))
+    parser.add_argument("command", choices=("inventory", "show", "decide", "native-apply", "sweep", "shadow"))
     parser.add_argument("--home-root", type=Path, default=Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")))
+    parser.add_argument("--hermes-home", type=Path, default=Path.home() / ".hermes")
+    parser.add_argument("--workspace", type=Path, default=Path.cwd())
+    parser.add_argument("--instance", default="default")
     parser.add_argument("--catalog", type=Path, default=_default_catalog_path())
     parser.add_argument("--position", type=int, default=1)
     parser.add_argument("--profile", choices=PROFILES)
@@ -843,7 +979,11 @@ def main(argv: list[str] | None = None) -> int:
             ensure_ascii=False,
         ))
         return 0
-    inventory = inventory_pending(args.home_root)
+    inventory = inventory_pending(args.hermes_home if args.command == "shadow" else args.home_root)
+    if args.command == "shadow":
+        rows = shadow(inventory, args.workspace, args.instance)
+        print(json.dumps({"instance": args.instance, "routed": len(rows), "ids": [row["request_id"] for row in rows]}, ensure_ascii=False))
+        return 0
     if args.command == "inventory":
         output = {
             "counts": inventory.counts,
