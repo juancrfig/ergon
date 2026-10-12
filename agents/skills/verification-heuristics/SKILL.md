@@ -6,13 +6,13 @@ description: Use when designing, creating or judging how agents verify their wor
 # Verification heuristics
 
 The philosophy every verification system in this workspace follows, plus the wizard that turns it into one
-project's verification guide. The general tenets are in [theSystem tenets](../../../docs/tenets.md); each project's
+project's verification guide. The general tenets are in [theSystem tenets](TENETS.md); each project's
 guide makes them concrete.
 The human approves every change to this skill.
 
 ## Tenets
 
-See [theSystem tenets](../../../docs/tenets.md).
+See [theSystem tenets](TENETS.md).
 
 ## Three classes of verification
 
