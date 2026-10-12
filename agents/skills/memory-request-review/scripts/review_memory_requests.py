@@ -2,7 +2,7 @@
 """Review Hermes pending memory and skill writes without creating another queue.
 
 The script is deliberately an adapter around Hermes's native pending-write store.
-It inventories theSystem's profiles, asks TypeSafe Jev only about the literal
+It inventories the main agent's profile, asks TypeSafe Jev only about the literal
 staged payload of the one request being shown, renders a single ASCII panel, and delegates a human
 approve/reject decision back to Hermes's native applier.
 """
@@ -21,8 +21,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
-# The main agent runs in Hermes' default profile; the orchestrator's agents run in worker and reviewer.
-PROFILES = ("default", "worker", "reviewer")
+# The main agent runs in Hermes' default profile. Task agents are its subagents and write no memory of their own.
+PROFILES = ("default",)
 SUBSYSTEMS = ("memory", "skills")
 
 

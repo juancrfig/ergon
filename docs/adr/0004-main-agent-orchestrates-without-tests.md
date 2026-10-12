@@ -1,13 +1,13 @@
 # ADR 0004: The main agent orchestrates tasks; no tests or verification without approval
 
-- **Status:** Accepted (branch `no-tests-main-orchestrator` only)
+- **Status:** Accepted (merged into `master` on 2026-10-12)
 - **Date:** 2026-10-09
-- **Supersedes:** ADR 0001 on this branch
+- **Supersedes:** ADR 0001
 
 ## Context
 
-On `master`, a separate orchestrator program runs each approved task with a worker and a reviewer in their own
-Hermes profiles, and skills tell agents to write tests and verify their work. The owner wants an alternative where:
+Before this decision, a separate orchestrator program ran each approved task with a worker and a reviewer in their own
+Hermes profiles, and skills told agents to write tests and verify their work. The owner wanted an alternative where:
 
 - Tests are a scarce good. They are created only at the end of development, and only with explicit human approval.
 - Verification follows the same principle: agents do not verify their work unless the human asks.
@@ -23,11 +23,11 @@ Hermes profiles, and skills tell agents to write tests and verify their work. Th
 - Roles keep rules and skills. They lose `tools`, because subagents always inherit the main agent's tools.
 - Run evidence is `run.json`, `worker.diff`, `worker.md` and `review.md`. No full transcripts.
 - When every task of a ticket is done, the main agent proposes candidate tests; only approved tests become a task.
-- This branch is its own release channel: install and `update` follow the newest commit of the branch, not tags.
+- install and `update` follow the newest commit of `master`, not tags.
 
 ## Consequences
 
 - No program enforces worktree isolation or tool limits; the main agent checks isolation after each worker.
 - Less evidence for diagnosing failed runs.
-- `install` and `update` have no automated safety net on this branch.
-- `master` is unchanged and remains the tested, script-orchestrated version.
+- `install` and `update` have no automated safety net.
+- The tested, script-orchestrated version remains in history (tag `v0.5`).

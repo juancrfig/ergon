@@ -5,11 +5,12 @@ Every change must reference a feature ID.
 
 Anything not in this map is not wanted.
 
-This is the `no-tests-main-orchestrator` variant (ADR 0004). Principle: tests are a scarce good, created only at the end of development and only with explicit human approval. Verification follows the same principle: agents verify nothing unless the human asks.
+Principle (ADR 0004): tests are a scarce good, created only at the end of development and only with explicit human approval. Verification follows the same principle: agents verify nothing unless the human asks.
 
 ## Later (do not build yet)
 
 - Wizard offers to clone an existing repo as the workspace.
+- Memory review with a System One model: the model rewords or splits a pending memory request and applies the judgement rules (R1–R6) as checkable criteria, so fewer requests reach the human.
 - Explainer videos: on request, the main agent makes a narrated, 3Blue1Brown-style video that explains a topic. Narration uses ElevenLabs or a free alternative that runs locally.
 
 ---
@@ -17,12 +18,12 @@ This is the `no-tests-main-orchestrator` variant (ADR 0004). Principle: tests ar
 ## F1 · Install theSystem
 
 Status: wanted
-Reach: `curl -fsSL https://raw.githubusercontent.com/juancrfig/theSystem/no-tests-main-orchestrator/install | bash` on a fresh Ubuntu server
+Reach: `curl -fsSL https://raw.githubusercontent.com/juancrfig/theSystem/master/install | bash` on a fresh Ubuntu server
 Outcome: a short wizard asks two things, then finishes:
   1. Workspace location. Default `~/workspace`.
   2. Company name. Default `umbrella`. This becomes the main command for using theSystem.
   After the prompts, without asking or mentioning it:
-  - Clones theSystem to `~/theSystem`, or reuses the clone already there, and installs the newest commit of the `no-tests-main-orchestrator` branch (F10) from it. The release is read straight from git, so the clone's checked-out branch and working files are never touched. `install --dev` installs the working tree of the clone it runs from instead; it is for theSystem development.
+  - Clones theSystem to `~/theSystem`, or reuses the clone already there, and installs the newest commit of the `master` branch (F10) from it. The release is read straight from git, so the clone's checked-out branch and working files are never touched. `install --dev` installs the working tree of the clone it runs from instead; it is for theSystem development.
   - Records the workspace's baseline (F10): the release tag and a copy of the files that release shipped.
   - Creates the workspace structure:
     ```
@@ -165,8 +166,8 @@ Meaning: improvements made in one workspace reach theSystem, and theSystem's imp
   - Up: the main agent offers a workspace improvement as a new theSystem default (a proposal).
   - Down: `umbrella update` brings a workspace to the latest release, keeping its local edits.
 Releases:
-  - This variant is a release channel: its newest release is the newest commit of the `no-tests-main-orchestrator` branch, named `no-tests-main-orchestrator@<short commit>`. No tags. Release notes are the commit messages since the baseline.
-  - Development of this variant pushes straight to its branch. Only proposals use pull requests.
+  - The newest release is the newest commit of the `master` branch, named `master@<short commit>`. No new tags; the old numbered tags are history. Release notes are the commit messages since the baseline.
+  - Development pushes straight to `master`. Only proposals use pull requests.
 Baseline:
   - theSystem owns exactly the files seeded from the repo's `workspace/` (into the workspace root) and `agents/` (into the workspace `agents/`). Project folders, `.thesystem/` and Hermes memory are never included.
   - The workspace records the release it was installed or last updated from in `.thesystem/baseline/`: the tag and a copy of the files that release shipped, after the install's substitutions (`{{COMMAND}}` becomes the company command).
@@ -188,5 +189,5 @@ Proposals (`propose-default` skill, at any time, inside or outside a memory revi
   - One pull request per improvement, labeled (`skills`, `rules`, `roles`, `wizard`, `fix`), with a "what and why" description.
   - Written in terms of theSystem's own files: `{{COMMAND}}` instead of the company command.
   - Before opening it, the main agent checks the change for company information (client, project and people names, internal URLs, secrets) and shows the owner anything flagged. The pull request opens only after the owner says yes.
-  - Opened from its own branch in a temporary git worktree of `~/theSystem` based on `no-tests-main-orchestrator`, so the clone's checkout is never disturbed.
+  - Opened from its own branch in a temporary git worktree of `~/theSystem` based on `master`, so the clone's checkout is never disturbed.
 Not this: automatic or scheduled updates, "you are behind" checks, proposing Hermes memory, personal skills or anything in a project folder, or carrying Hermes settings changed by hand with `hermes config set`.

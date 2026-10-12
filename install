@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # theSystem installer (features F1 and F10 in FEATURES.md).
-#   curl -fsSL https://raw.githubusercontent.com/juancrfig/theSystem/no-tests-main-orchestrator/install | bash
-# Installs the newest commit of the no-tests-main-orchestrator branch from the server's clone (~/theSystem, cloned when missing). The release is
+#   curl -fsSL https://raw.githubusercontent.com/juancrfig/theSystem/master/install | bash
+# Installs the newest commit of the master branch from the server's clone (~/theSystem, cloned when missing). The release is
 # read straight from git, so the clone's branch and working files are never touched.
 #   install --dev   installs the working tree this script is in instead (theSystem development).
 # THESYSTEM_WORKSPACE and THESYSTEM_COMPANY answer the two prompts without asking. THESYSTEM_REPO and
@@ -65,7 +65,7 @@ while (( $# )); do
   shift
 done
 clone="${THESYSTEM_CLONE:-$HOME/theSystem}"
-channel=no-tests-main-orchestrator
+channel=master
 
 here=""
 if [[ -n "${BASH_SOURCE[0]:-}" && -f "$(dirname "${BASH_SOURCE[0]}")/thesystem/cli.py" ]]; then

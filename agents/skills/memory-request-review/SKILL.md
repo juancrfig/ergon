@@ -1,13 +1,12 @@
 ---
 name: memory-request-review
-description: "Use when reviewing pending Hermes memory or skill writes. Covers the default (main agent), worker and reviewer profiles; shows one evaluated request at a time and requires an explicit human decision."
+description: "Use when reviewing pending Hermes memory or skill writes of the main agent; shows one evaluated request at a time and requires an explicit human decision."
 ---
 
 # Assisted memory-request review
 
 Use this skill at the start of a new conversation to review pending writes for
-`memory` and `skills` in theSystem's Hermes profiles: `default` (the main agent),
-`worker` and `reviewer`. It does not create or maintain another queue.
+`memory` and `skills` in the main agent's Hermes profile (`default`). It does not create or maintain another queue.
 
 ## Evaluators
 

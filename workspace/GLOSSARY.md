@@ -26,8 +26,8 @@ _Avoid_: ticket, issue, sub-ticket.
 
 **Run**: one attempt at a task: the worker, then the reviewer. A task can have several runs.
 
-**Release**: a published version of theSystem that servers install and update to. On the
-`no-tests-main-orchestrator` channel, a release is the newest commit of that branch.
+**Release**: a published version of theSystem that servers install and update to. A release is
+the newest commit of theSystem's `master` branch.
 
 **Baseline**: the release a workspace was installed or last updated from.
 

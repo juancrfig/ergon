@@ -29,8 +29,8 @@ from thesystem.errors import CodedError
 # Workspace paths whose {{COMMAND}} becomes the company command. The propose-default skill reverses it.
 SUBSTITUTED = ("AGENTS.md",)
 # Releases are vMAJOR.MINOR; the older vMAJOR.MINOR.PATCH tags stay valid and sort among them (v0.2.0 < v0.3).
-# Branch channel: workspaces installed from this branch follow its newest commit instead of master's tags.
-CHANNEL = "no-tests-main-orchestrator"
+# Release channel: workspaces follow the newest commit of master. The old numbered tags are history only.
+CHANNEL = "master"
 RELEASE_TAG = re.compile(r"^v(\d+)\.(\d+)(?:\.(\d+))?$")
 MARKER = re.compile(rb"^(<<<<<<<|>>>>>>>)( |$)", re.MULTILINE)
 
@@ -243,7 +243,7 @@ def export(clone: Path, tag: str, directory: Path) -> None:
 def latest_release(clone: Path) -> tuple[str, str]:
     """The newest release of this channel as (release name, git revision to export).
 
-    The `no-tests-main-orchestrator` channel has no tags: its release is the last commit of its branch on origin,
+    The `master` channel has no tags: its release is the last commit of its branch on origin,
     named `<channel>@<short commit>`. Other channels keep the numbered tags.
     """
     if CHANNEL:
