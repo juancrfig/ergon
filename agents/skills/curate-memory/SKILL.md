@@ -115,7 +115,7 @@ doubt, show the panel and let the human decide.
 - **R6 Decided means done.** When a rule clearly decides a request, apply it without asking.
 - **R7 Wrong file.** A fact about the environment written to USER, or a fact about the human written to
   MEMORY, is rejected and re-created as a pending request for the right file.
-- **R8 Safety becomes a control.** A request that forbids an action is rejected from memory and turned into a proposed control (permission, deny rule, read-only access). Changing a control always needs the human's approval, because it changes security.
+- **R8 Safety becomes a control.** A request that forbids an action to prevent damage, data loss, a security risk or unwanted cost is rejected from memory and turned into a proposed control (permission, deny rule, read-only access, pinned model or provider). Changing a control always needs the human's approval, because it changes security. Check every request for R8 before assigning a category: safety lines appear in any category. A request that only describes a control already in place is a duplicate: reject it under R1.
 - **R9 Project knowledge goes to the project.** A request that only records knowledge about one project (its architecture, stack, decisions, locations, workflows, or state) is rejected from memory and forwarded to that project: its text is saved as a new source in `<project>/wiki/raw/`, where the ingest process picks it up. Forward before rejecting. When the project cannot be identified, or has no folder in the workspace, show the request to the human. A request that mixes project knowledge with anything else is not decided by R9.
 
 R2 and R7 create the new pending request with Hermes's own staging (`tools.write_approval.stage_write`,
