@@ -25,6 +25,8 @@ from typing import Any, Callable, Iterable
 # The main agent runs in Hermes' default profile. Task agents are its subagents and write no memory of their own.
 PROFILES = ("default",)
 SUBSYSTEMS = ("memory", "skills")
+GRADUATION_STREAK = 20
+DECISION_OPTIONS = ("approve", "reject", "trim")
 
 
 class ReviewError(RuntimeError):
@@ -450,6 +452,61 @@ def save_review_state(root: Path, state: dict[str, Any]) -> None:
     temporary = path.with_suffix(".tmp")
     temporary.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     temporary.replace(path)
+
+
+def learn_decisions(state: dict[str, Any]) -> dict[str, Any]:
+    """Summarize human-labeled decision types without granting automatic authority."""
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for row in state.get("decisions", []):
+        if not isinstance(row, dict) or not isinstance(row.get("decision_type"), str) or not row["decision_type"]:
+            continue
+        groups.setdefault(row["decision_type"], []).append(row)
+    summaries = {}
+    for decision_type, rows in sorted(groups.items()):
+        streak = 0
+        for row in reversed(rows):
+            if row.get("matched") is not True:
+                break
+            streak += 1
+        mismatches = [
+            {"at": row.get("at"), "decision": row.get("decision"), "proposal": row.get("proposal"),
+             "why": row.get("why") or ""}
+            for row in rows if row.get("matched") is False
+        ]
+        summaries[decision_type] = {
+            "total_decisions": len(rows),
+            "matched_streak": streak,
+            "mismatches": mismatches,
+            "graduation_candidate": streak >= GRADUATION_STREAK,
+        }
+    return {"graduation_streak_required": GRADUATION_STREAK, "decision_types": summaries,
+            "automatic_authority": "human approval required"}
+
+
+def stage_trimmed_request(request: PendingRequest, text: str) -> dict[str, Any]:
+    if request.subsystem != "memory":
+        raise ReviewError("Trim currently supports memory requests only.")
+    target = request.payload.get("target", "memory")
+    if target not in {"memory", "user"}:
+        raise ReviewError("Trim requires a memory request targeting memory or user.")
+    if not text.strip():
+        raise ReviewError("Trimmed text must not be empty.")
+    from tools import write_approval as wa
+    payload = {"action": "add", "target": target, "content": text}
+    previous_home = os.environ.get("HERMES_HOME")
+    os.environ["HERMES_HOME"] = str(request.home)
+    try:
+        record = wa.stage_write(wa.MEMORY, payload, summary=f"trimmed memory request: {text[:120]}",
+                                origin=wa.current_origin())
+    finally:
+        if previous_home is None:
+            os.environ.pop("HERMES_HOME", None)
+        else:
+            os.environ["HERMES_HOME"] = previous_home
+    staged_path = request.home / "pending" / "memory" / f"{record.get('id', '')}.json"
+    if not record.get("id") or not staged_path.is_file():
+        raise ReviewError("Hermes did not persist the trimmed pending request.")
+    return record
 
 
 def _store_evaluation(state: dict[str, Any], request: PendingRequest, catalog: Catalog, evaluation: Evaluation) -> None:
@@ -1149,7 +1206,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         args.command = "lifespan"
         return args
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("inventory", "show", "decide", "forward", "native-apply", "sweep", "shadow"))
+    parser.add_argument("command", choices=("inventory", "show", "decide", "learn", "forward", "native-apply", "sweep", "shadow"))
     parser.add_argument("--home-root", type=Path, default=Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")))
     parser.add_argument("--hermes-home", type=Path, default=Path.home() / ".hermes")
     parser.add_argument("--workspace", type=Path, default=Path.cwd())
@@ -1160,7 +1217,13 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--subsystem", choices=SUBSYSTEMS)
     parser.add_argument("--pending-id")
     parser.add_argument("--model", default=None)
-    parser.add_argument("--decision", choices=("approve", "reject", "pending"))
+    parser.add_argument("--decision", choices=DECISION_OPTIONS)
+    parser.add_argument("--proposal", choices=DECISION_OPTIONS)
+    parser.add_argument("--proposal-rule")
+    parser.add_argument("--decision-type")
+    parser.add_argument("--why")
+    parser.add_argument("--text", help="new-only text to stage for a trim decision")
+    parser.add_argument("--proposed-text", help="system-proposed trimmed text, for edit matching")
     parser.add_argument("--lifespan", choices=("lasting", "until", "review"))
     parser.add_argument("--date", type=date.fromisoformat)
     parser.add_argument("--expected-record-sha256")
@@ -1188,6 +1251,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "forward":
         forward_request(args)
+        return 0
+    if args.command == "learn":
+        print(json.dumps(learn_decisions(load_review_state(args.home_root)), ensure_ascii=False, indent=2))
         return 0
     inventory = inventory_pending(args.hermes_home if args.command == "shadow" else args.home_root)
     if args.command == "shadow":
@@ -1222,8 +1288,14 @@ def main(argv: list[str] | None = None) -> int:
         print(render_panel(request, evaluation, args.position, len(inventory.requests), catalog, flags))
         print(f"\nrecord_sha256: {request.record_sha256}")
         return 0
-    if (not args.human_decision and not args.rule) or args.decision not in {"approve", "reject"}:
-        raise ReviewError("A native decision requires --human-decision or --rule, and --decision approve|reject.")
+    if (not args.human_decision and not args.rule) or args.decision not in DECISION_OPTIONS:
+        raise ReviewError("A native decision requires --human-decision or --rule, and --decision approve|reject|trim.")
+    if args.rule and args.decision == "trim":
+        raise ReviewError("Trim is a human decision, not an automatic rule action.")
+    if args.decision == "trim" and (not args.human_decision or not args.text):
+        raise ReviewError("Trim requires --human-decision and --text containing only the new part.")
+    if args.decision == "trim" and args.proposal == "trim" and args.proposed_text is None:
+        raise ReviewError("A trim proposal requires --proposed-text for edit matching.")
     if not args.expected_record_sha256:
         raise ReviewError("A native decision requires --expected-record-sha256 from the reviewed inventory.")
     if not args.profile or not args.subsystem or not args.pending_id:
@@ -1237,6 +1309,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     if request is None:
         raise StaleRequestError("The reviewed pending request is no longer available; inspect the inventory again.")
+    edited_trim = args.decision == "trim" and args.proposed_text is not None and args.text != args.proposed_text
+    if args.human_decision and ((args.proposal is not None and args.decision != args.proposal) or edited_trim) and not args.why:
+        raise ReviewError("When overriding the proposal or editing its trim, --why is required.")
     is_user = request.subsystem == "memory" and request.payload.get("target") == "user"
     if args.date and args.lifespan == "lasting":
         raise ReviewError("--date cannot be combined with --lifespan lasting.")
@@ -1250,7 +1325,25 @@ def main(argv: list[str] | None = None) -> int:
     if is_user and args.decision == "approve" and args.lifespan == "until" and not args.date:
         raise ReviewError("--lifespan until requires --date.")
     before_entries = set(_user_entries(request.home)) if is_user and args.decision == "approve" else set()
-    result = apply_native_decision(request, args.decision, args.expected_record_sha256)
+    staged = None
+    original_text = "\n".join(
+        str(operation.get("content", operation.get("new_text", "")) or "")
+        for operation in _payload_operations(request.payload) if isinstance(operation, dict)
+    )
+    native_decision = "reject" if args.decision == "trim" else args.decision
+    if args.decision == "trim":
+        pending_path = request.home / "pending" / request.subsystem / f"{request.pending_id}.json"
+        try:
+            current_raw = pending_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise StaleRequestError("The reviewed pending request is no longer available; inspect the inventory again.") from exc
+        if sha256_text(current_raw) != args.expected_record_sha256:
+            raise StaleRequestError("The pending request changed after review; inspect it again before staging a trim.")
+        staged = stage_trimmed_request(request, args.text)
+    result = apply_native_decision(request, native_decision, args.expected_record_sha256)
+    if staged is not None:
+        result = {**result, "decision": "trim", "staged_pending_id": staged["id"],
+                  "staged_text": args.text, "original_text": original_text}
     if is_user and args.decision == "approve" and result.get("success"):
         try:
             today = date.today()
@@ -1267,13 +1360,23 @@ def main(argv: list[str] | None = None) -> int:
         except Exception as exc:
             result["metadata_error"] = f"{type(exc).__name__}: {exc}"
     state = load_review_state(args.home_root)
-    state.setdefault("decisions", []).append({
+    matched = None if args.proposal is None else (args.decision == args.proposal and not edited_trim)
+    decision_row = {
         "at": time.time(), "profile": request.profile, "subsystem": request.subsystem,
         "pending_id": request.pending_id, "record_sha256": request.record_sha256,
         "payload_sha256": request.payload_sha256, "decision": args.decision,
         "success": bool(result.get("success")),
-        "decided_by": "human" if args.human_decision else "rule", **({"reason": args.rule} if args.rule else {}),
-    })
+        "decided_by": "human" if args.human_decision else "rule",
+        "proposal": args.proposal, "proposal_rule": args.proposal_rule,
+        "decision_type": args.decision_type, "why": args.why,
+        "matched": matched,
+    }
+    if args.rule:
+        decision_row["reason"] = args.rule
+    if staged is not None:
+        decision_row.update({"original_text": original_text, "trimmed_text": args.text,
+                             "proposed_text": args.proposed_text, "edited_proposal": edited_trim})
+    state.setdefault("decisions", []).append(decision_row)
     save_review_state(args.home_root, state)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result.get("success") else 1

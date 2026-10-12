@@ -8,9 +8,10 @@ description: "Use when reviewing or curating pending memory or skill writes. App
 Use this skill at the start of a new conversation to review pending writes for
 `memory` and `skills` in the main agent's Hermes profile (`default`). It does not create or maintain another queue.
 
-The goal is automatic curation. Human-approved rules (the sweep and R1–R6) decide clear cases
+The goal is automatic curation. Human-approved rules (the sweep and R1–R9) decide clear cases
 without asking; every other request goes to the human, one at a time. Each rule the human approves
-removes one kind of question.
+removes one kind of question. Follow [theSystem tenet 3](../../../../workspace/TENETS.md): make repeated
+human decisions teach the system to need less intervention.
 
 ## Evaluators
 
@@ -23,7 +24,7 @@ Each criterion in `criteria.json` is asked about the request's literal payload b
 
 ## Authority limits
 
-- Decide without the human only through a human-approved rule: the sweep, or R1–R6 below.
+- Decide without the human only through a human-approved rule: the sweep, or R1–R9 below.
 - Do not approve or reject based on a probability, missing signals, or a Jev
   error.
 - Do not modify a pending request, split its operations, or reconstruct a write
@@ -100,8 +101,9 @@ memory files with their sizes and limits first. A rule decides only when it appl
 doubt, show the panel and let the human decide.
 
 - **R1 Superseded.** A newer request that replaces or contains an older one supersedes it: reject the
-  older one. A request whose content is already covered elsewhere is a duplicate: reject it. That covers saved
+  older one. A request whose full content is already covered elsewhere is a duplicate: reject it. That covers saved
   memory, the agent's standing instructions, theSystem rules and skills, and controls already in place.
+  If only part is covered, propose a trim containing only the new part and cite the existing passage; the human approves it.
 - **R2 Procedures go to skills.** A memory that says how to do a task belongs in a skill. Reject the
   memory and create a pending skill request with the procedure, targeting the existing related skill (a
   new skill only when none covers the domain). If the skill already holds the procedure, just reject.
@@ -119,7 +121,7 @@ doubt, show the panel and let the human decide.
 - **R8 Safety becomes a control.** A request that forbids an action to prevent damage, data loss, a security risk or unwanted cost is rejected from memory and turned into a proposed control (permission, deny rule, read-only access, pinned model or provider). Changing a control always needs the human's approval, because it changes security. Check every request for R8 before assigning a category: safety lines appear in any category. A request that only describes a control already in place is a duplicate: reject it under R1.
 - **R9 Project knowledge goes to the project.** A request that only records knowledge about one project (its architecture, stack, decisions, locations, workflows, or state) is rejected from memory and forwarded to that project: its text is saved as a new source in `<project>/wiki/raw/`, where the ingest process picks it up. Forward before rejecting. When the project cannot be identified, or has no folder in the workspace, show the request to the human. A request that mixes project knowledge with anything else is not decided by R9.
 
-R2 and R7 create the new pending request with Hermes's own staging (`tools.write_approval.stage_write`,
+R1 partial-duplicate trims, R2, and R7 create the new pending request with Hermes's own staging (`tools.write_approval.stage_write`,
 same payload shape the memory and skill tools stage), so it appears in `/memory pending` or
 `/skills pending` and is reviewed like any other request. Stage it before rejecting the original.
 R8's proposed control is reported to the human as a decision and never applied automatically.
@@ -144,10 +146,13 @@ memory decision is not approval of a rule.
 
 ## Decision per request
 
-After showing exactly one panel, offer: **approve**, **reject**, **leave pending**,
-or **discuss/propose a criterion**. Moving forward is not a decision.
+After showing exactly one panel, state the proposed decision and its rule/type before asking the human.
+Offer: **approve**, **reject**, **trim**, **leave pending**, or **discuss/propose a criterion**.
+Moving forward is not a decision. For a partial duplicate, cite the existing passage and propose only the
+new text; the human must approve the trim. When the human overrides a proposal or edits its proposed trim,
+ask for a one-sentence reason and record it with `--why`.
 
-Only after the person explicitly responds with `approve` or `reject`, use the
+Only after the person explicitly responds with `approve`, `reject`, or `trim`, use the
 identity and `record_sha256` captured while reviewing the request: profile,
 subsystem, and native ID. Do not select again by position. The hash prevents
 acting on a pending request that was modified, replaced, or already resolved:
@@ -156,9 +161,27 @@ acting on a pending request that was modified, replaced, or already resolved:
 python3 \
   agents/skills/curate-memory/scripts/review_memory_requests.py decide \
   --profile default --subsystem memory --pending-id '<reviewed-id>' \
-  --decision approve --human-decision \
+  --decision approve --human-decision --proposal approve --proposal-rule R6 \
+  --decision-type durable-fact-approve \
   --expected-record-sha256 '<hash-shown-during-review>'
 ```
+
+For a trim, pass only the new text in `--text`, the system's proposed trim in
+`--proposed-text`, and `--proposal trim`. The original is rejected with the same hash check only after
+Hermes stages the trimmed request for the same target:
+
+```sh
+python3 agents/skills/curate-memory/scripts/review_memory_requests.py decide \
+  --profile default --subsystem memory --pending-id '<reviewed-id>' \
+  --decision trim --human-decision --proposal trim --proposal-rule partial-duplicate \
+  --decision-type partial-duplicate-trim --text 'new text only' \
+  --proposed-text 'new text only' --expected-record-sha256 '<reviewed-hash>'
+```
+
+After each review session, run `learn`. It reports totals, matched streaks, mismatch reasons, and
+graduation candidates by decision type. A candidate is never automatic: ask the human to approve any
+automation. When the same correction repeats, propose a new rule (R10+) to the human; one approved rule
+replaces many future approvals. Report every graduation candidate.
 
 An approval targeting `user` requires `--lifespan lasting|until|review`, plus
 `--date YYYY-MM-DD` for `until` (for `review`, the date defaults to six months
