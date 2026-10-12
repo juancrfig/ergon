@@ -12,6 +12,7 @@ confirm their work unless the human explicitly asks. Read `agents/rules/tests-an
 ```text
 AGENTS.md            this guide
 GLOSSARY.md          workspace language
+TENETS.md            theSystem tenets: general principles every instance follows
 docs/                workspace decisions; docs/artifacts/ for workspace-wide HTML artifacts
 agents/              global roles: roles.yaml, rules/, skills/
 <project>/           one folder per company project
