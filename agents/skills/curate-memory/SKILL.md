@@ -202,12 +202,13 @@ return to inventory and request a new review.
 
 USER.json may hold a `standing` list: preferences that the agent already receives from elsewhere, such as the
 communication style in the `main` personality (type `communication-style`, source `personality:main`, lifespan
-`lasting`). They are an exception: never copy them into USER.md and never prune them. `lifespan check` reports
+`lasting`), and the instant-messaging style that Telegram injects only in the owner's DM (type
+`communication-style-telegram`, source `channel_prompt:telegram:<chat id>`). They are an exception: never copy them into USER.md and never prune them. `lifespan check` reports
 `STANDING DRIFT` when the live source no longer matches the tracked copy, and `STANDING MISSING` when it is gone;
 bring either to the human.
 
 Communication style is its own review category. Compare every request about how the agent communicates against the
-`communication-style` standing entry first:
+`communication-style` standing entries first (base and Telegram):
 
 - Already said by it: duplicate (R1).
 - Partly said: trim to the new part.

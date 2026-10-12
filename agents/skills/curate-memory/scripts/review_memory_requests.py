@@ -1075,6 +1075,30 @@ def _personality_text(home: Path, name: str) -> str | None:
     return None
 
 
+def _channel_prompt_text(home: Path, platform: str, chat_id: str) -> str | None:
+    """Read one per-chat prompt (root `<platform>.channel_prompts.<chat_id>` block scalar) without YAML."""
+    try:
+        lines = (home / "config.yaml").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    in_platform = in_prompts = False
+    for i, line in enumerate(lines):
+        if line and not line.startswith(" "):
+            in_platform, in_prompts = line == f"{platform}:", False
+            continue
+        if in_platform and line.startswith("  ") and not line.startswith("   "):
+            in_prompts = line.strip() == "channel_prompts:"
+            continue
+        if in_prompts and line.lstrip("'\" ").startswith(chat_id) and line.rstrip().endswith(("|", "|-")):
+            body = []
+            for nxt in lines[i + 1:]:
+                if nxt.strip() and not nxt.startswith("      "):
+                    break
+                body.append(nxt[6:])
+            return "\n".join(body).strip()
+    return None
+
+
 def manage_lifespan(args: argparse.Namespace) -> None:
     home = args.hermes_home
     today = args.today if args.lifespan_command == "check" and args.today else date.today()
@@ -1125,9 +1149,13 @@ def manage_lifespan(args: argparse.Namespace) -> None:
         # Standing preferences live outside USER.md (e.g. the communication style personality): never
         # injected into USER.md, never pruned; only flag when the live source drifted from the tracked copy.
         for item in metadata.get("standing", []):
-            if not isinstance(item, dict) or not str(item.get("source", "")).startswith("personality:"):
+            source = str(item.get("source", "")) if isinstance(item, dict) else ""
+            if source.startswith("personality:"):
+                live = _personality_text(home, source.split(":", 1)[1])
+            elif source.startswith("channel_prompt:") and source.count(":") == 2:
+                live = _channel_prompt_text(home, *source.split(":")[1:])
+            else:
                 continue
-            live = _personality_text(home, item["source"].split(":", 1)[1])
             if live is None:
                 print(f"STANDING MISSING: {item.get('type')} ({item['source']})")
             elif sha256_text(live) != item.get("sha256"):
