@@ -9,9 +9,10 @@ Work records live under `<project>/tickets/`, one folder per ticket.
   tasks/<task-id>/
     task.md                          YAML front matter plus task instructions and acceptance criteria
     runs/<run-id>/                   written by the main agent (run-tasks), one folder per run
-      run.json                       status, timings, branch, worktree, base and worker commits, verdict, error
+      run.json                       status, timings, branch, worktree, base and worker commits, gate rounds, verdict, error
       worker.diff                    the worker's change
       worker.md                      the worker's final summary
+      gate-base.json, gate-<n>.txt   the gate on the base commit, and its output for each round
       review.md                      the reviewer's findings and verdict
 ```
 

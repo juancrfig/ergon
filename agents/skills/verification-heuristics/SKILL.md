@@ -1,6 +1,6 @@
 ---
 name: verification-heuristics
-description: Use when designing, creating or judging how agents verify their work, or when a project has no verification guide. Holds the tenets, proof standards and the wizard that creates a project's guide.
+description: Use when designing, creating or judging how agents verify their work, or when a project has no verification guide or gate. Holds the tenets, the three classes, the gate contract, proof standards and the wizard that creates a project's guide.
 ---
 
 # Verification heuristics
@@ -19,6 +19,29 @@ The human approves every change to this skill.
 2. **Use triggers to pull information back into the loop, so the human does not bottleneck the system by having to.**
    Why: when no trigger brings a failure back to the agent, the human becomes the trigger, a meat proxy between the
    agent and reality.
+
+## Three classes of verification
+
+- **Gates**: compile, type check, build. Fast, offline, no model, the same verdict every time. No approval: workers
+  run them, and the orchestrator runs them again.
+- **Evidence runs**: launch the app and drive it like a user (the verification loop below). Need the human's
+  explicit ask.
+- **Tests**: automated tests, written at the end of development. The human approves each test.
+
+Gates come first because they are the 80/20: the cheapest checks catch most errors. Why: incident 1 (a missing
+quote) passed a worker re-read and two reviewers; a build catches it in seconds.
+
+## Gates
+
+Each project has one gate, declared in its guide as `verify-<project>/gate.json` and run with
+[scripts/gate.py](scripts/gate.py). The contract and the standard recipes per stack are in
+[references/gate.md](references/gate.md). In short:
+
+- One interface for every project; the stack's tools stay inside the gate's steps.
+- Red or green by exit code, never by a model's judgement.
+- The agent gets the tools' own messages in full, from every step, with a summary on top. Never only "error".
+- Fast (about 2 minutes), offline after setup, no real data, no secrets. Anything else is not a gate.
+- Every new project gets its gate before its first feature task. A project without a gate stops the run.
 
 ## The verification loop
 
@@ -48,6 +71,7 @@ tool for end-to-end work in this workspace. Adopted untried; the first project g
 
 Each project has one guide: the project-local skill `verify-<project>` in `<project>/agents/skills/`. It says how to
 launch, check, drive, observe and clean up the app, which real data sources agents may touch, and a feature map.
+Its first entry is the gate (`gate.json`); a guide may hold only the gate until the wizard runs.
 
 - No guide: create it with the wizard in [references/create-guide.md](references/create-guide.md).
 - A guide never proved end to end is a draft. A run that needs it stops and reports instead of guessing.
@@ -68,16 +92,15 @@ launch, check, drive, observe and clean up the app, which real data sources agen
 
 ## Boundaries
 
-- Evidence runs leave proof, not code. Writing or changing automated tests stays under
-  `rules/tests-and-verification-need-human-approval.md` until a test protocol exists.
-- Helper scripts a guide ships are code in the company's repository: the human approves them like any change.
+- Gates need no approval. Evidence runs and tests follow `rules/tests-and-verification-need-human-approval.md`.
+- Evidence runs leave proof, not code.
+- A gate's steps, and helper scripts a guide ships, are changes the human approves like any change to the project.
 - Agents touch a real data source only with the access the guide records for it. The human sets that access.
-- Running the app, builds or checks still needs the human's explicit ask (same rule). Asking for the wizard, or for
-  an evidence run, is that ask.
+- Asking for the wizard, or for an evidence run, is the human's explicit ask for it.
 
 ## How this skill grows
 
 Every verification failure comes with a proposal that prevents it from happening again. Place the fix at the
-strongest layer that can hold it: the code itself, then a deterministic check, then one "system one" model check
-per rule (a fast model that answers one yes/no question about the change), then the project's guide, then a rule,
-then this skill's text. Show the exact text to the human; write only what the human approves.
+strongest layer that can hold it: the code itself, then a deterministic check (a gate step), then one "system one"
+model check per rule (a fast model that answers one yes/no question about the change), then the project's guide, then
+a rule, then this skill's text. Show the exact text to the human; write only what the human approves.
