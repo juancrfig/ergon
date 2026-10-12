@@ -138,11 +138,15 @@ python3 \
   --expected-record-sha256 '<hash-shown-during-review>'
 ```
 
-For an approval targeting `user`, optionally pass `--lifespan lasting|until|review`
-and `--date YYYY-MM-DD`. Without a lifespan, new or replaced entries get a
-six-month review date. A replace carries no metadata forward: removed text is
-pruned, and each new entry receives the chosen lifespan. Metadata errors are
-reported but never undo or block a successful native apply.
+An approval targeting `user` requires `--lifespan lasting|until|review`, plus
+`--date YYYY-MM-DD` for `until` (for `review`, the date defaults to six months
+ahead). Lifespans are decided in the review session, never by a background
+model: with each USER request's panel, propose its lifespan and date with a
+one-line reason (a date already in the text is the strongest evidence), and the
+human confirms or changes it together with approve/reject. A replace carries no
+metadata forward: removed text is pruned, and each new entry receives the
+chosen lifespan. Metadata errors are reported but never undo or block a
+successful native apply.
 
 Use `--decision reject` to reject. Verify the response: `success: true`,
 `pending_removed: true`, and, for an approval, the Hermes `native_result`.
@@ -156,7 +160,8 @@ USER.md entries without metadata, and metadata whose exact text is no longer
 present. Dates passing never remove memory automatically. Show each DUE entry
 to the human one at a time: if it is still true, refresh it with `lifespan set`
 and a new date; if it is no longer true, remove it through a normal memory
-request. Ask the human to assign a lifespan to each UNCLASSIFIED entry.
+request. For each UNCLASSIFIED entry, propose a lifespan and date the same way
+and set it once the human confirms.
 
 ```sh
 python3 agents/skills/curate-memory/scripts/review_memory_requests.py lifespan check

@@ -1176,6 +1176,9 @@ def main(argv: list[str] | None = None) -> int:
         raise ReviewError("--date and --lifespan apply only to approvals targeting user.")
     if args.lifespan and not is_user:
         raise ReviewError("--lifespan applies only to approvals targeting user.")
+    if is_user and args.decision == "approve" and not args.lifespan:
+        # The lifespan is decided in the review session, with the decision; no silent default.
+        raise ReviewError("Approvals targeting user require --lifespan (agreed with the human during review).")
     if is_user and args.decision == "approve" and args.lifespan == "until" and not args.date:
         raise ReviewError("--lifespan until requires --date.")
     before_entries = set(_user_entries(request.home)) if is_user and args.decision == "approve" else set()
@@ -1189,7 +1192,7 @@ def main(argv: list[str] | None = None) -> int:
             added = after_entries - before_entries
             metadata["items"] = [item for item in metadata["items"]
                                  if isinstance(item, dict) and item.get("text") in after_entries]
-            lifespan = args.lifespan or "review"
+            lifespan = args.lifespan
             for text in sorted(added):
                 metadata["items"].append(_lifespan_item(text, lifespan, args.date, today, "approved-request"))
             _write_metadata(request.home, metadata)
