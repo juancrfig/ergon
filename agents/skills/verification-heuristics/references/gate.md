@@ -44,8 +44,10 @@ Copy the recipe for the project's stack. Change it only for a stated reason.
     pass the gate is never allowed.
   - Pyright, not mypy: faster, checks unannotated functions, and matches the editor. Reconsider only for a framework
     that needs a mypy plugin (Django).
-- **Plain JavaScript:** build only. A type check needs `checkJs` or a move to TypeScript; propose it to the human.
-- New projects start typed (TypeScript strict, or Python with pyright strict): the type checker is the cheapest gate.
+- **No JavaScript recipe.** JavaScript code uses the TypeScript recipe: a JavaScript project's gate task moves it to
+  TypeScript strict before any other task. Why: a gate without a type checker cannot catch most agent errors, so a
+  stack without one gets no recipe.
+- Every project is typed (TypeScript strict, or Python with pyright strict): the type checker is the cheapest gate.
 
 ## Feedback to the agent
 
