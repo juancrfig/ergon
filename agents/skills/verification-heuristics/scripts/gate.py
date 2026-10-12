@@ -21,12 +21,36 @@ from pathlib import Path
 
 ANSI = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07")
 ERROR = re.compile(r"\berror\b|\bError:|^E\s|SyntaxError|TypeError", re.I)
-LOCATION = re.compile(r"([\w./@-]+\.(?:[cm]?[jt]sx?|py|vue|svelte|css|json))(?:[(:]\d+(?:[,:]\d+)?\)?)?")
+LOCATION = re.compile(r"(?<![\w/.@-])((?:[\w@-][\w.@-]*/)*[\w.@-]+\.(?:json|[cm]?[jt]sx?|py|vue|svelte|css))\b(?:[(:]\d+(?:[,:]\d+)?\)?)?")
+BYTE_SPAN = re.compile(r"in ([\w./@-]+) at (\d+)\.\.(\d+)")
+STACK_FRAME = re.compile(r"^\s+at .*node_modules/")
 STEP_TIMEOUT = 300
 
 
 def clean(text: str) -> str:
     return ANSI.sub("", text).replace("\r\n", "\n").replace("\r", "\n")
+
+
+def readable(output: str, cwd: Path) -> str:
+    """Point at line:column instead of byte offsets, and drop tool-internal stack frames.
+
+    Why: bundlers such as Vite 8 report syntax errors as byte offsets in a file, which an agent cannot jump to, and
+    follow them with frames inside node_modules that say nothing about the agent's code.
+    """
+    def to_line_col(match: re.Match) -> str:
+        path, start = cwd / match.group(1), int(match.group(2))
+        try:
+            data = path.read_bytes()[:start]
+        except OSError:
+            return match.group(0)
+        line = data.count(b"\n") + 1
+        # Offsets are UTF-8 bytes; editors count characters, so measure the column on decoded text.
+        column = len(data[data.rfind(b"\n") + 1:].decode(errors="replace")) + 1
+        source = path.read_bytes().split(b"\n")[line - 1].decode(errors="replace")
+        excerpt = source[max(column - 60, 0):column + 60]
+        return f"{match.group(0)} ({match.group(1)}:{line}:{column}, near: {excerpt.strip()})"
+    lines = [BYTE_SPAN.sub(to_line_col, line) for line in output.split("\n") if not STACK_FRAME.match(line)]
+    return "\n".join(lines)
 
 
 def signature(step: str, line: str, root: str) -> str:
@@ -42,6 +66,7 @@ def run(step: dict, root: Path) -> dict:
         proc = subprocess.run(step["run"], shell=True, cwd=root / step.get("cwd", "."), capture_output=True,
                               text=True, timeout=step.get("timeout", STEP_TIMEOUT))
         output, code = clean(proc.stdout + proc.stderr), proc.returncode
+        output = readable(output, root / step.get("cwd", "."))
     except subprocess.TimeoutExpired as exc:
         output = clean((exc.stdout or b"").decode(errors="replace") if isinstance(exc.stdout, bytes) else (exc.stdout or ""))
         output += f"\n[gate] step timed out after {exc.timeout}s"
@@ -82,7 +107,8 @@ def main() -> int:
         for line in result["output"].split("\n"):
             if ERROR.search(line):
                 errors += 1
-                files.update(m.group(1) for m in LOCATION.finditer(line.replace(str(root) + "/", "")))
+                files.update(m.group(1) for m in LOCATION.finditer(line.replace(str(root) + "/", ""))
+                             if "node_modules" not in m.group(1))
                 sig = signature(result["name"], line, str(root) + "/")
                 signatures.append(sig)
                 if baseline is not None:
