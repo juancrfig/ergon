@@ -286,7 +286,12 @@ def evaluate_request(
 
 
 def _review_state_path(root: Path) -> Path:
-    return root / "memory-request-review" / "state.json"
+    path = root / "curate-memory" / "state.json"
+    legacy = root / "memory-request-review" / "state.json"
+    if not path.exists() and legacy.exists():  # the skill was renamed; keep its decision history
+        path.parent.mkdir(parents=True, exist_ok=True)
+        legacy.replace(path)
+    return path
 
 
 def load_review_state(root: Path) -> dict[str, Any]:
@@ -819,6 +824,8 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--decision", choices=("approve", "reject", "pending"))
     parser.add_argument("--expected-record-sha256")
     parser.add_argument("--human-decision", action="store_true")
+    parser.add_argument("--rule", choices=("R1", "R2", "R3", "R4", "R5", "R6"),
+                        help="decide by a human-approved rule instead of an explicit human decision")
     parser.add_argument("--json", action="store_true")
     return parser.parse_args(argv)
 
@@ -864,8 +871,8 @@ def main(argv: list[str] | None = None) -> int:
         print(render_panel(request, evaluation, args.position, len(inventory.requests), catalog, flags))
         print(f"\nrecord_sha256: {request.record_sha256}")
         return 0
-    if not args.human_decision or args.decision not in {"approve", "reject"}:
-        raise ReviewError("A native decision requires --human-decision and --decision approve|reject.")
+    if (not args.human_decision and not args.rule) or args.decision not in {"approve", "reject"}:
+        raise ReviewError("A native decision requires --human-decision or --rule, and --decision approve|reject.")
     if not args.expected_record_sha256:
         raise ReviewError("A native decision requires --expected-record-sha256 from the reviewed inventory.")
     if not args.profile or not args.subsystem or not args.pending_id:
@@ -886,6 +893,7 @@ def main(argv: list[str] | None = None) -> int:
         "pending_id": request.pending_id, "record_sha256": request.record_sha256,
         "payload_sha256": request.payload_sha256, "decision": args.decision,
         "success": bool(result.get("success")),
+        "decided_by": "human" if args.human_decision else "rule", **({"reason": args.rule} if args.rule else {}),
     })
     save_review_state(args.home_root, state)
     print(json.dumps(result, ensure_ascii=False, indent=2))

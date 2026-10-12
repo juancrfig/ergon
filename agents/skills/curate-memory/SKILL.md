@@ -1,12 +1,16 @@
 ---
-name: memory-request-review
-description: "Use when reviewing pending Hermes memory or skill writes of the main agent; shows one evaluated request at a time and requires an explicit human decision."
+name: curate-memory
+description: "Use when reviewing or curating pending memory or skill writes. Approved rules decide clear cases; the human decides the rest, one at a time."
 ---
 
-# Assisted memory-request review
+# Curate memory
 
 Use this skill at the start of a new conversation to review pending writes for
 `memory` and `skills` in the main agent's Hermes profile (`default`). It does not create or maintain another queue.
+
+The goal is automatic curation. Human-approved rules (the sweep and R1–R6) decide clear cases
+without asking; every other request goes to the human, one at a time. Each rule the human approves
+removes one kind of question.
 
 ## Evaluators
 
@@ -19,6 +23,7 @@ Each criterion in `criteria.json` is asked about the request's literal payload b
 
 ## Authority limits
 
+- Decide without the human only through a human-approved rule: the sweep, or R1–R6 below.
 - Do not approve or reject based on a probability, missing signals, or a Jev
   error.
 - Do not modify a pending request, split its operations, or reconstruct a write
@@ -39,7 +44,7 @@ workspace. If the review script reports that the interpreter is unavailable
 (first use, or after a Hermes upgrade changed its Python), prepare it once:
 
 ```sh
-python3 agents/skills/memory-request-review/scripts/prepare_environment.py
+python3 agents/skills/curate-memory/scripts/prepare_environment.py
 ```
 
 It finds Hermes's Python through the `hermes` launcher on PATH, creates a
@@ -55,7 +60,7 @@ another prepared interpreter.
 
 ```sh
 python3 \
-  agents/skills/memory-request-review/scripts/review_memory_requests.py inventory
+  agents/skills/curate-memory/scripts/review_memory_requests.py inventory
 ```
 
 Report the counts of `memory`, `skills`, and unreadable records. Unreadable
@@ -67,7 +72,7 @@ prior step that shows the proposal and evaluates it later.
 
 ```sh
 python3 \
-  agents/skills/memory-request-review/scripts/review_memory_requests.py show \
+  agents/skills/curate-memory/scripts/review_memory_requests.py show \
   --position 1
 ```
 
@@ -79,6 +84,33 @@ internally for `decide`. The panel shows `Target` (`memory`, `user`, or
 (`−` old, `+` new) without detailing where it lands in the file, and each Jev
 question with its probability (higher = more likely problem). Do not average or
 convert results into a quality score. Show at most one request per turn.
+
+## Curation rules (human-approved)
+
+Apply these after the sweep, to each request in turn, before showing its panel. Read the live
+memory files with their sizes and limits first. A rule decides only when it applies clearly; when in
+doubt, show the panel and let the human decide.
+
+- **R1 Superseded.** A newer request that replaces or contains an older one supersedes it: reject the
+  older one.
+- **R2 Procedures go to skills.** A memory that says how to do a task belongs in a skill. Add it to the
+  existing related skill (create a skill only when none covers the domain), then reject the memory. If the
+  skill already holds the procedure, just reject.
+- **R3 Ideas go to the vault.** A future project or idea the human has not started goes to the ideas list
+  in the vault at `$VAULT_PATH` (`0 - Inbox/_Ideas.md`), then the request is rejected. When `VAULT_PATH`
+  is not set or the file is missing, R3 does not decide: show the request to the human.
+- **R4 No to-dos.** Pending tasks and progress notes are rejected; chat history is their record.
+- **R5 Space.** If an approval would exceed the memory limit, merge overlapping live entries into one
+  shorter entry with the memory tool, then approve. Never edit the pending request itself. Ask only when
+  a live entry would be deleted.
+- **R6 Decided means done.** When a rule clearly decides a request, apply it without asking.
+
+Apply a rule decision with `decide --rule <R1..R6>` instead of `--human-decision` (same identity and
+hash checks; logged with `decided_by: rule`). Report each one in one line: rule, target, summary.
+When a human decision reveals a reusable preference, propose it as a new rule.
+
+Every edit to these rules needs the human's explicit approval of the exact text. Approval of a
+memory decision is not approval of a rule.
 
 ## Decision per request
 
@@ -92,7 +124,7 @@ acting on a pending request that was modified, replaced, or already resolved:
 
 ```sh
 python3 \
-  agents/skills/memory-request-review/scripts/review_memory_requests.py decide \
+  agents/skills/curate-memory/scripts/review_memory_requests.py decide \
   --profile default --subsystem memory --pending-id '<reviewed-id>' \
   --decision approve --human-decision \
   --expected-record-sha256 '<hash-shown-during-review>'
@@ -127,7 +159,7 @@ request is still true about the code; only the human or a reader of the code can
 The questions sent to Jev live only in:
 
 ```text
-agents/skills/memory-request-review/criteria.json
+agents/skills/curate-memory/criteria.json
 ```
 
 Every edit to `criteria.json` (adding, rewording, versioning, or removing a

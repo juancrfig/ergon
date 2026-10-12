@@ -86,7 +86,7 @@ Run evidence is in `<task>/runs/<run-id>/`: `run.json`, `worker.diff`, `worker.m
 - Adding knowledge: the human puts sources in `<project>/wiki/raw/` or sends them in chat, and asks you to ingest them
   (`ingest` skill). Propose the changes first; write the wiki only after the human approves them.
 - Wiki health check on request (`llm-wiki` skill): report only; fixes need the human's approval.
-- Memory reviews: use the `memory-request-review` skill with the human.
+- Memory reviews: use the `curate-memory` skill with the human.
 
 ## theSystem updates and proposals
 

@@ -3,17 +3,9 @@
 Human-owned. Agents edit this file only with the human's explicit approval.
 Every change must reference a feature ID.
 
-Anything not in this map is not wanted.
+Anything not in this map is not wanted. Deferred ideas are open GitHub issues, not entries in this file.
 
 Principle (ADR 0004): tests are a scarce good, created only at the end of development and only with explicit human approval. Verification follows the same principle: agents verify nothing unless the human asks.
-
-## Later (do not build yet)
-
-- Wizard offers to clone an existing repo as the workspace.
-- Memory review with a System One model: the model rewords or splits a pending memory request and applies the judgement rules (R1–R6) as checkable criteria, so fewer requests reach the human.
-- Explainer videos: on request, the main agent makes a narrated, 3Blue1Brown-style video that explains a topic. Narration uses ElevenLabs or a free alternative that runs locally.
-
----
 
 ## F1 · Install theSystem
 
@@ -103,7 +95,7 @@ Status: open (in progress)
 Outcome: the human talks only to the main agent. The main agent:
   - runs approved tasks (F4) and shows `pre-done` tasks; the human says merge or don't merge
   - goes through `failed` and `changes-requested` tasks with the human
-  - runs memory reviews with the human, using the `memory-request-review` skill
+  - runs memory reviews with the human, using the `curate-memory` skill
   - Memory changes need the human's approval. Skill changes apply directly, and the Curator maintains the skills the agent creates.
 Reach: the main agent merges and retries tasks itself; the human never runs commands.
 After a rejection, failure or "don't merge":

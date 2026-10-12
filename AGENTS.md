@@ -2,8 +2,8 @@
 
 `FEATURES.md` is the human-owned feature map and the only definition of what theSystem does. Edit it only with the
 human's explicit approval of the change.
-Anything not in the map is not wanted, and items under "Later" must not be built yet. Every change names the
-feature ID it serves.
+Anything not in the map is not wanted. Deferred ideas are open GitHub issues and must not be built until the human
+picks them. Every change names the feature ID it serves.
 
 theSystem follows ADR 0004: the main agent orchestrates tasks with subagents, and
 there is no orchestrator program and no test suite.
@@ -22,7 +22,8 @@ Tests are a scarce good: write them only at the end of development and only with
 Do not verify changes (run, build, lint) unless the owner asks. Follow
 `agents/rules/tests-and-verification-need-human-approval.md`.
 
-GitHub Issues is the tracker for theSystem's own development: https://github.com/juancrfig/theSystem/issues.
+GitHub Issues is the only tracker for theSystem's own development: https://github.com/juancrfig/theSystem/issues.
+Backlog, deferred ideas, specs and tickets live there, never as files in this repository.
 Do not create or switch git branches unless the user asks. Development pushes straight to
 `master`; only proposals from workspaces (F10) use pull requests.
 
