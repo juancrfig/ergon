@@ -8,6 +8,58 @@ description: Use when designing a task for a frontend agent, or building a visua
 The human's personal taste for visual interfaces, and the library of components agents build from. The human
 approves every change to this skill.
 
+## Taste: motion
+
+Adopted from Emil Kowalski ("You don't need animations", and his design-engineering skill). Canonical copy:
+`juancrfig/memory` `frontend/rules/004-motion.md`.
+
+**Decide.** Before animating, name how often a user sees it and its purpose. No answer, no animation.
+
+- Hundreds of times a day (keyboard shortcuts, command menu, key navigation): no animation, ever. No action started
+  from the keyboard animates.
+- Tens of times a day (hover, list navigation, tab switches on work screens): instant, or barely there.
+- Occasional (dialogs, drawers, toasts, dropdowns): standard animation.
+- Rare or first-time (onboarding, feedback forms, celebrations): delight is allowed.
+- Valid purposes: spatial consistency (enter and leave from the same side), a change of state, explaining a feature,
+  press feedback, preventing a jarring appear or disappear. "It looks cool" is not a purpose for anything seen often.
+- Match motion to the mood: daily work tools are crisp and fast.
+
+**Hover.** A color shift, never motion. Daily work screens: the color changes instantly. Screens seen rarely
+(landing, login, showcase): a fade of at most 150ms, `ease`. Hover only behind `@media (hover: hover) and
+(pointer: fine)`.
+
+**Speed.** Interface animations stay under 300ms. Press 100–160ms; tooltips and small popovers 125–200ms; dropdowns
+150–250ms; dialogs, drawers and view changes 200–300ms (up to 500ms only on screens seen rarely); marketing may be
+longer. Exit is faster than enter: slow where the user decides (hold-to-delete 2s linear), fast where the system
+answers (release 200ms). The first tooltip waits; the next ones open instantly with no animation. A faster spinner
+makes loading feel faster.
+
+**Easing.** Enter or leave: ease-out. Move on screen: ease-in-out. Color: ease. Constant motion: linear. Never ease-in.
+Use strong curves: `--ease-out: cubic-bezier(0.23, 1, 0.32, 1)`, `--ease-in-out: cubic-bezier(0.77, 0, 0.175, 1)`,
+`--ease-drawer: cubic-bezier(0.32, 0.72, 0, 1)`. Springs for drag, interruptible gestures and objects that should feel
+alive; bounce 0.1–0.3, only for drag-to-dismiss or playful pieces.
+
+**Craft.**
+
+- Pressables scale to 0.97 on press (range 0.95–0.98).
+- Nothing enters from `scale(0)`: start at `scale(0.95)` with opacity 0.
+- Popovers grow from their trigger (Base UI: `transform-origin: var(--transform-origin)`). Dialogs stay centered.
+- Transitions, not keyframes, for anything triggered rapidly: transitions change course, keyframes restart.
+- Name animated properties; never `transition: all`. Animate only `transform` and `opacity` (`clip-path`, `filter`
+  when needed), never width, height, padding or margin.
+- In Motion (Framer Motion) under load, animate the full `transform` string, not the `x`/`y`/`scale` shortcuts. Prefer
+  CSS for animations decided in advance.
+- A crossfade that looks like two objects swapping gets a light blur during it (about 2px, under 20px).
+- Stagger groups 30–80ms per item; never block input while it plays.
+- Drag: dismiss on a quick flick (speed), not only distance; friction at the edges instead of hard stops; capture the
+  pointer; ignore extra fingers once a drag starts.
+
+**Accessibility.** Reduced motion means fewer and gentler animations, not zero: keep opacity and color, remove
+movement.
+
+**Review.** Watch new animations in slow motion or frame by frame, look again the next day, test gestures on a real
+phone.
+
 ## Component library
 
 Free resources only. Two layers:
