@@ -198,6 +198,22 @@ Use `--decision reject` to reject. Verify the response: `success: true`,
 If it fails or the hash changed, do not repair, recreate, or apply a variant;
 return to inventory and request a new review.
 
+## Standing preferences
+
+USER.json may hold a `standing` list: preferences that the agent already receives from elsewhere, such as the
+communication style in the `main` personality (type `communication-style`, source `personality:main`, lifespan
+`lasting`). They are an exception: never copy them into USER.md and never prune them. `lifespan check` reports
+`STANDING DRIFT` when the live source no longer matches the tracked copy, and `STANDING MISSING` when it is gone;
+bring either to the human.
+
+Communication style is its own review category. Compare every request about how the agent communicates against the
+`communication-style` standing entry first:
+
+- Already said by it: duplicate (R1).
+- Partly said: trim to the new part.
+- Contradicts or improves the block itself: propose an amendment of the block to the human. It is shared by every
+  instance, so it changes theSystem's `main` personality, not one instance's USER.md.
+
 ## USER memory lifespan review
 
 At the start of each review, run `lifespan check`. It reports due entries,

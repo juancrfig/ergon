@@ -1051,6 +1051,30 @@ def _lifespan_item(text: str, lifespan: str, due: date | None, today: date, sour
             "verified": today.isoformat(), "source": source}
 
 
+def _personality_text(home: Path, name: str) -> str | None:
+    """Read one Hermes personality block from config.yaml without a YAML dependency."""
+    try:
+        lines = (home / "config.yaml").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    try:
+        start = lines.index("personalities:")
+    except ValueError:
+        return None
+    header = f"  {name}: |"
+    for i in range(start + 1, len(lines)):
+        if lines[i].startswith(header):
+            body = []
+            for line in lines[i + 1:]:
+                if line.strip() and not line.startswith("    "):
+                    break
+                body.append(line[4:])
+            return "\n".join(body).strip()
+        if lines[i] and not lines[i].startswith(" "):
+            return None
+    return None
+
+
 def manage_lifespan(args: argparse.Namespace) -> None:
     home = args.hermes_home
     today = args.today if args.lifespan_command == "check" and args.today else date.today()
@@ -1098,6 +1122,16 @@ def manage_lifespan(args: argparse.Namespace) -> None:
         ):
             for row in rows:
                 print(f"{heading}: {describe(row)}")
+        # Standing preferences live outside USER.md (e.g. the communication style personality): never
+        # injected into USER.md, never pruned; only flag when the live source drifted from the tracked copy.
+        for item in metadata.get("standing", []):
+            if not isinstance(item, dict) or not str(item.get("source", "")).startswith("personality:"):
+                continue
+            live = _personality_text(home, item["source"].split(":", 1)[1])
+            if live is None:
+                print(f"STANDING MISSING: {item.get('type')} ({item['source']})")
+            elif sha256_text(live) != item.get("sha256"):
+                print(f"STANDING DRIFT: {item.get('type')} ({item['source']}) differs from USER.json")
         return
     if args.lifespan_command == "prune":
         keep = [item for item in metadata["items"] if isinstance(item, dict) and item.get("key") in entry_keys]
