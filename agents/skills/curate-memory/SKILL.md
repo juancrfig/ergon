@@ -101,9 +101,10 @@ doubt, show the panel and let the human decide.
 
 - **R1 Superseded.** A newer request that replaces or contains an older one supersedes it: reject the
   older one.
-- **R2 Procedures go to skills.** A memory that says how to do a task belongs in a skill. Add it to the
-  existing related skill (create a skill only when none covers the domain), then reject the memory. If the
-  skill already holds the procedure, just reject.
+- **R2 Procedures go to skills.** A memory that says how to do a task belongs in a skill. Reject the
+  memory and create a pending skill request with the procedure, targeting the existing related skill (a
+  new skill only when none covers the domain). If the skill already holds the procedure, just reject.
+  The skill request is reviewed like any other.
 - **R3 Ideas go to the vault.** A future project or idea the human has not started goes to the ideas list
   in the vault at `$VAULT_PATH` (`0 - Inbox/_Ideas.md`), then the request is rejected. When `VAULT_PATH`
   is not set or the file is missing, R3 does not decide: show the request to the human.
@@ -112,8 +113,14 @@ doubt, show the panel and let the human decide.
   shorter entry with the memory tool, then approve. Never edit the pending request itself. Ask only when
   a live entry would be deleted.
 - **R6 Decided means done.** When a rule clearly decides a request, apply it without asking.
+- **R7 Wrong file.** A fact about the environment written to USER, or a fact about the human written to
+  MEMORY, is rejected and re-created as a pending request for the right file.
 
-Apply a rule decision with `decide --rule <R1..R6>` instead of `--human-decision` (same identity and
+R2 and R7 create the new pending request with Hermes's own staging (`tools.write_approval.stage_write`,
+same payload shape the memory and skill tools stage), so it appears in `/memory pending` or
+`/skills pending` and is reviewed like any other request. Stage it before rejecting the original.
+
+Apply a rule decision with `decide --rule <R1..R7>` instead of `--human-decision` (same identity and
 hash checks; logged with `decided_by: rule`). Report each one in one line: rule, target, summary.
 When a human decision reveals a reusable preference, propose it as a new rule.
 
