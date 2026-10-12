@@ -1,24 +1,18 @@
 ---
 name: verification-heuristics
-description: Use when designing, creating or judging how agents verify their work, or when a project has no verification guide or gate. Holds the tenets, the three classes, the gate contract, proof standards and the wizard that creates a project's guide.
+description: Use when designing, creating or judging how agents verify their work, or when a project has no verification guide or gate. Holds the three classes, the gate contract, proof standards and the wizard that creates a project's guide.
 ---
 
 # Verification heuristics
 
 The philosophy every verification system in this workspace follows, plus the wizard that turns it into one
-project's verification guide. Tenets are general on purpose; each project's guide makes them concrete.
+project's verification guide. The general tenets are in [theSystem tenets](../../../docs/tenets.md); each project's
+guide makes them concrete.
 The human approves every change to this skill.
 
 ## Tenets
 
-1. **Take the deterministic parts out of the LLM's responsibilities; what you cannot make deterministic, at least
-   make the decision narrow.**
-   Why: three LLM readings missed a missing quote that a compiler catches in seconds, every time. A model judging one
-   rule at a time decides more reliably than one reviewer holding every rule at once.
-
-2. **Use triggers to pull information back into the loop, so the human does not bottleneck the system by having to.**
-   Why: when no trigger brings a failure back to the agent, the human becomes the trigger, a meat proxy between the
-   agent and reality.
+See [theSystem tenets](../../../docs/tenets.md).
 
 ## Three classes of verification
 
