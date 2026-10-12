@@ -18,6 +18,7 @@ import sys
 import textwrap
 import time
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
@@ -945,7 +946,143 @@ def _default_catalog_path() -> Path:
     return Path(__file__).resolve().parents[1] / "criteria.json"
 
 
+def _user_entries(home: Path) -> list[str]:
+    text = (home / "memories" / "USER.md").read_text(encoding="utf-8")
+    return [part.strip("\r\n") for part in re.split(r"(?m)^§[ \t]*$", text) if part.strip("\r\n")]
+
+
+def _metadata_path(home: Path) -> Path:
+    return home / "memories" / "USER.json"
+
+
+def _read_metadata(home: Path) -> dict[str, Any]:
+    path = _metadata_path(home)
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ReviewError(f"Cannot read {path}: {exc}") from exc
+    if not isinstance(value, dict) or value.get("version") != 1 or not isinstance(value.get("items"), list):
+        raise ReviewError(f"Invalid USER lifespan metadata: {path}")
+    return value
+
+
+def _write_metadata(home: Path, value: dict[str, Any]) -> None:
+    path = _metadata_path(home)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
+def _six_months_after(day: date) -> date:
+    month_index = day.year * 12 + day.month - 1 + 6
+    year, month = divmod(month_index, 12)
+    month += 1
+    import calendar
+    return date(year, month, min(day.day, calendar.monthrange(year, month)[1]))
+
+
+def _lifespan_item(text: str, lifespan: str, due: date | None, today: date, source: str) -> dict[str, Any]:
+    if lifespan == "lasting":
+        due = None
+    elif lifespan == "until" and due is None:
+        raise ReviewError("lifespan 'until' requires --date.")
+    elif lifespan == "review" and due is None:
+        due = _six_months_after(today)
+    return {"key": sha256_text(text), "text": text, "lifespan": lifespan,
+            "date": due.isoformat() if due else None, "created": today.isoformat(),
+            "verified": today.isoformat(), "source": source}
+
+
+def manage_lifespan(args: argparse.Namespace) -> None:
+    home = args.hermes_home
+    today = args.today if args.lifespan_command == "check" and args.today else date.today()
+    if args.lifespan_command == "init":
+        path = _metadata_path(home)
+        if path.exists():
+            raise ReviewError(f"Refusing to overwrite existing {path}.")
+        try:
+            classification = json.loads(args.classify.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ReviewError(f"Cannot read classification file {args.classify}: {exc}") from exc
+        rows = classification.get("items") if isinstance(classification, dict) else None
+        if not isinstance(rows, list):
+            raise ReviewError("Classification file must contain an items list.")
+        by_text = {}
+        for row in rows:
+            if not isinstance(row, dict) or not isinstance(row.get("text"), str):
+                raise ReviewError("Every classification item requires exact text and lifespan fields.")
+            by_text[row["text"]] = row
+        items = []
+        for text in _user_entries(home):
+            row = by_text.get(text)
+            if row is None:
+                raise ReviewError("Classification file does not cover every USER.md entry.")
+            lifespan = row.get("lifespan")
+            if lifespan not in {"lasting", "until", "review"}:
+                raise ReviewError(f"Invalid lifespan for entry: {text[:80]}")
+            due = date.fromisoformat(row["date"]) if row.get("date") else None
+            items.append(_lifespan_item(text, lifespan, due, today, "init"))
+        _write_metadata(home, {"version": 1, "items": items})
+        return
+    entries = _user_entries(home)
+    entry_keys = {sha256_text(text): text for text in entries}
+    metadata = _read_metadata(home)
+    if args.lifespan_command == "check":
+        known = {item.get("key"): item for item in metadata["items"] if isinstance(item, dict)}
+        due = [item for item in known.values() if item.get("lifespan") in {"until", "review"}
+               and item.get("date") and date.fromisoformat(item["date"]) <= today]
+        unclassified = [text for key, text in entry_keys.items() if key not in known]
+        orphaned = [item for key, item in known.items() if key not in entry_keys]
+        for heading, rows, describe in (
+            ("DUE", due, lambda item: f"{item['date']} {item['lifespan']}: {item['text']}"),
+            ("UNCLASSIFIED", unclassified, lambda text: text),
+            ("ORPHANED", orphaned, lambda item: f"{item.get('key')}: {item.get('text', '')}"),
+        ):
+            for row in rows:
+                print(f"{heading}: {describe(row)}")
+        return
+    if args.lifespan_command == "prune":
+        keep = [item for item in metadata["items"] if isinstance(item, dict) and item.get("key") in entry_keys]
+        if len(keep) != len(metadata["items"]):
+            metadata["items"] = keep
+            _write_metadata(home, metadata)
+        return
+    matches = [text for text in entries if text.startswith(args.entry_prefix)]
+    if len(matches) != 1:
+        raise ReviewError(f"Entry prefix must match exactly one USER.md entry; matched {len(matches)}.")
+    due = args.date
+    if args.lifespan == "lasting" and due:
+        raise ReviewError("lifespan 'lasting' does not accept --date.")
+    if args.lifespan == "until" and not due:
+        raise ReviewError("lifespan 'until' requires --date.")
+    text = matches[0]
+    new_item = _lifespan_item(text, args.lifespan, due, today, "set")
+    metadata["items"] = [item for item in metadata["items"] if not isinstance(item, dict) or item.get("key") != new_item["key"]]
+    metadata["items"].append(new_item)
+    _write_metadata(home, metadata)
+
+
 def _parse_args(argv: list[str]) -> argparse.Namespace:
+    if argv and argv[0] == "lifespan":
+        parser = argparse.ArgumentParser(description="Manage USER.md entry lifespan metadata.")
+        subparsers = parser.add_subparsers(dest="lifespan_command", required=True)
+        init_parser = subparsers.add_parser("init")
+        init_parser.add_argument("--classify", type=Path, required=True)
+        init_parser.add_argument("--hermes-home", type=Path, default=Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")))
+        check_parser = subparsers.add_parser("check")
+        check_parser.add_argument("--today", type=date.fromisoformat)
+        check_parser.add_argument("--hermes-home", type=Path, default=Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")))
+        set_parser = subparsers.add_parser("set")
+        set_parser.add_argument("--entry-prefix", required=True)
+        set_parser.add_argument("--lifespan", choices=("lasting", "until", "review"), required=True)
+        set_parser.add_argument("--date", type=date.fromisoformat)
+        set_parser.add_argument("--hermes-home", type=Path, default=Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")))
+        prune_parser = subparsers.add_parser("prune")
+        prune_parser.add_argument("--hermes-home", type=Path, default=Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")))
+        args = parser.parse_args(argv[1:])
+        args.command = "lifespan"
+        return args
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("inventory", "show", "decide", "native-apply", "sweep", "shadow"))
     parser.add_argument("--home-root", type=Path, default=Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")))
@@ -959,6 +1096,8 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--pending-id")
     parser.add_argument("--model", default=None)
     parser.add_argument("--decision", choices=("approve", "reject", "pending"))
+    parser.add_argument("--lifespan", choices=("lasting", "until", "review"))
+    parser.add_argument("--date", type=date.fromisoformat)
     parser.add_argument("--expected-record-sha256")
     parser.add_argument("--human-decision", action="store_true")
     parser.add_argument("--rule", choices=("R1", "R2", "R3", "R4", "R5", "R6"),
@@ -978,6 +1117,9 @@ def main(argv: list[str] | None = None) -> int:
             ),
             ensure_ascii=False,
         ))
+        return 0
+    if args.command == "lifespan":
+        manage_lifespan(args)
         return 0
     inventory = inventory_pending(args.hermes_home if args.command == "shadow" else args.home_root)
     if args.command == "shadow":
@@ -1027,7 +1169,32 @@ def main(argv: list[str] | None = None) -> int:
     )
     if request is None:
         raise StaleRequestError("The reviewed pending request is no longer available; inspect the inventory again.")
+    is_user = request.subsystem == "memory" and request.payload.get("target") == "user"
+    if args.date and args.lifespan == "lasting":
+        raise ReviewError("--date cannot be combined with --lifespan lasting.")
+    if args.date and not is_user:
+        raise ReviewError("--date and --lifespan apply only to approvals targeting user.")
+    if args.lifespan and not is_user:
+        raise ReviewError("--lifespan applies only to approvals targeting user.")
+    if is_user and args.decision == "approve" and args.lifespan == "until" and not args.date:
+        raise ReviewError("--lifespan until requires --date.")
+    before_entries = set(_user_entries(request.home)) if is_user and args.decision == "approve" else set()
     result = apply_native_decision(request, args.decision, args.expected_record_sha256)
+    if is_user and args.decision == "approve" and result.get("success"):
+        try:
+            today = date.today()
+            after_entries = set(_user_entries(request.home))
+            metadata_path = _metadata_path(request.home)
+            metadata = _read_metadata(request.home) if metadata_path.exists() else {"version": 1, "items": []}
+            added = after_entries - before_entries
+            metadata["items"] = [item for item in metadata["items"]
+                                 if isinstance(item, dict) and item.get("text") in after_entries]
+            lifespan = args.lifespan or "review"
+            for text in sorted(added):
+                metadata["items"].append(_lifespan_item(text, lifespan, args.date, today, "approved-request"))
+            _write_metadata(request.home, metadata)
+        except Exception as exc:
+            result["metadata_error"] = f"{type(exc).__name__}: {exc}"
     state = load_review_state(args.home_root)
     state.setdefault("decisions", []).append({
         "at": time.time(), "profile": request.profile, "subsystem": request.subsystem,

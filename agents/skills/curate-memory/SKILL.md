@@ -138,10 +138,36 @@ python3 \
   --expected-record-sha256 '<hash-shown-during-review>'
 ```
 
+For an approval targeting `user`, optionally pass `--lifespan lasting|until|review`
+and `--date YYYY-MM-DD`. Without a lifespan, new or replaced entries get a
+six-month review date. A replace carries no metadata forward: removed text is
+pruned, and each new entry receives the chosen lifespan. Metadata errors are
+reported but never undo or block a successful native apply.
+
 Use `--decision reject` to reject. Verify the response: `success: true`,
 `pending_removed: true`, and, for an approval, the Hermes `native_result`.
 If it fails or the hash changed, do not repair, recreate, or apply a variant;
 return to inventory and request a new review.
+
+## USER memory lifespan review
+
+At the start of each review, run `lifespan check`. It reports due entries,
+USER.md entries without metadata, and metadata whose exact text is no longer
+present. Dates passing never remove memory automatically. Show each DUE entry
+to the human one at a time: if it is still true, refresh it with `lifespan set`
+and a new date; if it is no longer true, remove it through a normal memory
+request. Ask the human to assign a lifespan to each UNCLASSIFIED entry.
+
+```sh
+python3 agents/skills/curate-memory/scripts/review_memory_requests.py lifespan check
+python3 agents/skills/curate-memory/scripts/review_memory_requests.py lifespan set \
+  --entry-prefix 'unique beginning of entry' --lifespan review --date YYYY-MM-DD
+```
+
+`lifespan init --classify FILE` initializes metadata once from current USER.md;
+it refuses to overwrite USER.json. `lifespan prune` removes ORPHANED metadata.
+USER.md remains owned by Hermes's memory tool and `/memory approve`; preserve
+its exact entry text because staged replace/remove approval matches it exactly.
 
 ## Staleness check
 
