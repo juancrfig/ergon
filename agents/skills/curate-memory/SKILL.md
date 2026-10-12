@@ -115,12 +115,26 @@ doubt, show the panel and let the human decide.
 - **R6 Decided means done.** When a rule clearly decides a request, apply it without asking.
 - **R7 Wrong file.** A fact about the environment written to USER, or a fact about the human written to
   MEMORY, is rejected and re-created as a pending request for the right file.
+- **R8 Safety becomes a control.** A request that forbids an action is rejected from memory and turned into a proposed control (permission, deny rule, read-only access). Changing a control always needs the human's approval, because it changes security.
+- **R9 Project knowledge goes to the project.** A request that only records knowledge about one project (its architecture, stack, decisions, locations, workflows, or state) is rejected from memory and forwarded to that project: its text is saved as a new source in `<project>/wiki/raw/`, where the ingest process picks it up. Forward before rejecting. When the project cannot be identified, or has no folder in the workspace, show the request to the human. A request that mixes project knowledge with anything else is not decided by R9.
 
 R2 and R7 create the new pending request with Hermes's own staging (`tools.write_approval.stage_write`,
 same payload shape the memory and skill tools stage), so it appears in `/memory pending` or
 `/skills pending` and is reviewed like any other request. Stage it before rejecting the original.
+R8's proposed control is reported to the human as a decision and never applied automatically.
 
-Apply a rule decision with `decide --rule <R1..R7>` instead of `--human-decision` (same identity and
+For a request decided by R9, forward first, then reject with `decide --rule R9`:
+
+```sh
+python3 agents/skills/curate-memory/scripts/review_memory_requests.py forward \
+  --profile default --subsystem memory --pending-id '<reviewed-id>' \
+  --expected-record-sha256 '<reviewed-hash>' --project-dir /absolute/path/to/project
+python3 agents/skills/curate-memory/scripts/review_memory_requests.py decide \
+  --profile default --subsystem memory --pending-id '<reviewed-id>' \
+  --decision reject --rule R9 --expected-record-sha256 '<reviewed-hash>'
+```
+
+Apply a rule decision with `decide --rule <R1..R9>` instead of `--human-decision` (same identity and
 hash checks; logged with `decided_by: rule`). Report each one in one line: rule, target, summary.
 When a human decision reveals a reusable preference, propose it as a new rule.
 

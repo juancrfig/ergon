@@ -1063,7 +1063,72 @@ def manage_lifespan(args: argparse.Namespace) -> None:
     _write_metadata(home, metadata)
 
 
+def forward_request(args: argparse.Namespace) -> Path:
+    if not args.profile or not args.subsystem or not args.pending_id or not args.expected_record_sha256:
+        raise ReviewError("Forward requires the reviewed profile, subsystem, pending id, and record hash.")
+    if args.subsystem != "memory":
+        raise ReviewError("Forward applies only to memory write requests.")
+    project_dir = args.project_dir
+    if not project_dir.is_absolute() or not project_dir.is_dir():
+        raise ReviewError("--project-dir must be an absolute path to an existing project folder.")
+    path = args.home_root / "pending" / args.subsystem / f"{args.pending_id}.json"
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise ReviewError(f"Cannot read pending request: {exc}") from exc
+    if sha256_text(raw) != args.expected_record_sha256:
+        raise StaleRequestError("The pending request changed after review; inspect it again before acting.")
+    try:
+        request = _parse_pending_file(path, args.profile, args.subsystem, args.home_root)
+    except (json.JSONDecodeError, ReviewError) as exc:
+        raise ReviewError(f"Cannot parse pending request: {exc}") from exc
+    target = "USER" if request.payload.get("target") == "user" else "MEMORY"
+    created_at = float(request.record.get("created_at", 0) or 0)
+    created = time.strftime("%Y-%m-%d", time.localtime(created_at)) if created_at else "unknown"
+    destination = project_dir / "wiki" / "raw" / f"{date.today().isoformat()}-memory-request-{args.pending_id}.md"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.exists():
+        raise ReviewError(f"Refusing to overwrite existing file: {destination}")
+    chunks = [
+        "# Forwarded Hermes memory write request",
+        f"Instance/profile: {args.profile}",
+        f"Pending id: {args.pending_id}",
+        f"Request created: {created}",
+        f"Target file: {target}",
+        f"Forwarded: {date.today().isoformat()}",
+    ]
+    for index, operation in enumerate(_payload_operations(request.payload), 1):
+        if not isinstance(operation, dict):
+            raise ReviewError("Pending request contains a non-object operation; refusing incomplete forwarding.")
+        action = str(operation.get("action", "unknown"))
+        chunks.extend((f"## Operation {index}: {action}", ""))
+        for key in ("content", "old_text"):
+            value = operation.get(key)
+            if isinstance(value, str):
+                chunks.extend((f"### {key}", "", value, ""))
+    content = "\n".join(chunks) + "\n"
+    try:
+        with destination.open("x", encoding="utf-8") as stream:
+            stream.write(content)
+    except FileExistsError as exc:
+        raise ReviewError(f"Refusing to overwrite existing file: {destination}") from exc
+    print(f"Forwarded to {destination}")
+    print("Reject next with decide --rule R9.")
+    return destination
+
+
 def _parse_args(argv: list[str]) -> argparse.Namespace:
+    if argv and argv[0] == "forward":
+        parser = argparse.ArgumentParser(description="Forward a reviewed memory request to project wiki sources.")
+        parser.add_argument("--profile", choices=PROFILES, required=True)
+        parser.add_argument("--subsystem", choices=SUBSYSTEMS, required=True)
+        parser.add_argument("--pending-id", required=True)
+        parser.add_argument("--expected-record-sha256", required=True)
+        parser.add_argument("--project-dir", type=Path, required=True)
+        parser.add_argument("--home-root", type=Path, default=Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")))
+        args = parser.parse_args(argv[1:])
+        args.command = "forward"
+        return args
     if argv and argv[0] == "lifespan":
         parser = argparse.ArgumentParser(description="Manage USER.md entry lifespan metadata.")
         subparsers = parser.add_subparsers(dest="lifespan_command", required=True)
@@ -1084,7 +1149,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         args.command = "lifespan"
         return args
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("inventory", "show", "decide", "native-apply", "sweep", "shadow"))
+    parser.add_argument("command", choices=("inventory", "show", "decide", "forward", "native-apply", "sweep", "shadow"))
     parser.add_argument("--home-root", type=Path, default=Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")))
     parser.add_argument("--hermes-home", type=Path, default=Path.home() / ".hermes")
     parser.add_argument("--workspace", type=Path, default=Path.cwd())
@@ -1100,7 +1165,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--date", type=date.fromisoformat)
     parser.add_argument("--expected-record-sha256")
     parser.add_argument("--human-decision", action="store_true")
-    parser.add_argument("--rule", choices=("R1", "R2", "R3", "R4", "R5", "R6", "R7"),
+    parser.add_argument("--rule", choices=("R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9"),
                         help="decide by a human-approved rule instead of an explicit human decision")
     parser.add_argument("--json", action="store_true")
     return parser.parse_args(argv)
@@ -1120,6 +1185,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "lifespan":
         manage_lifespan(args)
+        return 0
+    if args.command == "forward":
+        forward_request(args)
         return 0
     inventory = inventory_pending(args.hermes_home if args.command == "shadow" else args.home_root)
     if args.command == "shadow":

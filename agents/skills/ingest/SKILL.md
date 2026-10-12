@@ -13,7 +13,9 @@ Never use a personal or global wiki. For page conventions (SCHEMA.md, index.md, 
 
 When the human sends a source in chat (pasted text, a file or a link), first save it in `<project>/wiki/raw/` as
 received, under a descriptive name with its date (a link: its extracted text, with the URL on the first line). Ask
-which project when it is unclear. From then on it is a raw source like any other.
+which project when it is unclear. From then on it is a raw source like any other. When the human or an automated run
+asks to ingest new sources, start with `python3 agents/skills/ingest/scripts/sources.py pending <project-dir>`; it lists
+raw files whose current hash is not in the ledger (an edited source is new; a renamed identical source is not).
 
 Take only the files the human named or sent, under `<project>/wiki/raw/`. Do not crawl for more. Read them and draft, without
 showing it yet, everything worth remembering, sorted into four sections:
@@ -64,7 +66,8 @@ the proposal.
   proposal with its reason.
 - Update `index.md`. Append one line to `log.md`: date, the sources ingested (described, not as paths), one-line
   summary.
-- Never edit, move, rename, annotate or commit raw sources. Not even to add a header.
+- Never edit, move, rename, annotate or commit raw sources. The only file the process writes in `raw/` is
+  `.ingested.jsonl`, the processed-source ledger; never commit it.
 - Commit only the wiki pages, index and log, in one commit:
   `git add -- <project>/wiki ':!<project>/wiki/raw'`, then `git commit` with nothing else staged. The commit message
   is the change record: a one-line summary, then one entry per change:
@@ -77,4 +80,8 @@ the proposal.
 
   Use `added`, `changed old -> new` or `deleted` for each entry. The log line needs no hash:
   `git log -- <project>/wiki` finds the commit.
+- After the wiki commit, mark every ingested raw source so it is not proposed again:
+  `python3 agents/skills/ingest/scripts/sources.py mark <project-dir> <file>... --commit <wiki-commit-hash>`.
+  The ledger records each raw-relative file, content SHA-256, date and wiki commit; pending sources are those whose
+  content hash is absent, regardless of filename.
 - Read back the changed files and report anything that did not land.
