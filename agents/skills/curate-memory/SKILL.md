@@ -100,7 +100,8 @@ memory files with their sizes and limits first. A rule decides only when it appl
 doubt, show the panel and let the human decide.
 
 - **R1 Superseded.** A newer request that replaces or contains an older one supersedes it: reject the
-  older one.
+  older one. A request whose content is already covered elsewhere is a duplicate: reject it. That covers saved
+  memory, the agent's standing instructions, theSystem rules and skills, and controls already in place.
 - **R2 Procedures go to skills.** A memory that says how to do a task belongs in a skill. Reject the
   memory and create a pending skill request with the procedure, targeting the existing related skill (a
   new skill only when none covers the domain). If the skill already holds the procedure, just reject.
