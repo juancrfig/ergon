@@ -292,6 +292,12 @@ EOF
   loginctl enable-linger "${USER:-$(id -un)}" >/dev/null 2>&1 || true
 fi
 
+# Push guard: theSystem is public, so every push from this clone is screened for company data first.
+if git -C "$clone" rev-parse --git-dir >/dev/null 2>&1; then
+  git -C "$clone" config core.hooksPath agents/.harness/git-hooks
+  git -C "$clone" config thesystem.workspace "$workspace"
+fi
+
 step "Adding the $company command"
 cat > "$launcher" <<EOF
 #!/bin/sh

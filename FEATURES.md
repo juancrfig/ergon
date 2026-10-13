@@ -207,3 +207,14 @@ Meaning: one agent per instance watches every feature, so the owner does not hav
   - The scheduler alerts the owner on Telegram directly: red with no incident after 15 minutes; incident open 45 minutes with no fix and no question to the owner. No quiet hours. More than 50 Monitor runs a day alerts but blocks nothing.
   - Daily sampling: on days with findings, one digest with the top 3; the rest go to a backlog. Five identical owner-approved fixes for a check produce a proposal to make that fix automatic.
 Not this: no cross-instance monitoring; green results send nothing.
+
+## F13 · Push guard
+
+Status: built
+Meaning: theSystem is public, so no push from any clone publishes company data.
+  - Every push from a theSystem clone runs a check first. System One (Jev) judges each changed file and the commit messages as safe or leak, with a confidence.
+  - Confident "safe" passes; confident "leak" blocks. Low confidence, or System One unavailable, goes to System Two (a fresh model run with no tools), which decides.
+  - The guard fails closed: no verdict means no push. Its log keeps files and verdicts, never the pushed text.
+  - The installer turns the guard on in the clone it manages. Agents never bypass it; only the human may push a blocked change.
+Not this: no keyword list; no promise of zero leaks, so the human still sees changes sent back from company instances.
+

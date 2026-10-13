@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# theSystem push guard: every push from a theSystem clone is screened for company data (thesystem/push_guard.py).
+# Enabled per clone with: git config core.hooksPath agents/.harness/git-hooks
+set -uo pipefail
+repo=$(git rev-parse --show-toplevel) || exit 1
+workspace=$(git config --get thesystem.workspace || true)
+if [[ -z "$workspace" ]]; then
+  # A project clone lives inside its workspace (<workspace>/<project>/<clone>).
+  dir=$(dirname "$repo")
+  while [[ "$dir" != "/" ]]; do
+    if [[ -d "$dir/.thesystem/baseline" ]]; then workspace=$dir; break; fi
+    dir=$(dirname "$dir")
+  done
+fi
+python=python3
+# The workspace runtime has the TypeSafe SDK that System One needs.
+for candidate in "$workspace/.agents/memory-review/bin/python" "${THESYSTEM_WORKSPACE:-}/.agents/memory-review/bin/python"; do
+  if [[ -x "$candidate" ]]; then python=$candidate; break; fi
+done
+PYTHONPATH="$repo${PYTHONPATH:+:$PYTHONPATH}" exec "$python" -m thesystem.push_guard --repo "$repo"

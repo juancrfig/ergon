@@ -11,6 +11,7 @@ base:
     - rules/overlays-escape-clipping-ancestors.md
     - rules/second-order-thinking-checks.md
     - rules/decide-small-changes-without-approval.md
+    - rules/push-thesystem-only-through-the-guard.md
   skills:
     - skills/systematic-debugging
 worker: {}
