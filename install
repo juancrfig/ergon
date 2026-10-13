@@ -199,7 +199,13 @@ if (( hermes )); then
     config+=(--set "telegram.channel_prompts.$home_chat" "$(tail -n +3 "$harness/personalities/telegram.md")")
   fi
   [[ -f "$harness/canonical_config.yaml" ]] && config+=(--canonical "$harness/canonical_config.yaml")
-  if ! problem=$(PYTHONPATH="$share_dir" python3 -m thesystem.harness apply "$hermes_root" "${config[@]}" 2>&1); then
+  # The harness edits Hermes' config in one pass with PyYAML. The first python3 on PATH can be a venv without it,
+  # and the fallback (`hermes config set`) refuses multi-line prompts that look like YAML lists.
+  harness_python=python3
+  for candidate in python3 /usr/bin/python3; do
+    if "$candidate" -c 'import yaml' >/dev/null 2>&1; then harness_python=$candidate; break; fi
+  done
+  if ! problem=$(PYTHONPATH="$share_dir" "$harness_python" -m thesystem.harness apply "$hermes_root" "${config[@]}" 2>&1); then
     fail "${problem#install: }"
   fi
   if [[ -f "$harness/required_toolsets.txt" ]]; then
@@ -212,7 +218,7 @@ if (( hermes )); then
       done
     fi
   fi
-  if ! problem=$(PYTHONPATH="$share_dir" python3 -m thesystem.harness verify "$workspace" 2>&1); then
+  if ! problem=$(PYTHONPATH="$share_dir" "${harness_python:-python3}" -m thesystem.harness verify "$workspace" 2>&1); then
     fail "${problem#install: }"
   fi
 fi
