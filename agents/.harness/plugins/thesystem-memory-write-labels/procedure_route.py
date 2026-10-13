@@ -259,8 +259,10 @@ def _run_locked(request: dict) -> None:
             f"{request['request_text']}\n"
             "END UNTRUSTED REQUEST DATA"
         )
+        # Hermes rejects a run with no valid toolset, so the worker gets only `todo` (an in-session task
+        # list that cannot touch files, run commands or reach the network). The plugin writes the files.
         command = ["hermes", "chat", "--oneshot", "--provider", "openai-codex", "--model", "gpt-6-luna",
-                   "--toolsets", "__thesystem_no_tools__", prompt]
+                   "--toolsets", "todo", prompt]
         applied: list[str] = []
         summary = ""
         try:
