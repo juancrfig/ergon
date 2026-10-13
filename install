@@ -219,6 +219,15 @@ fi
 
 # Monitor scheduler: deterministic health checks run outside Hermes every five minutes.
 # It uses the selected Hermes profile and the canonical theSystem clone; no Hermes cron job is installed.
+# systemd unit values sit inside double quotes; escape backslashes, quotes and % (systemd specifiers)
+# so paths with spaces or special characters still produce a valid unit.
+systemd_escape_value() {
+  local v=${1//\\/\\\\}
+  v=${v//\"/\\\"}
+  v=${v//%/%%}
+  printf '%s' "$v"
+}
+
 if command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1; then
   step "Starting the Monitor scheduler"
   unit_dir="$HOME/.config/systemd/user"
@@ -229,9 +238,9 @@ Description=theSystem Monitor health-check scheduler
 
 [Service]
 Type=oneshot
-Environment=HERMES_HOME=$hermes_root
-Environment=THESYSTEM_CLONE=$clone
-Environment=PYTHONPATH=$share_dir
+Environment="HERMES_HOME=$(systemd_escape_value "$hermes_root")"
+Environment="THESYSTEM_CLONE=$(systemd_escape_value "$clone")"
+Environment="PYTHONPATH=$(systemd_escape_value "$share_dir")"
 ExecStart=/usr/bin/env python3 -m thesystem.scheduler
 EOF
   cat > "$unit_dir/thesystem-monitor.timer" <<'EOF'
