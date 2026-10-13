@@ -333,7 +333,8 @@ def handle(entry_text: str, label: str, argument: str | None, context: dict) -> 
             threading.Thread(target=_alert, args=(f"Skill update run count exceeded 150 for {today} (America/Bogota): {count} runs. New runs continue without throttling.",), daemon=True).start()
     _schedule(request)
     shared_skill = _is_shared_skill_dir(skill_directory)
-    message = (f"Not saved to memory: proposal {request_id} prepared for the shared skill {skill_key}, waiting for the human."
+    # The worker has only been scheduled here; "prepared" is shown later in the review queue, once it exists.
+    message = (f"Not saved to memory: shared skill {skill_key} cannot be edited directly. A proposal is being prepared for the human. Request {request_id}; run {run_id}; status queued."
                if shared_skill else f"Procedure queued for skill {skill_key}. Request {request_id}; run {run_id}; status queued.")
     return {
         "decision": "routed", "destination": str(skill_directory), "artifact": request_id,
