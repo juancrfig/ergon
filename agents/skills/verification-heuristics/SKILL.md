@@ -91,6 +91,15 @@ Its first entry is the gate (`gate.json`); a guide may hold only the gate until 
 - A gate's steps, and helper scripts a guide ships, are changes the human approves like any change to the project.
 - Agents touch a real data source only with the access the guide records for it. The human sets that access.
 - Asking for the wizard, or for an evidence run, is the human's explicit ask for it.
+- **An approved scenario carries approval for everything needed to prove it**, so never stop to ask. That covers:
+  private fixtures (an empty DB, a fake sheet or source served only to the private copy), a fake clock, and a small
+  code change that makes the state reachable (a clock injection, a configurable source). It applies as long as the
+  change does not alter required behaviour, scenarios, security, performance or the frontend, and production defaults
+  stay as they were. Send the code change through a normal worker task and review, without asking. "Unreachable" is a
+  valid verdict only after you have tried every such option. Before ever reporting a scenario as blocked, check
+  whether you produced the blocker yourself: a wrong run order, or a missing fixture you could have made.
+- Ask the human only for what touches the real world: writes to real sheets or systems, real messages (Telegram),
+  production data, or going live.
 
 ## How this skill grows
 
