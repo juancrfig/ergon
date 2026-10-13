@@ -24,11 +24,11 @@ Each criterion in `criteria.json` is asked about the request's literal payload b
 
 ## Authority limits
 
-- Decide without the human only through a human-approved rule: the sweep, or R1–R9 below.
+- Decide without the human only through a human-approved rule: the sweep, or R1–R10 below.
 - Do not approve or reject based on a probability, missing signals, or a Jev
   error.
 - Do not modify a pending request, split its operations, or reconstruct a write
-  with file or memory tools.
+  with file or memory tools. The only exception is an R10 split.
 - Do not send conversations, current memories, installed skills, or summaries to
   Jev. The only permitted remote state is the literal `payload` object from the
   native pending request.
@@ -128,6 +128,7 @@ doubt, show the panel and let the human decide.
   MEMORY, is rejected and re-created as a pending request for the right file.
 - **R8 Safety becomes a control.** A request that forbids an action to prevent damage, data loss, a security risk or unwanted cost is rejected from memory and turned into a proposed control (permission, deny rule, read-only access, pinned model or provider). Changing a control always needs the human's approval, because it changes security. Check every request for R8 before assigning a category: safety lines appear in any category. A request that only describes a control already in place is a duplicate: reject it under R1.
 - **R9 Project knowledge goes to the project.** A request that only records knowledge about one project (its architecture, stack, decisions, locations, workflows, or state) is rejected from memory and forwarded to that project: its text is saved as a new source in `<project>/wiki/raw/`, where the ingest process picks it up. Forward before rejecting. When the project cannot be identified, or has no folder in the workspace, show the request to the human. A request that mixes project knowledge with anything else is not decided by R9.
+- **R10 One change per request.** Before scoring, split a pending request with more than one operation into one pending request per operation, staged with Hermes's own `stage_write` with the same target and origin, each operation's text unchanged; then remove the original. Scores are only meaningful per change. The labels plugin refuses new multi-operation writes, so R10 only meets older bundles.
 
 R1 partial-duplicate trims, R2, and R7 create the new pending request with Hermes's own staging (`tools.write_approval.stage_write`,
 same payload shape the memory and skill tools stage), so it appears in `/memory pending` or

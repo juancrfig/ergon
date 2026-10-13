@@ -571,6 +571,11 @@ def _hook(**kwargs):
             reason = "operations batch is empty; include at least one add, replace, or remove operation"
             _record(session, args["operations"], None, "refused", target, reason)
             return {"action": "block", "message": f"Memory write refused: {reason}. Add at least one valid operation and retry."}
+        if len(args["operations"]) > 1:
+            # Hermes stages a batch as one pending request, so review would score unrelated changes together.
+            reason = "batch has more than one operation; each memory change must be its own write"
+            _record(session, args["operations"], None, "refused", target, reason)
+            return {"action": "block", "message": f"Memory write refused: {reason}. Send each add, replace, or remove as a separate memory call."}
         accepted = []
         for operation in args["operations"]:
             if not isinstance(operation, dict):
