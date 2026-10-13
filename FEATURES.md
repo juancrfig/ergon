@@ -218,3 +218,33 @@ Meaning: theSystem is public, so no push from any clone publishes company data.
   - The installer turns the guard on in the clone it manages. Agents never bypass it; only the human may push a blocked change.
 Not this: no keyword list; no promise of zero leaks, so the human still sees changes sent back from company instances.
 
+## F14 · Task gates
+
+Status: built
+Outcome: every task runs the project's declared deterministic gate without separate approval; a project with no gate creates it as its first task.
+Reach: `run-tasks` and `to-tasks` skills, plus the tests-and-verification rule.
+
+## F15 · Task handoff checklist
+
+Status: built
+Outcome: task bodies are checked against a durable checklist and reviewed for implementation-critical gaps before workers start.
+Reach: `to-tasks` skill and its handoff checklist.
+
+## F16 · Frontend role
+
+Status: built
+Outcome: frontend workers receive the shared UI rules for interaction feedback, contrast, keyboard focus, motion, colors, scrollbars, and animation state.
+Reach: global `frontend` role and its rules.
+
+## F17 · Spec approval page
+
+Status: built
+Outcome: an independent subagent writes observable scenarios into the spec; the human reviews a concise approval page rather than the full specification.
+Reach: `to-spec` skill and its approval template.
+
+## F18 · Outcome-focused commit titles
+
+Status: built
+Outcome: commit titles state the change's outcome and the mechanism or condition that produces it.
+Reach: the commit-title rule in `agents/rules/`.
+
