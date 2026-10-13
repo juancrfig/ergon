@@ -230,6 +230,8 @@ systemd_escape_value() {
 
 if command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1; then
   step "Starting the Monitor scheduler"
+  # An empty contracts directory is a valid "nothing approved yet" state; a missing one is a scheduler error.
+  mkdir -p "$hermes_root/monitor/contracts"
   unit_dir="$HOME/.config/systemd/user"
   mkdir -p "$unit_dir"
   cat > "$unit_dir/thesystem-monitor.service" <<EOF

@@ -189,6 +189,9 @@ def run(home: Path, thesystem_clone: Path) -> int:
     if not isinstance(sent_alerts, dict):
         sent_alerts = {}
 
+    if not contracts_dir.is_dir():
+        # No contracts directory means no check can run; that is a scheduler error, never a green tick.
+        errors.append(f"Monitor contracts directory is missing: {contracts_dir}")
     if contracts_dir.is_dir():
         for contract_path in sorted(contracts_dir.glob("*.json")):
             try:
@@ -203,9 +206,12 @@ def run(home: Path, thesystem_clone: Path) -> int:
                 approval = approvals.get(feature)
                 if not isinstance(approval, dict) or approval.get("sha256") != digest:
                     alert_key = f"contract:{feature}:{digest}"
-                    if alert_key not in sent_alerts and deliver_alert(
-                            home, f"Monitor approval mismatch: {feature}; checks skipped until re-approval.", diagnostic_path):
-                        sent_alerts[alert_key] = instant
+                    if alert_key not in sent_alerts:
+                        if deliver_alert(home, f"Monitor approval mismatch: {feature}; checks skipped until re-approval.",
+                                         diagnostic_path):
+                            sent_alerts[alert_key] = instant
+                        else:
+                            errors.append(f"Could not deliver approval-mismatch alert for {feature}")
                     contracts_valid = False
                     continue
                 if not isinstance(contract.get("checks"), list) or not contract["checks"]:
