@@ -4,7 +4,9 @@
     {
       "id": "decision-history-readable",
       "command": "timeout 30s python3 -c 'import json,os,pathlib,sys; h=pathlib.Path(os.environ.get(\"HERMES_HOME\",pathlib.Path.home()/\".hermes\")); current=h/\"curate-memory/state.json\"; legacy=h/\"memory-request-review/state.json\"; p=current if current.exists() else legacy if legacy.exists() else None;\nif p is None: print(\"FAIL decision history unavailable\"); sys.exit(1)\ntry: state=json.loads(p.read_text(encoding=\"utf-8\"))\nexcept (OSError,UnicodeDecodeError,json.JSONDecodeError): print(\"FAIL decision history unreadable\"); sys.exit(1)\nrows=state.get(\"decisions\",[]) if isinstance(state,dict) else []; types={r.get(\"decision_type\") for r in rows if isinstance(r,dict) and isinstance(r.get(\"decision_type\"),str) and r.get(\"decision_type\")}; print(\"OK learning history: %d decision types\"%len(types))'",
-      "schedule": {"interval": "1d"},
+      "schedule": {
+        "interval": "1d"
+      },
       "severity": "data-loss"
     }
   ],
