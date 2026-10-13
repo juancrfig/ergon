@@ -144,8 +144,8 @@ def _handle_project_fact(entry: str, label: str, argument: str | None, context: 
     workspace = Path.cwd().resolve()
     workspace_directories = {"agents", "docs", "tickets", "artifacts", "wiki"}
     projects = sorted(
-        (path for path in workspace.iterdir() if path.is_dir() and not path.name.startswith(".")
-         and path.name not in workspace_directories),
+        (path for path in workspace.iterdir() if path.is_dir() and not path.is_symlink()
+         and not path.name.startswith(".") and path.name not in workspace_directories),
         key=lambda path: path.name,
     )
     project_names = [path.name for path in projects]
@@ -171,11 +171,13 @@ def _handle_project_fact(entry: str, label: str, argument: str | None, context: 
     try:
         resolved = candidate.resolve(strict=True)
         inside_workspace = resolved.parent == workspace
+        project_is_real_dir = not candidate.is_symlink() and candidate.is_dir()
     except (OSError, RuntimeError):
         resolved = candidate
         inside_workspace = False
-    if (not requested or Path(requested).is_absolute() or not inside_workspace
-            or not resolved.is_dir() or resolved.name != requested
+        project_is_real_dir = False
+    if (not requested or Path(requested).is_absolute() or Path(requested).name != requested
+            or not inside_workspace or not project_is_real_dir or resolved.name != requested
             or requested not in project_names):
         available = ", ".join(project_names) if project_names else "(none)"
         return {
@@ -184,16 +186,17 @@ def _handle_project_fact(entry: str, label: str, argument: str | None, context: 
                        "Retry with an existing project name, or explicitly state that none fits.",
         }
 
-    raw = resolved / "wiki" / "raw"
-    raw.mkdir(parents=True, exist_ok=True)
-    if raw.resolve().parent.parent.parent != workspace:
-        raise ValueError("project raw source directory resolves outside the workspace")
+    wiki_path = resolved / "wiki"
+    raw_path = wiki_path / "raw"
+    if wiki_path.is_symlink() or raw_path.is_symlink():
+        raise ValueError("project wiki source path must not contain symlinks")
+    raw = raw_path
     import hashlib
 
     now = datetime.now(timezone.utc)
     timestamp = now.strftime("%Y%m%dT%H%M%SZ")
     digest = hashlib.sha256(entry.encode("utf-8")).hexdigest()[:8]
-    destination = raw / f"memory-{timestamp}-{digest}.md"
+    base_name = f"memory-{timestamp}-{digest}"
     session = context.get("session_id")
     metadata = (
         "---\n"
@@ -203,8 +206,38 @@ def _handle_project_fact(entry: str, label: str, argument: str | None, context: 
         f"decision_log: {json.dumps(str(_home() / 'curate-memory' / 'write-labels.jsonl'))}\n"
         "---\n"
     )
-    with destination.open("x", encoding="utf-8") as stream:
-        stream.write(entry + "\n\n" + metadata)
+    directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    workspace_fd = os.open(workspace, directory_flags)
+    try:
+        project_fd = os.open(requested, directory_flags | os.O_NOFOLLOW, dir_fd=workspace_fd)
+        try:
+            for component in ("wiki", "raw"):
+                try:
+                    os.mkdir(component, dir_fd=project_fd)
+                except FileExistsError:
+                    pass
+                next_fd = os.open(component, directory_flags, dir_fd=project_fd)
+                os.close(project_fd)
+                project_fd = next_fd
+            for suffix in range(1, 21):
+                filename = f"{base_name}{'' if suffix == 1 else f'-{suffix}'}.md"
+                try:
+                    source_fd = os.open(
+                        filename, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                        0o666, dir_fd=project_fd,
+                    )
+                except FileExistsError:
+                    continue
+                with os.fdopen(source_fd, "w", encoding="utf-8") as stream:
+                    stream.write(entry + "\n\n" + metadata)
+                destination = raw / filename
+                break
+            else:
+                raise FileExistsError("could not allocate a unique project source filename after 20 attempts")
+        finally:
+            os.close(project_fd)
+    finally:
+        os.close(workspace_fd)
     return {
         "decision": "routed", "destination": str(raw), "artifact": str(destination),
         "message": f"Project fact routed to {requested}. Source file: {destination}. "
