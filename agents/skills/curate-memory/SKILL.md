@@ -62,7 +62,15 @@ another prepared interpreter.
 ```sh
 python3 \
   agents/skills/curate-memory/scripts/review_memory_requests.py inventory
+python3 \
+  agents/skills/curate-memory/scripts/review_memory_requests.py controls
 ```
+
+Review both outputs at session start. The `controls` command lists pending-human
+safety control proposals stored separately from memory and skill writes. Show each
+proposal's id, text, origin instance/session, and duplicate-screen outcome to the
+human alongside pending memory requests. An approval records only the decision;
+the control itself must later be built as a normal theSystem task.
 
 Report the counts of `memory`, `skills`, and unreadable records. Unreadable
 records cannot be approved; leave them pending and show their identity/error.
@@ -143,6 +151,19 @@ When a human decision reveals a reusable preference, propose it as a new rule.
 
 Every edit to these rules needs the human's explicit approval of the exact text. Approval of a
 memory decision is not approval of a rule.
+
+## Control proposals
+
+For a safety control proposal, the human may explicitly approve or reject it
+with a reason:
+
+```sh
+python3 agents/skills/curate-memory/scripts/review_memory_requests.py decide-control \
+  '<proposal-id>' approve --reason 'reason for the decision'
+```
+
+This records status only. It never modifies rules, plugins, hooks, approvals, or
+allowlists.
 
 ## Decision per request
 

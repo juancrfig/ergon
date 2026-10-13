@@ -1236,7 +1236,70 @@ def forward_request(args: argparse.Namespace) -> Path:
     return destination
 
 
+def control_proposals(home: Path) -> list[dict[str, Any]]:
+    path = home / "curate-memory" / "control-proposals.jsonl"
+    pending = []
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return pending
+    for number, line in enumerate(lines, 1):
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise ReviewError(f"Unreadable control proposal at {path}:{number}: {exc}") from exc
+        if not isinstance(row, dict):
+            raise ReviewError(f"Invalid control proposal at {path}:{number}: expected object")
+        if row.get("status") == "pending-human":
+            pending.append(row)
+    return pending
+
+
+def decide_control(home: Path, proposal_id: str, decision: str, reason: str) -> dict[str, Any]:
+    if not re.fullmatch(r"[0-9a-f]{8}", proposal_id):
+        raise ReviewError("Control proposal id must be exactly 8 lowercase hex characters.")
+    if decision not in {"approve", "reject"} or not reason.strip():
+        raise ReviewError("Control decision requires approve|reject and a non-empty --reason.")
+    path = home / "curate-memory" / "control-proposals.jsonl"
+    if not path.is_file():
+        raise ReviewError("No control proposals are available.")
+    with path.open("r+", encoding="utf-8") as stream:
+        import fcntl
+        fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+        rows = [json.loads(line) for line in stream if line.strip()]
+        found = None
+        for row in rows:
+            if isinstance(row, dict) and row.get("id") == proposal_id:
+                found = row
+                break
+        if found is None:
+            raise ReviewError(f"Control proposal {proposal_id} was not found.")
+        if found.get("status") != "pending-human":
+            raise ReviewError(f"Control proposal {proposal_id} is not pending-human (status: {found.get('status')}).")
+        found["status"] = "approved" if decision == "approve" else "rejected"
+        found["decision_reason"] = reason
+        found["decided_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        stream.seek(0)
+        stream.truncate()
+        for row in rows:
+            stream.write(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+        fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+    return {"id": proposal_id, "status": found["status"], "decision_reason": reason,
+            "decided_at": found["decided_at"]}
+
+
 def _parse_args(argv: list[str]) -> argparse.Namespace:
+    if argv and argv[0] == "decide-control":
+        parser = argparse.ArgumentParser(description="Record a human decision for a proposed control.")
+        parser.add_argument("id")
+        parser.add_argument("decision", choices=("approve", "reject"))
+        parser.add_argument("--reason", required=True)
+        parser.add_argument("--home-root", type=Path, default=Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")))
+        args = parser.parse_args(argv[1:])
+        args.command = "decide-control"
+        return args
     if argv and argv[0] == "forward":
         parser = argparse.ArgumentParser(description="Forward a reviewed memory request to project wiki sources.")
         parser.add_argument("--profile", choices=PROFILES, required=True)
@@ -1268,7 +1331,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         args.command = "lifespan"
         return args
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("inventory", "show", "decide", "learn", "forward", "native-apply", "sweep", "shadow"))
+    parser.add_argument("command", choices=("inventory", "controls", "show", "decide", "decide-control", "learn", "forward", "native-apply", "sweep", "shadow"))
     parser.add_argument("--home-root", type=Path, default=Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")))
     parser.add_argument("--hermes-home", type=Path, default=Path.home() / ".hermes")
     parser.add_argument("--workspace", type=Path, default=Path.cwd())
@@ -1298,6 +1361,12 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv or sys.argv[1:])
+    if args.command == "decide-control":
+        print(json.dumps(decide_control(args.home_root, args.id, args.decision, args.reason), ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "controls":
+        print(json.dumps({"controls": control_proposals(args.home_root)}, ensure_ascii=False, indent=2))
+        return 0
     if args.command == "native-apply":
         if not args.subsystem or not args.pending_id or not args.expected_record_sha256 or args.decision not in {"approve", "reject"}:
             raise ReviewError("Native Hermes decision requires subsystem, pending id, decision, and reviewed record hash.")

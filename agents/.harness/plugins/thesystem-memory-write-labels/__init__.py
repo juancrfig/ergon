@@ -140,7 +140,151 @@ def _route(entry: str, label: str, argument: str | None, context: dict[str, Any]
     return {"decision": "refused", "destination": label, "artifact": None,
             "message": f"Memory write refused: route not yet available for [{label}]. Keep it out of memory until its route is enabled."}
 
+
+def _safety_controls(exclude_id: str | None = None) -> list[tuple[str, str]]:
+    roots = {Path.cwd()}
+    try:
+        import yaml
+        config = yaml.safe_load((_home() / "config.yaml").read_text(encoding="utf-8")) or {}
+        cwd = config.get("terminal", {}).get("cwd")
+        if isinstance(cwd, str) and cwd:
+            roots.add(Path(cwd).expanduser())
+    except Exception:
+        pass
+    controls: list[tuple[str, str]] = []
+    for root in roots:
+        for relative in (Path("agents/rules"), Path("agents/.harness/plugins"), Path("agents/.harness/hooks")):
+            directory = root / relative
+            if not directory.is_dir():
+                continue
+            for path in sorted(directory.rglob("*")):
+                if not path.is_file() or path.suffix.lower() not in {".md", ".py", ".yaml", ".yml", ".json", ".toml"}:
+                    continue
+                try:
+                    text = path.read_text(encoding="utf-8")
+                except (OSError, UnicodeDecodeError):
+                    continue
+                controls.extend((str(path), line.strip()) for line in text.splitlines() if len(line.strip()) >= 35)
+    try:
+        approvals = (_home() / "config.yaml").read_text(encoding="utf-8")
+        controls.extend((str(_home() / "config.yaml"), line.strip()) for line in approvals.splitlines()
+                        if any(term in line.lower() for term in ("approval", "allowlist", "allow_list", "allowed_commands")))
+    except OSError:
+        pass
+    proposal_path = _home() / "curate-memory" / "control-proposals.jsonl"
+    try:
+        for line in proposal_path.read_text(encoding="utf-8").splitlines():
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if (isinstance(row, dict) and row.get("id") != exclude_id
+                    and row.get("status") in {"screening", "pending-human", "approved"}
+                    and isinstance(row.get("text"), str)):
+                controls.append((f"{proposal_path}#{row.get('id', 'unknown')}", row["text"]))
+    except OSError:
+        pass
+    return controls
+
+
+def _safety_duplicate_candidate(text: str, controls: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    from difflib import SequenceMatcher
+    import re
+
+    words = set(re.findall(r"[a-z0-9]+", text.lower()))
+    candidates = []
+    for source, control in controls:
+        other_words = set(re.findall(r"[a-z0-9]+", control.lower()))
+        overlap = len(words & other_words) / max(1, len(words | other_words))
+        if overlap >= 0.2 or SequenceMatcher(None, text.lower(), control.lower()).ratio() >= 0.4:
+            candidates.append((source, control))
+    return candidates[:40]
+
+
+def _judge_safety_duplicate(text: str, candidates: list[tuple[str, str]]) -> tuple[str, str] | None:
+    if not candidates:
+        return None
+    prompt = (
+        "Determine whether the proposed control is already fully stated by one listed control. "
+        "A duplicate must be a clear semantic duplicate, not merely related or overlapping. "
+        "Return only JSON: {\"duplicate\":true|false,\"quote\": exact contiguous quote from one candidate or null,"
+        "\"source\": exact candidate source string or null}. If uncertain, return false.\n" +
+        json.dumps({"proposal": text, "candidates": [{"source": source, "text": control}
+                                                      for source, control in candidates]}, ensure_ascii=False)
+    )
+    try:
+        result = subprocess.run(
+            ["hermes", "chat", "--oneshot", "--ignore-rules", "-t", "none", "--query-file", "-",
+             "--run-budget", "55", "--max-turns", "3", "-Q", "--model", "gpt-6-luna"],
+            input=prompt, capture_output=True, text=True, timeout=65, check=False,
+        )
+        if result.returncode:
+            return None
+        output = result.stdout.strip()
+        if output.startswith("```"):
+            output = output.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        decision = json.loads(output)
+        if not isinstance(decision, dict) or decision.get("duplicate") is not True:
+            return None
+        quote, source = decision.get("quote"), decision.get("source")
+        if not isinstance(quote, str) or not isinstance(source, str):
+            return None
+        if not any(source == item_source and quote and quote in control
+                   for item_source, control in candidates):
+            return None
+        return quote, source
+    except Exception:
+        return None
+
+
+def _update_control_proposal(path: Path, proposal_id: str, updates: dict[str, Any]) -> None:
+    with path.open("r+", encoding="utf-8") as stream:
+        fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+        rows = [json.loads(line) for line in stream if line.strip()]
+        for row in rows:
+            if isinstance(row, dict) and row.get("id") == proposal_id:
+                row.update(updates)
+                break
+        else:
+            raise FileNotFoundError(f"Control proposal {proposal_id} disappeared")
+        stream.seek(0)
+        stream.truncate()
+        for row in rows:
+            stream.write(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+        fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+
+
+def _handle_safety_rule(entry: str, label: str, argument: str | None,
+                        context: dict[str, Any]) -> dict[str, Any]:
+    proposal_id = os.urandom(4).hex()
+    path = _home() / "curate-memory" / "control-proposals.jsonl"
+    row: dict[str, Any] = {
+        "id": proposal_id, "at": _now(), "instance": _identity(),
+        "session": context.get("session_id"), "text": entry, "status": "screening",
+        "duplicate_of": None, "decision_reason": "", "decided_at": None,
+    }
+    _append_jsonl(path, row)
+    candidates = _safety_duplicate_candidate(entry, _safety_controls(proposal_id))
+    duplicate = _judge_safety_duplicate(entry, candidates)
+    if duplicate:
+        _update_control_proposal(path, proposal_id, {
+            "status": "duplicate", "duplicate_of": {"quote": duplicate[0], "source": duplicate[1]},
+            "decision_reason": "System Two cited an exact existing control.", "decided_at": _now(),
+        })
+        return {"decision": "routed", "destination": str(path), "artifact": proposal_id,
+                "message": f"Not saved to memory: safety proposal {proposal_id} was rejected as a duplicate of {duplicate[0]!r} ({duplicate[1]})."}
+    _update_control_proposal(path, proposal_id, {
+        "status": "pending-human", "decision_reason": "No exact duplicate was established; human review required."
+    })
+    _alert(f"Safety control proposal {proposal_id} is awaiting human review: {entry}")
+    return {"decision": "routed", "destination": str(path), "artifact": proposal_id,
+            "message": f"Not saved to memory: sent to the control review queue as {proposal_id}."}
+
+
 ROUTE_HANDLERS = {kind: _route for kind in ROUTE_KINDS}
+ROUTE_HANDLERS["safety-rule"] = _handle_safety_rule
 
 
 def _ensure_active(context: dict[str, Any]) -> None:
