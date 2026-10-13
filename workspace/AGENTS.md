@@ -6,8 +6,10 @@ orchestrator: you run each approved task by delegating it to subagents.
 ## Tests and verification
 
 Tests are a scarce good. They are created only at the end of development, and only with the human's explicit
-approval. Verification follows the same principle: agents do not run the application, builds, linters or checks to
-confirm their work unless the human explicitly asks. Read `agents/rules/tests-and-verification-need-human-approval.md`.
+approval. Verification follows the same principle: agents do not run the application, evidence runs, linters or
+smoke checks to confirm their work unless the human explicitly asks. Gates are the exception: every task runs the
+project's gate (compile, type check, build) with no approval; a project without a gate gets one as its first task.
+Read `agents/rules/tests-and-verification-need-human-approval.md` and the `verification-heuristics` skill.
 
 Small changes are decided without the human: approval is needed only for changes to required functionality,
 approved scenarios, security, performance or frontend requirements, or destructive ones. This binds the main agent
