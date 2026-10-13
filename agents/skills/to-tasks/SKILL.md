@@ -13,8 +13,10 @@ subagents (`run-tasks`). Each task names the tasks that **block** it and the rol
 
 Tasks live in the ticket's folder. Read [Workspace ticket layout](references/ticket-layout.md) before creating or changing anything there.
 
-Follow `../../rules/tests-and-verification-need-human-approval.md`. Tasks contain no tests and no verification
-steps. Confirming a task split is not approval of tests.
+Follow `../../rules/tests-and-verification-need-human-approval.md`. Tasks contain no tests and no evidence-run
+steps. Confirming a task split is not approval of tests. The gate runs on every task by itself (`run-tasks`); do not
+write it into tasks. A project with no gate (`<project>/agents/skills/verify-<project>/gate.json`) gets a gate task
+first, blocking every other task.
 
 ## Process
 
@@ -37,6 +39,11 @@ Look for prefactoring that makes the work easier: "make the change easy, then ma
 
 </vertical-slice-rules>
 
+Before drafting, load the `task-splitting-heuristics` skill and follow it, including its approval-gated update step.
+
+One task per agent. If you are unsure how to split a ticket, tell the human what is unclear instead of assuming a
+split.
+
 Give each task its **blockers**: the tasks that must be done before it can start. A task with no blockers starts at once.
 
 **Wide refactors are the exception to vertical slicing.** A **wide refactor** is one mechanical change (rename a column, retype a shared symbol) whose **blast radius** fans across the whole codebase, so a single edit breaks thousands of call sites at once and no vertical slice can land whole. Sequence it as **expand–contract**. First expand: add the new form beside the old so nothing breaks. Then migrate the call sites in batches sized by blast radius (per package, per directory), each batch its own task blocked by the expand, so the old form keeps working. Finally contract: delete the old form in a task blocked by every migrate batch. When even the batches cannot stand alone, let them share an integration branch that all block a final integrate task.
@@ -56,10 +63,18 @@ Ask whether the granularity is right, whether each blocker genuinely gates its t
 
 ### 4. Write the tasks and start them
 
-Write one `<project>/tickets/<ticket>/tasks/<task-id>/task.md` per task. Task ids are unique in the workspace. Before
-running them, have a read-only subagent review each task body for implementation-critical gaps: decisions the worker
-would have to invent. Resolve the gaps. This review is not a second human approval. Then load `run-tasks` and run
-the ready tasks.
+Write one `<project>/tickets/<ticket>/tasks/<task-id>/task.md` per task. Task ids are unique in the workspace. Check
+each body against [the handoff checklist](references/handoff-checklist.md) while you write it.
+
+Before running them, have a read-only subagent review each task body for implementation-critical gaps: decisions the
+worker would have to invent. Give it the checklist path. Resolve the gaps by editing the task text in place (do not
+append a precision that contradicts an earlier line). This review is not a second human approval.
+
+Then improve this skill so the same kind of gap does not come back. Turn each new kind of gap into one general
+checklist item (rule plus the kind of gap it prevents, no project facts). Show the proposed items to the human and
+write only the ones they approve.
+
+Then load `run-tasks` and run the ready tasks.
 
 ## Task file
 
