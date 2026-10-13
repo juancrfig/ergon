@@ -244,10 +244,12 @@ def run(home: Path, thesystem_clone: Path) -> int:
                                                   "status": "green"})
                     elif check.get("severity") in {"security", "data-loss"}:
                         alert_key = f"check:{key}:{hashlib.sha256(detail.encode()).hexdigest()}"
-                        if alert_key not in sent_alerts and deliver_alert(
-                                home, f"Monitor urgent check failure: {key} ({check['severity']}); {detail}",
-                                diagnostic_path):
-                            sent_alerts[alert_key] = instant
+                        if alert_key not in sent_alerts:
+                            if deliver_alert(home, f"Monitor urgent check failure: {key} ({check['severity']}); {detail}",
+                                             diagnostic_path):
+                                sent_alerts[alert_key] = instant
+                            else:
+                                errors.append(f"Could not deliver urgent alert for {key}")
                 except (KeyError, TypeError, ValueError) as error:
                     contracts_valid = False
                     errors.append(f"Invalid check in {feature} ({type(error).__name__})")
