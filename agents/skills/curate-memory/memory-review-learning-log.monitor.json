@@ -1,0 +1,24 @@
+{
+  "feature": "memory-review-learning-log",
+  "checks": [
+    {
+      "id": "decision-history-readable",
+      "command": "python3 -c 'import json,os,pathlib,subprocess,sys; h=pathlib.Path(os.environ.get(\"HERMES_HOME\",pathlib.Path.home()/\".hermes\")); s=h/\"curate-memory/state.json\"; s=s if s.exists() else h/\"memory-request-review/state.json\"; p=subprocess.run([os.environ.get(\"HERMES_MEMORY_REVIEW_PYTHON\",\"python3\"),os.path.expanduser(os.environ.get(\"THESYSTEM_WORKSPACE\",\"~/workspace\")+\"/agents/skills/curate-memory/scripts/review_memory_requests.py\"),\"learn\",\"--home-root\",str(h)],capture_output=True,text=True,timeout=30); ok=p.returncode==0; data=json.loads(p.stdout) if ok else {}; decisions=data.get(\"decision_types\",{}); print(\"OK learning summary: %d decision types\"%len(decisions) if ok and isinstance(decisions,dict) else \"FAIL learning summary unavailable\"); sys.exit(0 if ok and isinstance(decisions,dict) else 1)'",
+      "schedule": {"interval": "1d"},
+      "severity": "data-loss"
+    }
+  ],
+  "safe_state": {
+    "switch": "hold the learning state file unchanged",
+    "description": "Do not migrate, edit, or prune decision history automatically; unreadable history may contain human decisions that are not recoverable elsewhere."
+  },
+  "approved_fixes": [],
+  "sampling": {
+    "what": "Daily learning-summary availability and count of decision types, without proposal text or mismatch reasons.",
+    "sample_size": 1,
+    "working_well": "The learn command reads the current or legacy state path and returns a structured decision summary without exposing decision contents."
+  },
+  "open_decisions": [
+    "Decide whether an absent state file means a valid empty learning history or an initialization problem; the current CLI treats it as empty."
+  ]
+}

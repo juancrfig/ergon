@@ -1,0 +1,24 @@
+{
+  "feature": "hermes-gateway",
+  "checks": [
+    {
+      "id": "gateway-status",
+      "command": "printf 'BLOCKED: Hermes non-mutating gateway status interface is not established\\n'; exit 1",
+      "schedule": {"interval": "5m"},
+      "severity": "normal"
+    }
+  ],
+  "safe_state": {
+    "switch": "hold Hermes gateway configuration and service state unchanged",
+    "description": "Do not restart, stop, or reconfigure a gateway automatically; use the human-approved Hermes status interface to diagnose an unavailable gateway."
+  },
+  "approved_fixes": [],
+  "sampling": {
+    "what": "Daily Hermes gateway status result for the currently configured profile; do not include environment variables, credentials, or profile-specific private details.",
+    "sample_size": 1,
+    "working_well": "Hermes reports the gateway as running for the active configured profile; missing CLI or status support is reported as unavailable, not green."
+  },
+  "open_decisions": [
+    "Confirm the installed Hermes CLI's exact non-mutating status command and its output contract before replacing the blocked draft command; gateway health must be checked for the currently configured profile without assuming a systemd unit name."
+  ]
+}

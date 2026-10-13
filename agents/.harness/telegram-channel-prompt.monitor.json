@@ -1,0 +1,24 @@
+{
+  "feature": "telegram-channel-prompt",
+  "checks": [
+    {
+      "id": "effective-prompt-matches-source",
+      "command": "channel=$(awk -F= '/^TELEGRAM_HOME_CHANNEL=-?[0-9]+$/ {v=$2} END {print v}' \"${HERMES_HOME:-$HOME/.hermes}/.env\"); [ -n \"$channel\" ] || { printf 'FAIL Telegram home channel unavailable\\n'; exit 1; }; expected=$(tail -n +3 \"${THESYSTEM_CLONE:-$HOME/theSystem}/agents/.harness/personalities/telegram.md\"); actual=$(hermes config get \"telegram.channel_prompts.$channel\" 2>/dev/null) || { printf 'FAIL Telegram prompt unavailable\\n'; exit 1; }; if [ \"$actual\" = \"$expected\" ]; then printf 'OK Telegram prompt matches source\\n'; else printf 'FAIL Telegram prompt drift\\n'; exit 1; fi",
+      "schedule": {"interval": "1d"},
+      "severity": "normal"
+    }
+  ],
+  "safe_state": {
+    "switch": "hold the configured Telegram channel prompt unchanged",
+    "description": "Do not overwrite or remove a per-channel prompt on drift; the channel is instance-specific and its intended value requires human confirmation."
+  },
+  "approved_fixes": [],
+  "sampling": {
+    "what": "Daily equality result between the configured home-channel prompt and the canonical Telegram prompt, excluding channel identifiers and prompt contents from output.",
+    "sample_size": 1,
+    "working_well": "The effective configured value matches the canonical prompt or the check reports a generic drift/unavailable status without disclosing the channel identifier."
+  },
+  "open_decisions": [
+    "Confirm that the home channel ID source remains HERMES_HOME/.env and that the current clone is the intended prompt baseline."
+  ]
+}

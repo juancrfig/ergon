@@ -1,0 +1,24 @@
+{
+  "feature": "thesystem-update",
+  "checks": [
+    {
+      "id": "installed-release-baseline-present",
+      "command": "python3 -c 'import json,os,pathlib,subprocess,sys; c=pathlib.Path(os.path.expanduser(os.environ.get(\"THESYSTEM_CLONE\",\"~/theSystem\"))); w=pathlib.Path(os.path.expanduser(os.environ.get(\"THESYSTEM_WORKSPACE\",\"~/workspace\"))); p=w/\".thesystem/baseline/release.json\"; d=json.loads(p.read_text()) if p.is_file() else {}; r=subprocess.run([\"git\",\"-C\",str(c),\"rev-parse\",\"HEAD\"],capture_output=True,text=True,timeout=10); head=r.stdout.strip(); ok=r.returncode==0 and bool(head) and d.get(\"tag\")==\"master@\"+head[:12]; print(\"OK release and baseline aligned\" if ok else \"FAIL release and baseline unavailable or differ\"); sys.exit(0 if ok else 1)'",
+      "schedule": {"event": "thesystem-update"},
+      "severity": "normal"
+    }
+  ],
+  "safe_state": {
+    "switch": "hold the installed theSystem program and baseline unchanged",
+    "description": "Do not run an update or promote a pending baseline automatically; unresolved workspace conflicts and local changes require human review."
+  },
+  "approved_fixes": [],
+  "sampling": {
+    "what": "Daily local theSystem HEAD and baseline release-tag alignment; emit only aligned/mismatched status.",
+    "sample_size": 1,
+    "working_well": "A readable release baseline tag matches the theSystem clone's local HEAD release identifier, or a generic failure is reported without modifying the workspace."
+  },
+  "open_decisions": [
+    "Confirm that the installed program's release identity should be represented by THESYSTEM_CLONE HEAD and that a pending/conflicted update should be reported as drift rather than an expected intermediate state."
+  ]
+}

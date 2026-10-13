@@ -1,0 +1,24 @@
+{
+  "feature": "a2a-link",
+  "checks": [
+    {
+      "id": "a2a-runtime-state",
+      "command": "python3 -c 'import json,os,pathlib,sys; h=pathlib.Path(os.environ.get(\"HERMES_HOME\",pathlib.Path.home()/\".hermes\")); p=h/\"gateway_state.json\"; c=h/\"config.yaml\"; text=c.read_text() if c.is_file() else \"\"; d=json.loads(p.read_text()) if p.is_file() else {}; a=d.get(\"platforms\",{}).get(\"a2a\") if isinstance(d,dict) else None; configured=\"a2a_agents:\" in text and \"gateway:\" in text; ok=configured and isinstance(a,dict) and bool(a) and a.get(\"connected\") is True; print(\"OK a2a runtime state\" if ok else \"FAIL a2a configuration or runtime state unavailable/disconnected\"); sys.exit(0 if ok else 1)'",
+      "schedule": {"interval": "15m"},
+      "severity": "normal"
+    }
+  ],
+  "safe_state": {
+    "switch": "hold configured A2A sender and receiver settings unchanged",
+    "description": "Do not change peer URLs, authentication, ports, or gateway state automatically. A failed or missing runtime probe requires human review."
+  },
+  "approved_fixes": [],
+  "sampling": {
+    "what": "Daily result of the configured A2A runtime-state probe; report status only, never peer URLs or authentication values.",
+    "sample_size": 1,
+    "working_well": "A configured A2A runtime is explicitly connected; missing configuration or runtime state is reported as unavailable, never green."
+  },
+  "open_decisions": [
+    "Confirm the actual gateway_state.json connected-state schema and whether connected establishes the configured sender-to-peer link. If it does not, approve a harmless bounded probe before using this check as link-health evidence."
+  ]
+}
