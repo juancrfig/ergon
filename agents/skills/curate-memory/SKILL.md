@@ -124,7 +124,21 @@ doubt, show the panel and let the human decide.
 R1 partial-duplicate trims, R2, and R7 create the new pending request with Hermes's own staging (`tools.write_approval.stage_write`,
 same payload shape the memory and skill tools stage), so it appears in `/memory pending` or
 `/skills pending` and is reviewed like any other request. Stage it before rejecting the original.
-R8's proposed control is reported to the human as a decision and never applied automatically.
+R8's proposed control is reported to the human as a decision and never applied automatically. Shared-skill proposals prepared by procedure routes are also reviewed here, but they are not memory writes and this review never opens a pull request. List prepared proposals and show the human each proposal's title, label, files, and description:
+
+```sh
+python3 agents/skills/curate-memory/scripts/review_memory_requests.py skill-proposals list
+```
+
+After the human decides, record that decision without opening anything:
+
+```sh
+python3 agents/skills/curate-memory/scripts/review_memory_requests.py skill-proposals decide \
+  --request-id '<proposal-id>' --decision approve
+```
+
+Use `--decision reject` to reject. Approval here only records the human's decision; use the separate `propose-default` flow for any later pull request, and do not open one without its explicit approval.
+
 
 For a request decided by R9, forward first, then reject with `decide --rule R9`:
 

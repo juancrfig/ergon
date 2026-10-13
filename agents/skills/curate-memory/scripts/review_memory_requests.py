@@ -9,6 +9,7 @@ approve/reject decision back to Hermes's native applier.
 from __future__ import annotations
 
 import argparse
+import fcntl
 import hashlib
 import json
 import os
@@ -1236,7 +1237,65 @@ def forward_request(args: argparse.Namespace) -> Path:
     return destination
 
 
+def review_skill_proposals(args: argparse.Namespace) -> None:
+    queue = args.home_root / "curate-memory" / "skill-requests.jsonl"
+    latest: dict[str, dict[str, Any]] = {}
+    try:
+        rows = queue.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        rows = []
+    for line in rows:
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        if isinstance(row, dict) and row.get("request_id"):
+            latest[row["request_id"]] = row
+    if args.proposal_command == "list":
+        proposals = []
+        for request_id, row in latest.items():
+            proposal = row.get("proposal")
+            if not isinstance(proposal, dict) or row.get("proposal_status") != "prepared-not-opened":
+                continue
+            proposals.append({
+                "id": request_id, "skill": row.get("skill_key"),
+                "title": proposal.get("title"), "label": proposal.get("label"),
+                "files": proposal.get("files"), "description": proposal.get("description"),
+                "status": row.get("proposal_status"),
+            })
+        print(json.dumps({"proposals": proposals}, ensure_ascii=False, indent=2))
+        return
+    if args.decision not in ("approve", "reject") or not args.request_id:
+        raise ReviewError("skill-proposals decide requires --request-id and --decision approve|reject.")
+    row = latest.get(args.request_id)
+    if not row or not isinstance(row.get("proposal"), dict) or row.get("proposal_status") != "prepared-not-opened":
+        raise ReviewError("Shared-skill proposal is unavailable or already decided; list proposals again.")
+    decision_row = {
+        **row, "proposal_status": "human-approved" if args.decision == "approve" else "human-rejected",
+        "proposal_decision": args.decision, "proposal_decided_at": time.time(),
+    }
+    queue.parent.mkdir(parents=True, exist_ok=True)
+    with queue.open("a", encoding="utf-8") as stream:
+        fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+        stream.write(json.dumps(decision_row, ensure_ascii=False, separators=(",", ":")) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+        fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+    print(json.dumps({"id": args.request_id, "decision": args.decision, "opened": False}, ensure_ascii=False))
+
+
 def _parse_args(argv: list[str]) -> argparse.Namespace:
+    if argv and argv[0] == "skill-proposals":
+        parser = argparse.ArgumentParser(description="Review prepared shared-skill proposals; never open pull requests.")
+        subparsers = parser.add_subparsers(dest="proposal_command", required=True)
+        list_parser = subparsers.add_parser("list")
+        list_parser.add_argument("--home-root", type=Path, default=Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")))
+        decide_parser = subparsers.add_parser("decide")
+        decide_parser.add_argument("--home-root", type=Path, default=Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")))
+        decide_parser.add_argument("--request-id", required=True)
+        decide_parser.add_argument("--decision", choices=("approve", "reject"), required=True)
+        args = parser.parse_args(argv[1:])
+        args.command = "skill-proposals"
+        return args
     if argv and argv[0] == "forward":
         parser = argparse.ArgumentParser(description="Forward a reviewed memory request to project wiki sources.")
         parser.add_argument("--profile", choices=PROFILES, required=True)
@@ -1310,6 +1369,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "lifespan":
         manage_lifespan(args)
+        return 0
+    if args.command == "skill-proposals":
+        review_skill_proposals(args)
         return 0
     if args.command == "forward":
         forward_request(args)
