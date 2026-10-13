@@ -92,7 +92,7 @@ internally for `decide`. The panel shows `Target` (`memory`, `user`, or
 `skill:<name>`), each operation as `ADD`, `DELETE`, or `REPLACE` with its text
 (`−` old, `+` new) without detailing where it lands in the file, and each Jev
 question with its probability (higher = more likely problem). Do not average or
-convert results into a quality score. Show at most one request per turn.
+convert results into a quality score. Show at most one request per turn. Present it in a readable mobile format: **Target**, **Action**, **Current entry** (when replacing/deleting), **Proposed entry**, **Scores** for every System One criterion, **Matched current entry** when available, and **My recommendation**. Show the complete text; do not rely on the terminal panel alone or truncate the request so the human must infer its content.
 
 ## System One routing (Jev)
 
