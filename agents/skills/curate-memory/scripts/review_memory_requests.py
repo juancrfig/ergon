@@ -1519,7 +1519,10 @@ def main(argv: list[str] | None = None) -> int:
         raise ReviewError("--date and --lifespan apply only to approvals targeting user.")
     if args.lifespan and not is_user:
         raise ReviewError("--lifespan applies only to approvals targeting user.")
-    if is_user and args.decision == "approve" and not args.lifespan:
+    # A delete leaves no entry behind, so it has no lifespan to agree on.
+    removes_only = all(isinstance(operation, dict) and operation.get("action", request.payload.get("action")) == "remove"
+                       for operation in _payload_operations(request.payload))
+    if is_user and args.decision == "approve" and not args.lifespan and not removes_only:
         # The lifespan is decided in the review session, with the decision; no silent default.
         raise ReviewError("Approvals targeting user require --lifespan (agreed with the human during review).")
     if is_user and args.decision == "approve" and args.lifespan == "until" and not args.date:
