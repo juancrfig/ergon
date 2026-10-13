@@ -156,7 +156,7 @@ fi
 
 # Hermes may select a named profile even when HERMES_HOME is unset. Ask Hermes rather than writing the
 # default profile while its CLI commands configure a different one.
-if (( hermes )); then
+if (( hermes )) && [[ -z "${HERMES_HOME:-}" ]]; then
   if ! config_path=$(hermes config path </dev/null); then
     fail "could not resolve the main Hermes profile"
   fi
@@ -215,6 +215,43 @@ if (( hermes )); then
   if ! problem=$(PYTHONPATH="$share_dir" python3 -m thesystem.harness verify "$workspace" 2>&1); then
     fail "${problem#install: }"
   fi
+fi
+
+# Monitor scheduler: deterministic health checks run outside Hermes every five minutes.
+# It uses the selected Hermes profile and the canonical theSystem clone; no Hermes cron job is installed.
+if command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1; then
+  step "Starting the Monitor scheduler"
+  unit_dir="$HOME/.config/systemd/user"
+  mkdir -p "$unit_dir"
+  cat > "$unit_dir/thesystem-monitor.service" <<EOF
+[Unit]
+Description=theSystem Monitor health-check scheduler
+
+[Service]
+Type=oneshot
+Environment=HERMES_HOME=$hermes_root
+Environment=THESYSTEM_CLONE=$clone
+Environment=PYTHONPATH=$share_dir
+ExecStart=/usr/bin/env python3 -m thesystem.scheduler
+EOF
+  cat > "$unit_dir/thesystem-monitor.timer" <<'EOF'
+[Unit]
+Description=Run the theSystem Monitor every five minutes
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=5min
+AccuracySec=1s
+Persistent=true
+Unit=thesystem-monitor.service
+
+[Install]
+WantedBy=timers.target
+EOF
+  systemctl --user daemon-reload >/dev/null 2>&1 || true
+  systemctl --user enable thesystem-monitor.timer >/dev/null 2>&1 || true
+  systemctl --user restart thesystem-monitor.timer >/dev/null 2>&1 || true
+  loginctl enable-linger "${USER:-$(id -un)}" >/dev/null 2>&1 || true
 fi
 
 # Artifact library (F9): an always-on user service serving the workspace's HTML artifacts on localhost.
