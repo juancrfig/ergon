@@ -10,6 +10,7 @@ base:
     - rules/install-reconciles-canonical-declarations.md
     - rules/overlays-escape-clipping-ancestors.md
     - rules/second-order-thinking-checks.md
+    - rules/decide-small-changes-without-approval.md
   skills:
     - skills/systematic-debugging
 worker: {}

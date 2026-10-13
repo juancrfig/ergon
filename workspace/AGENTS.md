@@ -9,6 +9,10 @@ Tests are a scarce good. They are created only at the end of development, and on
 approval. Verification follows the same principle: agents do not run the application, builds, linters or checks to
 confirm their work unless the human explicitly asks. Read `agents/rules/tests-and-verification-need-human-approval.md`.
 
+Small changes are decided without the human: approval is needed only for changes to required functionality,
+approved scenarios, security, performance or frontend requirements, or destructive ones. This binds the main agent
+too. Read `agents/rules/decide-small-changes-without-approval.md`.
+
 ```text
 AGENTS.md            this guide
 GLOSSARY.md          workspace language
