@@ -1,5 +1,5 @@
 {
-  "catalog_version": 5,
+  "catalog_version": 6,
   "criteria": [
     {
       "id": "rediscoverable",
@@ -63,6 +63,27 @@
       "examples": [
         "Yes: \"We chose TSV over YAML for the canonical config because a parallel YAML copy drifted; variations are deferred to Later.\"",
         "No: \"Before applying the canonical config to the real host, diff each key and tell the user the changes that matter.\""
+      ]
+    },
+    {
+      "id": "unclear-purpose",
+      "version": 1,
+      "question": "Would a future agent reading this proposal alone fail to understand what problem it solves or when it applies?",
+      "context": {
+        "subject": "A pending Hermes memory or skill write, given as its literal payload.",
+        "purpose": "Memory entries are read later, out of context, by an agent that did not see the conversation that produced them. An entry whose problem or trigger is unclear gets misapplied or ignored, so it costs context without changing behavior."
+      },
+      "definition": {
+        "yes": "The proposal is a slogan, principle, or fragment that does not say, by itself, what situation it applies to or what goes wrong without it; acting on it would require guessing.",
+        "no": "The proposal states, or makes obvious from its own words, the situation it applies to and the behavior or fact it fixes."
+      },
+      "exclusions": [
+        "Whether the content is correct, rediscoverable, or in the right home is outside this criterion.",
+        "A short entry is not unclear when its trigger is obvious from its words (\"Juanes wants conversations in English.\")."
+      ],
+      "examples": [
+        "Yes: \"Design taste: remove a problem at its source before adding a stage to fix it.\"",
+        "No: \"Create HTML artifacts only when Juanes asks; he finds unrequested ones noisy.\""
       ]
     }
   ]
