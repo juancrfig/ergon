@@ -188,15 +188,18 @@ if (( hermes )); then
   #   edits. Auxiliary models are not touched; the human configures them.
   # Hermes reads the harness from the theSystem being installed, so every install brings its canonical version.
   config=(--trust "$workspace" --set terminal.cwd "$workspace")
-  if [[ -f "$harness/personalities/main.md" ]]; then
-    config+=(--set personalities.main "$(cat "$harness/personalities/main.md")" --set personalities.casual ""
+  # The workspace copy wins: it carries the human's local edits, merged with theSystem's on every update.
+  personalities="$harness/personalities"
+  [[ -d "$workspace/agents/.harness/personalities" ]] && personalities="$workspace/agents/.harness/personalities"
+  if [[ -f "$personalities/main.md" ]]; then
+    config+=(--set personalities.main "$(cat "$personalities/main.md")" --set personalities.casual ""
              --default display.personality main)
   fi
   # - Telegram: the owner's DM (TELEGRAM_HOME_CHANNEL) gets the instant-messaging communication style as a channel
   #   prompt. Hermes injects it only for messages from that chat, on top of the `main` personality.
   home_chat=$(grep -s -E '^TELEGRAM_HOME_CHANNEL=-?[0-9]+$' "$hermes_root/.env" | tail -n 1 | cut -d= -f2)
-  if [[ -n "$home_chat" && -f "$harness/personalities/telegram.md" ]]; then
-    config+=(--set "telegram.channel_prompts.$home_chat" "$(tail -n +3 "$harness/personalities/telegram.md")")
+  if [[ -n "$home_chat" && -f "$personalities/telegram.md" ]]; then
+    config+=(--set "telegram.channel_prompts.$home_chat" "$(tail -n +3 "$personalities/telegram.md")")
   fi
   [[ -f "$harness/canonical_config.yaml" ]] && config+=(--canonical "$harness/canonical_config.yaml")
   # The harness edits Hermes' config in one pass with PyYAML. The first python3 on PATH can be a venv without it,
