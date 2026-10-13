@@ -156,7 +156,7 @@ fi
 
 # Hermes may select a named profile even when HERMES_HOME is unset. Ask Hermes rather than writing the
 # default profile while its CLI commands configure a different one.
-if (( hermes )); then
+if (( hermes )) && [[ -z "${HERMES_HOME:-}" ]]; then
   if ! config_path=$(hermes config path </dev/null); then
     fail "could not resolve the main Hermes profile"
   fi
@@ -215,6 +215,56 @@ if (( hermes )); then
   if ! problem=$(PYTHONPATH="$share_dir" python3 -m thesystem.harness verify "$workspace" 2>&1); then
     fail "${problem#install: }"
   fi
+fi
+
+# Monitor scheduler: deterministic health checks run outside Hermes every five minutes.
+# It uses the selected Hermes profile and the canonical theSystem clone; no Hermes cron job is installed.
+# systemd unit values sit inside double quotes; escape backslashes, quotes and % (systemd specifiers)
+# so paths with spaces or special characters still produce a valid unit.
+systemd_escape_value() {
+  local v=${1//\\/\\\\}
+  v=${v//\"/\\\"}
+  v=${v//%/%%}
+  printf '%s' "$v"
+}
+
+if command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1; then
+  step "Starting the Monitor scheduler"
+  # An empty contracts directory is a valid "nothing approved yet" state; a missing one is a scheduler error.
+  mkdir -p "$hermes_root/monitor/contracts"
+  unit_dir="$HOME/.config/systemd/user"
+  mkdir -p "$unit_dir"
+  cat > "$unit_dir/thesystem-monitor.service" <<EOF
+[Unit]
+Description=theSystem Monitor health-check scheduler
+
+[Service]
+Type=oneshot
+Environment="HERMES_HOME=$(systemd_escape_value "$hermes_root")"
+Environment="THESYSTEM_CLONE=$(systemd_escape_value "$clone")"
+Environment="PYTHONPATH=$(systemd_escape_value "$share_dir")"
+ExecStart=/usr/bin/env python3 -m thesystem.scheduler
+EOF
+  cat > "$unit_dir/thesystem-monitor.timer" <<'EOF'
+[Unit]
+Description=Run the theSystem Monitor every five minutes
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=5min
+AccuracySec=1s
+Persistent=true
+Unit=thesystem-monitor.service
+
+[Install]
+WantedBy=timers.target
+EOF
+  # The Monitor depends on this timer, so a provisioning failure is reported instead of swallowed.
+  if ! { systemctl --user daemon-reload && systemctl --user enable thesystem-monitor.timer \
+         && systemctl --user restart thesystem-monitor.timer; } >/dev/null 2>&1; then
+    echo "WARNING: the Monitor scheduler timer (thesystem-monitor.timer) could not be enabled; health checks will not run." >&2
+  fi
+  loginctl enable-linger "${USER:-$(id -un)}" >/dev/null 2>&1 || true
 fi
 
 # Artifact library (F9): an always-on user service serving the workspace's HTML artifacts on localhost.
