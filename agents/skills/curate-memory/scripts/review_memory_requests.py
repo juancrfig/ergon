@@ -1237,7 +1237,6 @@ def forward_request(args: argparse.Namespace) -> Path:
     return destination
 
 
-<<<<<<< HEAD
 def review_skill_proposals(args: argparse.Namespace) -> None:
     queue = args.home_root / "curate-memory" / "skill-requests.jsonl"
     latest: dict[str, dict[str, Any]] = {}
@@ -1284,19 +1283,6 @@ def review_skill_proposals(args: argparse.Namespace) -> None:
     print(json.dumps({"id": args.request_id, "decision": args.decision, "opened": False}, ensure_ascii=False))
 
 
-def _parse_args(argv: list[str]) -> argparse.Namespace:
-    if argv and argv[0] == "skill-proposals":
-        parser = argparse.ArgumentParser(description="Review prepared shared-skill proposals; never open pull requests.")
-        subparsers = parser.add_subparsers(dest="proposal_command", required=True)
-        list_parser = subparsers.add_parser("list")
-        list_parser.add_argument("--home-root", type=Path, default=Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")))
-        decide_parser = subparsers.add_parser("decide")
-        decide_parser.add_argument("--home-root", type=Path, default=Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")))
-        decide_parser.add_argument("--request-id", required=True)
-        decide_parser.add_argument("--decision", choices=("approve", "reject"), required=True)
-        args = parser.parse_args(argv[1:])
-        args.command = "skill-proposals"
-=======
 def control_proposals(home: Path) -> list[dict[str, Any]]:
     path = home / "curate-memory" / "control-proposals.jsonl"
     latest: dict[str, dict[str, Any]] = {}
@@ -1359,6 +1345,18 @@ def decide_control(home: Path, proposal_id: str, decision: str, reason: str) -> 
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
+    if argv and argv[0] == "skill-proposals":
+        parser = argparse.ArgumentParser(description="Review prepared shared-skill proposals; never open pull requests.")
+        subparsers = parser.add_subparsers(dest="proposal_command", required=True)
+        list_parser = subparsers.add_parser("list")
+        list_parser.add_argument("--home-root", type=Path, default=Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")))
+        decide_parser = subparsers.add_parser("decide")
+        decide_parser.add_argument("--home-root", type=Path, default=Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")))
+        decide_parser.add_argument("--request-id", required=True)
+        decide_parser.add_argument("--decision", choices=("approve", "reject"), required=True)
+        args = parser.parse_args(argv[1:])
+        args.command = "skill-proposals"
+        return args
     if argv and argv[0] == "decide-control":
         parser = argparse.ArgumentParser(description="Record a human decision for a proposed control.")
         parser.add_argument("id")
@@ -1367,7 +1365,6 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         parser.add_argument("--home-root", type=Path, default=Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")))
         args = parser.parse_args(argv[1:])
         args.command = "decide-control"
->>>>>>> thesystem/labels-route-safety
         return args
     if argv and argv[0] == "forward":
         parser = argparse.ArgumentParser(description="Forward a reviewed memory request to project wiki sources.")
@@ -1433,6 +1430,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "decide-control":
         print(json.dumps(decide_control(args.home_root, args.id, args.decision, args.reason), ensure_ascii=False, indent=2))
         return 0
+    if args.command == "skill-proposals":
+        review_skill_proposals(args)
+        return 0
     if args.command == "controls":
         print(json.dumps({"controls": control_proposals(args.home_root)}, ensure_ascii=False, indent=2))
         return 0
@@ -1448,9 +1448,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "lifespan":
         manage_lifespan(args)
-        return 0
-    if args.command == "skill-proposals":
-        review_skill_proposals(args)
         return 0
     if args.command == "forward":
         forward_request(args)
