@@ -249,6 +249,9 @@ Type=oneshot
 Environment="HERMES_HOME=$(systemd_escape_value "$hermes_root")"
 Environment="THESYSTEM_CLONE=$(systemd_escape_value "$clone")"
 Environment="PYTHONPATH=$(systemd_escape_value "$share_dir")"
+# Checks call hermes and the workspace command, which live outside systemd's default PATH.
+Environment="PATH=$(systemd_escape_value "$HOME/.local/bin:$(dirname "$(command -v hermes 2>/dev/null || echo /usr/bin/hermes)"):/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")"
+Environment="THESYSTEM_WORKSPACE=$(systemd_escape_value "$workspace")"
 ExecStart=/usr/bin/env python3 -m thesystem.scheduler
 EOF
   cat > "$unit_dir/thesystem-monitor.timer" <<'EOF'
