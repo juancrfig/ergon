@@ -187,3 +187,23 @@ Proposals (`propose-default` skill, at any time, inside or outside a memory revi
   - Before opening it, the main agent checks the change for company information (client, project and people names, internal URLs, secrets) and shows the owner anything flagged. The pull request opens only after the owner says yes.
   - Opened from its own branch in a temporary git worktree of `~/theSystem` based on `master`, so the clone's checkout is never disturbed.
 Not this: automatic or scheduled updates, "you are behind" checks, proposing Hermes memory, personal skills or anything in a project folder, or carrying Hermes settings changed by hand with `hermes config set`.
+
+## F11 · Labeled memory writes
+
+Status: wanted
+Meaning: every memory write carries one idea and a kind label, and code, not the agent's judgment, decides where it goes.
+  - Kinds: `user-preference`, `user-fact` go to USER; `environment-fact`, `agent-convention` go to MEMORY. A missing or unknown label, a wrong destination, or more than 300 characters is refused with a message that tells the agent how to fix it.
+  - `procedure` updates or creates a skill right away, through a subagent; edits to the same skill run one at a time. `project-fact` becomes a source in that project's `wiki/raw/`. `safety-rule` goes to the control review queue unless an existing control already covers it.
+  - Every decision is logged. If the plugin breaks, writes are blocked and the owner is alerted.
+  - Ships to every instance through the installer and `umbrella update`.
+Not this: no per-edit approval for skill edits (the Monitor samples them); no changes to Hermes itself.
+
+## F12 · Monitor
+
+Status: wanted
+Meaning: one agent per instance watches every feature, so the owner does not have to.
+  - Each feature has a health check contract the owner approves once. A scheduler outside Hermes runs the approved checks every 5 minutes and after Hermes or theSystem updates. A changed contract stops running until it is approved again.
+  - A red check starts the Monitor, which opens an incident, investigates, and applies only the contract's safe state and approved fixes. It runs as its own restricted Linux user, so it cannot change contracts, approvals or the scheduler.
+  - The scheduler alerts the owner on Telegram directly: red with no incident after 15 minutes; incident open 45 minutes with no fix and no question to the owner. No quiet hours. More than 50 Monitor runs a day alerts but blocks nothing.
+  - Daily sampling: on days with findings, one digest with the top 3; the rest go to a backlog. Five identical owner-approved fixes for a check produce a proposal to make that fix automatic.
+Not this: no cross-instance monitoring; green results send nothing.
