@@ -1244,12 +1244,15 @@ def control_proposals(home: Path) -> list[dict[str, Any]]:
     except FileNotFoundError:
         return []
     for number, line in enumerate(lines, 1):
+        # A corrupt row is reported and skipped so the remaining proposals stay reviewable.
         try:
             row = json.loads(line)
         except json.JSONDecodeError as exc:
-            raise ReviewError(f"Unreadable control proposal at {path}:{number}: {exc}") from exc
+            print(f"WARNING: skipped unreadable control proposal at {path}:{number}: {exc}", file=sys.stderr)
+            continue
         if not isinstance(row, dict) or not isinstance(row.get("id"), str):
-            raise ReviewError(f"Invalid control proposal at {path}:{number}: expected object with id")
+            print(f"WARNING: skipped invalid control proposal at {path}:{number}: expected object with id", file=sys.stderr)
+            continue
         latest[row["id"]] = row
     return [row for row in latest.values() if row.get("status") == "pending-human"]
 

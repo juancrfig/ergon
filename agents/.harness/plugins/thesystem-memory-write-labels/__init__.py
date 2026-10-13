@@ -325,10 +325,20 @@ def _resume_safety_screening() -> None:
     path = _home() / "curate-memory" / "control-proposals.jsonl"
     try:
         proposals: dict[str, dict[str, Any]] = {}
-        for line in path.read_text(encoding="utf-8").splitlines():
-            row = json.loads(line)
+        corrupt = []
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            # One corrupt row must not strand every other proposal in `screening`.
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                corrupt.append(number)
+                continue
             if isinstance(row, dict) and isinstance(row.get("id"), str):
                 proposals[row["id"]] = row
+            else:
+                corrupt.append(number)
+        if corrupt:
+            _alert(f"Skipped corrupt control proposal rows at {path} lines {corrupt}; the other proposals were resumed.")
     except FileNotFoundError:
         return
     except Exception as error:
