@@ -316,6 +316,125 @@ def _live_memory_entries(home: Path, target: str) -> tuple[list[dict[str, Any]],
     return entries, _memory_limit(home, target)
 
 
+def memory_preflight(request: PendingRequest) -> dict[str, Any]:
+    """Read-only Hermes dry-run: final char budget, op kinds, pins, and USER lifespan gate."""
+    if request.subsystem != "memory":
+        return {"eligible": False, "reason": "not a memory write"}
+    target = request.payload.get("target", "memory")
+    if target not in {"memory", "user"}:
+        return {"eligible": False, "reason": "unknown memory target"}
+    operations = _payload_operations(request.payload)
+    normalized = []
+    for raw in operations:
+        if not isinstance(raw, dict):
+            return {"eligible": False, "reason": "malformed operation"}
+        action = raw.get("action", request.payload.get("action"))
+        if action not in {"add", "replace", "remove"}:
+            return {"eligible": False, "reason": "unknown operation"}
+        normalized.append({"action": action, "target": target,
+                          "content": raw.get("content", raw.get("new_text", "")) or "",
+                          "old_text": raw.get("old_text", "") or "",
+                          **({"matched_entry": raw["matched_entry"]} if raw.get("matched_entry") else {})})
+    if len(normalized) == 1:
+        normalized = [{**normalized[0], "action": "batch"}]
+        ops = [{k: v for k, v in normalized[0].items() if k != "target" and k != "action"}]
+        ops[0]["action"] = _payload_operations(request.payload)[0].get("action", request.payload.get("action"))
+    else:
+        ops = [{k: v for k, v in item.items() if k not in {"target"}} for item in normalized]
+    previous_home = os.environ.get("HERMES_HOME")
+    os.environ["HERMES_HOME"] = str(request.home)
+    try:
+        from tools.memory_tool import load_on_disk_store
+        store = load_on_disk_store()
+        # resolve_batch_entries runs Hermes' own locked parser, matching, threat scan,
+        # and final-state limit check without writing. Carry existing pins through verbatim.
+        result = store.resolve_batch_entries(target, ops)
+        if not result.get("success"):
+            return {"eligible": False, "reason": result.get("error", "Hermes preflight refused this write"),
+                    "target": target, "operations": [op["action"] for op in ops]}
+        from tools.memory_tool_store import ENTRY_DELIMITER
+        current = list(store._entries_for(target))
+        for op, matched in zip(ops, result.get("matched_entries", [])):
+            action = op["action"]
+            content = (op.get("content") or op.get("new_text") or "").strip()
+            if action == "add":
+                if content and content not in current:
+                    current.append(content)
+            elif action == "replace":
+                current[current.index(matched)] = content
+            else:
+                current.remove(matched)
+        final_chars = len(ENTRY_DELIMITER.join(current))
+        limit = store._char_limit(target)
+        unpinned = any(op["action"] in {"replace", "remove"} and not op.get("matched_entry") for op in ops)
+        only_removes = all(op["action"] == "remove" for op in ops)
+        return {"eligible": final_chars <= limit and not unpinned,
+                "target": target, "operations": [op["action"] for op in ops],
+                "current_chars": len(ENTRY_DELIMITER.join(store._entries_for(target))),
+                "final_chars": final_chars, "limit_chars": limit,
+                "lifespan_required": target == "user" and not only_removes,
+                "pins_present": not unpinned,
+                "reason": ("replace/remove is missing Hermes matched_entry pin; reject and recreate" if unpinned
+                           else "final memory exceeds its configured limit" if final_chars > limit else "")}
+    except Exception as exc:
+        return {"eligible": False, "reason": f"Hermes preflight unavailable: {type(exc).__name__}: {exc}"}
+    finally:
+        if previous_home is None:
+            os.environ.pop("HERMES_HOME", None)
+        else:
+            os.environ["HERMES_HOME"] = previous_home
+
+
+def batch_eligibility(request: PendingRequest) -> tuple[bool, str, dict[str, Any]]:
+    """Conservative cohort: plain MEMORY additions only; every exception stays individual."""
+    preflight = memory_preflight(request)
+    if request.subsystem != "memory":
+        return False, "skill writes require individual review", preflight
+    if request.payload.get("target", "memory") != "memory":
+        return False, "USER changes (including lifespan decisions) require individual review", preflight
+    operations = _payload_operations(request.payload)
+    if len(operations) != 1 or not isinstance(operations[0], dict):
+        return False, "multi-operation or malformed request requires individual review", preflight
+    op = operations[0]
+    if op.get("action", request.payload.get("action")) != "add":
+        return False, "replace/remove is destructive and requires individual review", preflight
+    if not preflight.get("eligible"):
+        return False, preflight.get("reason", "preflight did not pass"), preflight
+    if preflight.get("limit_chars") and preflight["final_chars"] > preflight["limit_chars"] * 0.8:
+        return False, "capacity-risk change requires individual review", preflight
+    text = str(op.get("content", op.get("new_text", "")) or "")
+    if detect_possible_secrets(request.payload):
+        return False, "possible private credential; retained for individual review", preflight
+    sensitive = re.compile(r"(?i)\b(?:safety|secure|security|permission|deny|forbid|prevent|cost|delete|remove|overwrite|private|confidential|password|token|address|phone|email|medical|health|salary|family|until|deadline|today|tomorrow|yesterday|currently|temporary|working on|in progress|todo|to-do|procedure|steps|how to|idea|plan to|project|always|never|must|should|don't|do not|cannot|can't|mustn't|I|me|my|mine|you|your|yours|we|our|ours)\b")
+    if sensitive.search(text):
+        return False, "safety, private/time-bound fact, or ambiguous routing needs individual review", preflight
+    flags = staleness(request)
+    if flags:
+        return False, "stale or changed target requires individual review", preflight
+    return True, "low-risk MEMORY add", preflight
+
+
+def _batch_review(inventory: Inventory, catalog: Catalog, state: dict[str, Any]) -> dict[str, Any]:
+    selected = []
+    excluded = []
+    for request in inventory.requests:
+        eligible, reason, preflight = batch_eligibility(request)
+        if eligible:
+            evaluation = evaluate_one(request, catalog, state=state)
+            selected.append({"request": request, "evaluation": evaluation, "preflight": preflight})
+        else:
+            excluded.append({"profile": request.profile, "subsystem": request.subsystem,
+                             "id": request.pending_id, "reason": reason})
+    panels = []
+    for index, row in enumerate(selected, 1):
+        request = row["request"]
+        panels.append({"profile": request.profile, "subsystem": request.subsystem, "id": request.pending_id,
+                       "record_sha256": request.record_sha256, "panel": render_panel(
+                           request, row["evaluation"], index, len(selected), catalog, staleness(request)),
+                       "preflight": row["preflight"]})
+    return {"batch_count": len(selected), "items": panels, "individual_review": excluded}
+
+
 def route_with_jev(
     request: PendingRequest, live_entries: list[dict[str, Any]], other_pending: list[dict[str, Any]],
 ) -> dict[str, Any]:
@@ -601,13 +720,9 @@ def describe_operations(request: PendingRequest) -> list[Operation]:
         extra = {key: value for key, value in raw.items() if key not in _KNOWN_OPERATION_KEYS}
         if extra:
             new = (new + "\n" if new else "") + canonical_json(extra)
-        # A replace that keeps its old text intact only adds text next to it.
-        if old and new != old and new.endswith(old):
-            described.append(Operation("ADD", new=new[:-len(old)].rstrip()))
-        elif old and new != old and new.startswith(old):
-            described.append(Operation("ADD", new=new[len(old):].lstrip()))
-        else:
-            described.append(Operation(_VERBS.get(action, action.upper()), old, new))
+        # Hermes replace overwrites the entire matched entry. Retaining the old text
+        # inside the replacement does not turn it into an add.
+        described.append(Operation(_VERBS.get(action, action.upper()), old, new))
     return described
 
 
@@ -1404,6 +1519,8 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--instance", default="default")
     parser.add_argument("--catalog", type=Path, default=_default_catalog_path())
     parser.add_argument("--position", type=int, default=1)
+    parser.add_argument("--batch", action="store_true",
+                        help="show one-response batch of conservative low-risk MEMORY additions only")
     parser.add_argument("--profile", choices=PROFILES)
     parser.add_argument("--subsystem", choices=SUBSYSTEMS)
     parser.add_argument("--pending-id")
@@ -1477,15 +1594,22 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"auto_rejected": sweep(inventory, args.home_root)}, ensure_ascii=False, indent=2))
         return 0
     if args.command == "show":
+        catalog = load_catalog(args.catalog)
+        state = load_review_state(args.home_root)
+        if args.batch:
+            result = _batch_review(inventory, catalog, state)
+            save_review_state(args.home_root, state)
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return 0
         if args.position < 1 or args.position > len(inventory.requests):
             raise ReviewError(f"position must be 1..{len(inventory.requests)}")
         request = inventory.requests[args.position - 1]
-        catalog = load_catalog(args.catalog)
-        state = load_review_state(args.home_root)
         evaluation = evaluate_one(request, catalog, args.model, state)
         flags = staleness(request)
+        preflight = memory_preflight(request)
         save_review_state(args.home_root, state)
         print(render_panel(request, evaluation, args.position, len(inventory.requests), catalog, flags))
+        print("\nPreflight: " + json.dumps(preflight, ensure_ascii=False))
         print(f"\nrecord_sha256: {request.record_sha256}")
         return 0
     if (not args.human_decision and not args.rule) or args.decision not in DECISION_OPTIONS:
@@ -1509,6 +1633,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     if request is None:
         raise StaleRequestError("The reviewed pending request is no longer available; inspect the inventory again.")
+    preflight = memory_preflight(request) if request.subsystem == "memory" and args.decision == "approve" else None
+    if preflight is not None and not preflight.get("eligible"):
+        raise ReviewError("Hermes preflight blocked approval: " + str(preflight.get("reason", "not eligible")))
     edited_trim = args.decision == "trim" and args.proposed_text is not None and args.text != args.proposed_text
     if args.human_decision and ((args.proposal is not None and args.decision != args.proposal) or edited_trim) and not args.why:
         raise ReviewError("When overriding the proposal or editing its trim, --why is required.")

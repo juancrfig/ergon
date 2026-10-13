@@ -54,7 +54,7 @@ bundles, otherwise `venv` + `pip`), installs the pinned `typesafe-sdk` from
 `requirements.txt`, and links Hermes's own modules into it. Rerunning it is
 safe. Never install dependencies any other way, and never during a review.
 
-The review script finds the interpreter from its own location, regardless of
+The script finds the interpreter from its own location, regardless of
 the current directory or skill symlinks. Do not ask the user to export
 variables. `HERMES_MEMORY_REVIEW_PYTHON` is only an optional explicit choice of
 another prepared interpreter.
@@ -75,15 +75,35 @@ the control itself must later be built as a normal theSystem task.
 Report the counts of `memory`, `skills`, and unreadable records. Unreadable
 records cannot be approved; leave them pending and show their identity/error.
 
-Review one request at a time. `show` sends only the selected request to Jev (the
-others wait their turn) and renders its already-evaluated panel; there is no
-prior step that shows the proposal and evaluates it later.
+Review one request at a time by default. `show` evaluates only the selected
+request and renders its panel. Every memory panel also has a local Hermes
+preflight: operation kinds, current/final character use against the configured
+limit, whether a USER lifespan is required, and whether each destructive
+operation carries Hermes's exact `matched_entry` pin. The same preflight is
+re-run immediately before approval. It uses Hermes's own dry-run API and does
+not write memory. An over-limit, ambiguous, or unpinned destructive request is
+not approved; reject and recreate it through Hermes so the native pin is saved.
+`replace` always means whole-entry replacement, even when its new text retains
+the old text.
+
+For a single human response covering eligible low-risk requests, use:
 
 ```sh
-python3 \
-  agents/skills/curate-memory/scripts/review_memory_requests.py show \
-  --position 1
+python3 agents/skills/curate-memory/scripts/review_memory_requests.py show --batch
 ```
+
+This groups only single-operation `add` requests to `MEMORY` that pass the
+capacity preflight, secret/staleness checks, and conservative content screening.
+The JSON includes each eligible panel plus an `individual_review` list and the
+reason each excluded request was held back. USER requests (lifespan approvals),
+skill writes, replace/remove, multi-operation requests, capacity-risk changes,
+possible private or time-bound facts, safety-related content, and ambiguous
+routing remain individual. Show the eligible panels together and ask once:
+**approve all** or **reject all**. If the person wants mixed choices, return to
+individual `show`/decision for each item. For approve all, apply each item using
+its captured identity and hash with the normal `decide --human-decision` command;
+never reselect by position. Verify each native result separately. Do not batch
+R1–R10 rule actions, trims, lifespan choices, or control decisions.
 
 Copy the panel inside a code block, without added comments or JSON. For the
 human view, show only the profile name in the header and hide technical
