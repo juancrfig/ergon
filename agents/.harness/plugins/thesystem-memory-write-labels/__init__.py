@@ -140,7 +140,113 @@ def _route(entry: str, label: str, argument: str | None, context: dict[str, Any]
     return {"decision": "refused", "destination": label, "artifact": None,
             "message": f"Memory write refused: route not yet available for [{label}]. Keep it out of memory until its route is enabled."}
 
+def _handle_project_fact(entry: str, label: str, argument: str | None, context: dict[str, Any]) -> dict[str, Any]:
+    workspace = Path.cwd().resolve()
+    workspace_directories = {"agents", "docs", "tickets", "artifacts", "wiki"}
+    projects = sorted(
+        (path for path in workspace.iterdir() if path.is_dir() and not path.is_symlink()
+         and not path.name.startswith(".") and path.name not in workspace_directories),
+        key=lambda path: path.name,
+    )
+    project_names = [path.name for path in projects]
+    requested = (argument or "").strip()
+    if requested.casefold() in {"none", "none fits", "no project"}:
+        from tools import write_approval as approval
+
+        payload = {"action": "add", "target": "memory", "content": entry}
+        record = approval.stage_write(
+            approval.MEMORY, payload, summary=f"project-unknown: {entry[:120]}",
+            origin=approval.current_origin(),
+        )
+        pending = _home() / "pending" / "memory" / f"{record.get('id', '')}.json"
+        if not record.get("id") or not pending.is_file():
+            raise RuntimeError("human review request was not persisted")
+        return {
+            "decision": "routed", "destination": "human review queue", "artifact": str(pending),
+            "message": "No project was selected. The original fact was added to the human review queue "
+                       "with reason project-unknown.",
+        }
+
+    candidate = workspace / requested
+    try:
+        resolved = candidate.resolve(strict=True)
+        inside_workspace = resolved.parent == workspace
+        project_is_real_dir = not candidate.is_symlink() and candidate.is_dir()
+    except (OSError, RuntimeError):
+        resolved = candidate
+        inside_workspace = False
+        project_is_real_dir = False
+    if (not requested or Path(requested).is_absolute() or Path(requested).name != requested
+            or not inside_workspace or not project_is_real_dir or resolved.name != requested
+            or requested not in project_names):
+        available = ", ".join(project_names) if project_names else "(none)"
+        return {
+            "decision": "refused", "destination": requested or "project wiki inbox", "artifact": None,
+            "message": f"Unknown project {requested!r}. Existing project folders: {available}. "
+                       "Retry with an existing project name, or explicitly state that none fits.",
+        }
+
+    wiki_path = resolved / "wiki"
+    raw_path = wiki_path / "raw"
+    if wiki_path.is_symlink() or raw_path.is_symlink():
+        raise ValueError("project wiki source path must not contain symlinks")
+    raw = raw_path
+    import hashlib
+
+    now = datetime.now(timezone.utc)
+    timestamp = now.strftime("%Y%m%dT%H%M%SZ")
+    digest = hashlib.sha256(entry.encode("utf-8")).hexdigest()[:8]
+    base_name = f"memory-{timestamp}-{digest}"
+    session = context.get("session_id")
+    metadata = (
+        "---\n"
+        f"origin_instance: {json.dumps(_identity(), ensure_ascii=False)}\n"
+        f"origin_session: {json.dumps(str(session) if session is not None else '', ensure_ascii=False)}\n"
+        f"origin_time: {json.dumps(now.isoformat().replace('+00:00', 'Z'))}\n"
+        f"decision_log: {json.dumps(str(_home() / 'curate-memory' / 'write-labels.jsonl'))}\n"
+        "---\n"
+    )
+    directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    workspace_fd = os.open(workspace, directory_flags)
+    try:
+        project_fd = os.open(requested, directory_flags | os.O_NOFOLLOW, dir_fd=workspace_fd)
+        try:
+            for component in ("wiki", "raw"):
+                try:
+                    os.mkdir(component, dir_fd=project_fd)
+                except FileExistsError:
+                    pass
+                next_fd = os.open(component, directory_flags, dir_fd=project_fd)
+                os.close(project_fd)
+                project_fd = next_fd
+            for suffix in range(1, 21):
+                filename = f"{base_name}{'' if suffix == 1 else f'-{suffix}'}.md"
+                try:
+                    source_fd = os.open(
+                        filename, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                        0o666, dir_fd=project_fd,
+                    )
+                except FileExistsError:
+                    continue
+                with os.fdopen(source_fd, "w", encoding="utf-8") as stream:
+                    stream.write(entry + "\n\n" + metadata)
+                destination = raw / filename
+                break
+            else:
+                raise FileExistsError("could not allocate a unique project source filename after 20 attempts")
+        finally:
+            os.close(project_fd)
+    finally:
+        os.close(workspace_fd)
+    return {
+        "decision": "routed", "destination": str(raw), "artifact": str(destination),
+        "message": f"Project fact routed to {requested}. Source file: {destination}. "
+                   "It is pending project ingest; do not retry it as memory.",
+    }
+
+
 ROUTE_HANDLERS = {kind: _route for kind in ROUTE_KINDS}
+ROUTE_HANDLERS["project-fact"] = _handle_project_fact
 
 
 def _ensure_active(context: dict[str, Any]) -> None:
