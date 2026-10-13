@@ -3,8 +3,10 @@
   "checks": [
     {
       "id": "gateway-status",
-      "command": "printf 'BLOCKED: Hermes non-mutating gateway status interface is not established\\n'; exit 1",
-      "schedule": {"interval": "5m"},
+      "command": "/usr/bin/python3 - <<'PY'\nimport json, os, pathlib, sys\nhome = pathlib.Path(os.environ.get(\"HERMES_HOME\", pathlib.Path.home() / \".hermes\")).expanduser()\nstate_path = home / \"gateway_state.json\"\ntry:\n    state = json.loads(state_path.read_text(encoding=\"utf-8\"))\nexcept FileNotFoundError:\n    sys.exit(f\"FAIL: gateway state missing: {state_path}\")\nexcept (OSError, json.JSONDecodeError) as exc:\n    sys.exit(f\"FAIL: cannot read gateway state {state_path}: {exc}\")\npid = state.get(\"pid\")\nif not isinstance(pid, int) or pid <= 0:\n    sys.exit(f\"FAIL: gateway state has invalid pid: {pid!r}\")\ntry:\n    os.kill(pid, 0)\nexcept (ProcessLookupError, PermissionError, OSError) as exc:\n    sys.exit(f\"FAIL: gateway process pid {pid} is not alive: {exc}\")\nif state.get(\"gateway_state\") not in (\"running\", \"degraded\"):\n    sys.exit(f\"FAIL: gateway state is {state.get('gateway_state')!r}, expected running\")\nplatforms = state.get(\"platforms\")\nif not isinstance(platforms, dict) or not platforms:\n    sys.exit(\"FAIL: gateway state has no platform status entries\")\nbad = [f\"{name}={info.get('state')!r}\" for name, info in platforms.items()\n       if not isinstance(info, dict) or info.get(\"state\") != \"connected\"]\nif bad:\n    sys.exit(\"FAIL: enabled gateway platforms are not connected: \" + \", \".join(bad))\nprint(f\"OK: gateway pid {pid} alive; {len(platforms)} platforms connected\")\nPY",
+      "schedule": {
+        "interval": "5m"
+      },
       "severity": "normal"
     }
   ],
@@ -16,9 +18,6 @@
   "sampling": {
     "what": "Daily Hermes gateway status result for the currently configured profile; do not include environment variables, credentials, or profile-specific private details.",
     "sample_size": 1,
-    "working_well": "Hermes reports the gateway as running for the active configured profile; missing CLI or status support is reported as unavailable, not green."
-  },
-  "open_decisions": [
-    "Confirm the installed Hermes CLI's exact non-mutating status command and its output contract before replacing the blocked draft command; gateway health must be checked for the currently configured profile without assuming a systemd unit name."
-  ]
+    "working_well": "The gateway process is alive, runtime state is running, and every reported platform is connected."
+  }
 }

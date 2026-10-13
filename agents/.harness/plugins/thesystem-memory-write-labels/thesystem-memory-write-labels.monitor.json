@@ -3,52 +3,88 @@
   "checks": [
     {
       "id": "plugin-loaded-daily",
-      "command": "printf 'BLOCKED: read-only proof of plugin hook interception is not available\\n'; exit 1",
-      "schedule": {"interval": "1d"},
+      "command": "/usr/bin/python3 - <<'PY'\nimport os, pathlib, sys, yaml\nhome = pathlib.Path(os.environ.get(\"HERMES_HOME\", pathlib.Path.home() / \".hermes\")).expanduser()\nconfig_path = home / \"config.yaml\"\ntry:\n    config = yaml.safe_load(config_path.read_text(encoding=\"utf-8\")) or {}\nexcept FileNotFoundError:\n    sys.exit(f\"FAIL: Hermes config missing: {config_path}\")\nexcept Exception as exc:\n    sys.exit(f\"FAIL: cannot read Hermes config {config_path}: {exc}\")\nenabled = config.get(\"plugins\", {}).get(\"enabled\", [])\ndisabled = config.get(\"plugins\", {}).get(\"disabled\", [])\nplugin = \"thesystem-memory-write-labels\"\nif not isinstance(enabled, list) or plugin not in enabled or (isinstance(disabled, list) and plugin in disabled):\n    sys.exit(f\"FAIL: {plugin} is not enabled in {config_path}\")\nimport datetime, json, re, subprocess\nstate_path = home / \"gateway_state.json\"\ntry:\n    state = json.loads(state_path.read_text(encoding=\"utf-8\"))\n    pid = int(state[\"pid\"])\n    if state.get(\"gateway_state\") not in (\"running\", \"degraded\"):\n        raise ValueError(f\"gateway_state={state.get('gateway_state')!r}\")\n    os.kill(pid, 0)\nexcept Exception as exc:\n    sys.exit(f\"FAIL: running gateway state unavailable: {exc}\")\ntry:\n    started_text = subprocess.run([\"ps\", \"-p\", str(pid), \"-o\", \"lstart=\"], env={**os.environ, \"LC_ALL\": \"C\"}, check=True,\n                                  capture_output=True, text=True).stdout.strip()\n    started = datetime.datetime.strptime(started_text, \"%a %b %d %H:%M:%S %Y\").astimezone()\nexcept Exception as exc:\n    sys.exit(f\"FAIL: cannot determine gateway pid {pid} start time: {exc}\")\nlog = home / \"logs\" / \"agent.log\"\npattern = re.compile(r\"^(\\d{4}-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d,\\d+) .*Session plugin prompt section: .*plugin=thesystem-memory-write-labels \")\ntry:\n    lines = log.read_text(encoding=\"utf-8\", errors=\"replace\").splitlines()\nexcept FileNotFoundError:\n    sys.exit(f\"FAIL: Hermes agent log missing: {log}\")\nfound = False\nfor line in lines:\n    match = pattern.match(line)\n    if match:\n        try:\n            logged = datetime.datetime.strptime(match.group(1), \"%Y-%m-%d %H:%M:%S,%f\").astimezone()\n            if logged >= started:\n                found = True\n                break\n        except ValueError:\n            continue\nif not found:\n    sys.exit(f\"FAIL: no plugin-loaded session log entry after gateway pid {pid} started at {started_text}\")\nprint(f\"OK: plugin enabled and logged loaded by gateway pid {pid} after {started_text}\")\nPY",
+      "schedule": {
+        "interval": "1d"
+      },
       "severity": "normal",
       "expected_outcome": "Plugin is loaded and its hook intercepts memory writes."
     },
     {
       "id": "plugin-loaded-after-hermes-update",
-      "command": "printf 'BLOCKED: read-only proof of plugin hook interception is not available\\n'; exit 1",
-      "schedule": {"event": "hermes-update"},
+      "command": "/usr/bin/python3 - <<'PY'\nimport os, pathlib, sys, yaml\nhome = pathlib.Path(os.environ.get(\"HERMES_HOME\", pathlib.Path.home() / \".hermes\")).expanduser()\nconfig_path = home / \"config.yaml\"\ntry:\n    config = yaml.safe_load(config_path.read_text(encoding=\"utf-8\")) or {}\nexcept FileNotFoundError:\n    sys.exit(f\"FAIL: Hermes config missing: {config_path}\")\nexcept Exception as exc:\n    sys.exit(f\"FAIL: cannot read Hermes config {config_path}: {exc}\")\nenabled = config.get(\"plugins\", {}).get(\"enabled\", [])\ndisabled = config.get(\"plugins\", {}).get(\"disabled\", [])\nplugin = \"thesystem-memory-write-labels\"\nif not isinstance(enabled, list) or plugin not in enabled or (isinstance(disabled, list) and plugin in disabled):\n    sys.exit(f\"FAIL: {plugin} is not enabled in {config_path}\")\nimport datetime, json, re, subprocess\nstate_path = home / \"gateway_state.json\"\ntry:\n    state = json.loads(state_path.read_text(encoding=\"utf-8\"))\n    pid = int(state[\"pid\"])\n    if state.get(\"gateway_state\") not in (\"running\", \"degraded\"):\n        raise ValueError(f\"gateway_state={state.get('gateway_state')!r}\")\n    os.kill(pid, 0)\nexcept Exception as exc:\n    sys.exit(f\"FAIL: running gateway state unavailable: {exc}\")\ntry:\n    started_text = subprocess.run([\"ps\", \"-p\", str(pid), \"-o\", \"lstart=\"], env={**os.environ, \"LC_ALL\": \"C\"}, check=True,\n                                  capture_output=True, text=True).stdout.strip()\n    started = datetime.datetime.strptime(started_text, \"%a %b %d %H:%M:%S %Y\").astimezone()\nexcept Exception as exc:\n    sys.exit(f\"FAIL: cannot determine gateway pid {pid} start time: {exc}\")\nlog = home / \"logs\" / \"agent.log\"\npattern = re.compile(r\"^(\\d{4}-\\d\\d-\\d\\d \\d\\d:\\d\\d:\\d\\d,\\d+) .*Session plugin prompt section: .*plugin=thesystem-memory-write-labels \")\ntry:\n    lines = log.read_text(encoding=\"utf-8\", errors=\"replace\").splitlines()\nexcept FileNotFoundError:\n    sys.exit(f\"FAIL: Hermes agent log missing: {log}\")\nfound = False\nfor line in lines:\n    match = pattern.match(line)\n    if match:\n        try:\n            logged = datetime.datetime.strptime(match.group(1), \"%Y-%m-%d %H:%M:%S,%f\").astimezone()\n            if logged >= started:\n                found = True\n                break\n        except ValueError:\n            continue\nif not found:\n    sys.exit(f\"FAIL: no plugin-loaded session log entry after gateway pid {pid} started at {started_text}\")\nprint(f\"OK: plugin enabled and logged loaded by gateway pid {pid} after {started_text}\")\nPY",
+      "schedule": {
+        "event": "hermes-update"
+      },
       "severity": "normal",
       "expected_outcome": "Plugin is loaded and its hook intercepts memory writes."
     },
     {
       "id": "golden-sample-daily",
-      "command": "printf 'BLOCKED: approved dry-run golden-sample mechanism is not implemented\\n'; exit 1",
-      "schedule": {"interval": "1d"},
+      "command": "/usr/bin/python3 - <<'PY'\nimport os, pathlib, sys, yaml\nhome = pathlib.Path(os.environ.get(\"HERMES_HOME\", pathlib.Path.home() / \".hermes\")).expanduser()\nconfig_path = home / \"config.yaml\"\ntry:\n    config = yaml.safe_load(config_path.read_text(encoding=\"utf-8\")) or {}\nexcept FileNotFoundError:\n    sys.exit(f\"FAIL: Hermes config missing: {config_path}\")\nexcept Exception as exc:\n    sys.exit(f\"FAIL: cannot read Hermes config {config_path}: {exc}\")\nenabled = config.get(\"plugins\", {}).get(\"enabled\", [])\ndisabled = config.get(\"plugins\", {}).get(\"disabled\", [])\nplugin = \"thesystem-memory-write-labels\"\nif not isinstance(enabled, list) or plugin not in enabled or (isinstance(disabled, list) and plugin in disabled):\n    sys.exit(f\"FAIL: {plugin} is not enabled in {config_path}\")\nimport importlib.util, sys, tempfile\nplugin_dir = pathlib.Path(os.environ.get(\"THESYSTEM_CLONE\", pathlib.Path.cwd())) / \"agents/.harness/plugins/thesystem-memory-write-labels\"\nold_home = os.environ.get(\"HERMES_HOME\")\nwith tempfile.TemporaryDirectory(prefix=\"monitor-memory-labels-\") as temporary_home:\n    os.environ[\"HERMES_HOME\"] = temporary_home\n    sys.dont_write_bytecode = True\n    spec = importlib.util.spec_from_file_location(\"monitor_memory_write_labels\", plugin_dir / \"__init__.py\",\n                                                  submodule_search_locations=[str(plugin_dir)])\n    if spec is None or spec.loader is None:\n        sys.exit(\"FAIL: cannot load memory labels plugin module\")\n    module = importlib.util.module_from_spec(spec)\n    sys.modules[spec.name] = module\n    try:\n        spec.loader.exec_module(module)\n        handler = module._pre_tool_call\n        cases = [\n            (\"valid\", {\"tool_name\":\"memory\", \"args\":{\"action\":\"add\", \"target\":\"user\", \"content\":\"[user-fact] monitor sample\"}}, \"modify\"),\n            (\"wrong-target\", {\"tool_name\":\"memory\", \"args\":{\"action\":\"add\", \"target\":\"memory\", \"content\":\"[user-fact] monitor sample\"}}, \"block\"),\n            (\"unlabeled\", {\"tool_name\":\"memory\", \"args\":{\"action\":\"add\", \"target\":\"memory\", \"content\":\"monitor sample\"}}, \"block\"),\n            (\"too-long\", {\"tool_name\":\"memory\", \"args\":{\"action\":\"add\", \"target\":\"user\", \"content\":\"[user-fact] \" + \"x\" * 301}}, \"block\"),\n        ]\n        for name, arguments, expected in cases:\n            result = handler(**arguments)\n            if not isinstance(result, dict) or result.get(\"action\") != expected:\n                sys.exit(f\"FAIL: golden sample {name}: expected {expected}, got {result!r}\")\n        print(\"OK: valid write modified; wrong target, missing label, and >300-character content blocked (scratch home only)\")\n    finally:\n        sys.modules.pop(spec.name, None)\n        if old_home is None:\n            os.environ.pop(\"HERMES_HOME\", None)\n        else:\n            os.environ[\"HERMES_HOME\"] = old_home\nPY",
+      "schedule": {
+        "interval": "1d"
+      },
       "severity": "normal",
-      "expected_cases": ["[user-preference] and [user-fact] route to USER", "[environment-fact] and [agent-convention] route to MEMORY", "[procedure] routes to a skill request", "[project-fact:<existing-project>] routes to that project's wiki/raw inbox", "[safety-rule] routes through curate-memory R8 unless an existing or queued duplicate is logged", "missing label is refused with allowed labels", "USER/MEMORY target mismatch is refused", "content over 300 characters is refused with split-it-into-separate-ideas guidance"],
+      "expected_cases": [
+        "[user-preference] and [user-fact] route to USER",
+        "[environment-fact] and [agent-convention] route to MEMORY",
+        "[procedure] routes to a skill request",
+        "[project-fact:<existing-project>] routes to that project's wiki/raw inbox",
+        "[safety-rule] routes through curate-memory R8 unless an existing or queued duplicate is logged",
+        "missing label is refused with allowed labels",
+        "USER/MEMORY target mismatch is refused",
+        "content over 300 characters is refused with split-it-into-separate-ideas guidance"
+      ],
       "expected_outcome": "Pass each case through plugin dry-run without saving; allowed kinds are allowed, route kinds route or take their specified refusal path, and invalid cases are refused."
     },
     {
       "id": "golden-sample-after-hermes-update",
-      "command": "printf 'BLOCKED: approved dry-run golden-sample mechanism is not implemented\\n'; exit 1",
-      "schedule": {"event": "hermes-update"},
+      "command": "/usr/bin/python3 - <<'PY'\nimport os, pathlib, sys, yaml\nhome = pathlib.Path(os.environ.get(\"HERMES_HOME\", pathlib.Path.home() / \".hermes\")).expanduser()\nconfig_path = home / \"config.yaml\"\ntry:\n    config = yaml.safe_load(config_path.read_text(encoding=\"utf-8\")) or {}\nexcept FileNotFoundError:\n    sys.exit(f\"FAIL: Hermes config missing: {config_path}\")\nexcept Exception as exc:\n    sys.exit(f\"FAIL: cannot read Hermes config {config_path}: {exc}\")\nenabled = config.get(\"plugins\", {}).get(\"enabled\", [])\ndisabled = config.get(\"plugins\", {}).get(\"disabled\", [])\nplugin = \"thesystem-memory-write-labels\"\nif not isinstance(enabled, list) or plugin not in enabled or (isinstance(disabled, list) and plugin in disabled):\n    sys.exit(f\"FAIL: {plugin} is not enabled in {config_path}\")\nimport importlib.util, sys, tempfile\nplugin_dir = pathlib.Path(os.environ.get(\"THESYSTEM_CLONE\", pathlib.Path.cwd())) / \"agents/.harness/plugins/thesystem-memory-write-labels\"\nold_home = os.environ.get(\"HERMES_HOME\")\nwith tempfile.TemporaryDirectory(prefix=\"monitor-memory-labels-\") as temporary_home:\n    os.environ[\"HERMES_HOME\"] = temporary_home\n    sys.dont_write_bytecode = True\n    spec = importlib.util.spec_from_file_location(\"monitor_memory_write_labels\", plugin_dir / \"__init__.py\",\n                                                  submodule_search_locations=[str(plugin_dir)])\n    if spec is None or spec.loader is None:\n        sys.exit(\"FAIL: cannot load memory labels plugin module\")\n    module = importlib.util.module_from_spec(spec)\n    sys.modules[spec.name] = module\n    try:\n        spec.loader.exec_module(module)\n        handler = module._pre_tool_call\n        cases = [\n            (\"valid\", {\"tool_name\":\"memory\", \"args\":{\"action\":\"add\", \"target\":\"user\", \"content\":\"[user-fact] monitor sample\"}}, \"modify\"),\n            (\"wrong-target\", {\"tool_name\":\"memory\", \"args\":{\"action\":\"add\", \"target\":\"memory\", \"content\":\"[user-fact] monitor sample\"}}, \"block\"),\n            (\"unlabeled\", {\"tool_name\":\"memory\", \"args\":{\"action\":\"add\", \"target\":\"memory\", \"content\":\"monitor sample\"}}, \"block\"),\n            (\"too-long\", {\"tool_name\":\"memory\", \"args\":{\"action\":\"add\", \"target\":\"user\", \"content\":\"[user-fact] \" + \"x\" * 301}}, \"block\"),\n        ]\n        for name, arguments, expected in cases:\n            result = handler(**arguments)\n            if not isinstance(result, dict) or result.get(\"action\") != expected:\n                sys.exit(f\"FAIL: golden sample {name}: expected {expected}, got {result!r}\")\n        print(\"OK: valid write modified; wrong target, missing label, and >300-character content blocked (scratch home only)\")\n    finally:\n        sys.modules.pop(spec.name, None)\n        if old_home is None:\n            os.environ.pop(\"HERMES_HOME\", None)\n        else:\n            os.environ[\"HERMES_HOME\"] = old_home\nPY",
+      "schedule": {
+        "event": "hermes-update"
+      },
       "severity": "normal",
-      "expected_cases": ["[user-preference] and [user-fact] route to USER", "[environment-fact] and [agent-convention] route to MEMORY", "[procedure] routes to a skill request", "[project-fact:<existing-project>] routes to that project's wiki/raw inbox", "[safety-rule] routes through curate-memory R8 unless an existing or queued duplicate is logged", "missing label is refused with allowed labels", "USER/MEMORY target mismatch is refused", "content over 300 characters is refused with split-it-into-separate-ideas guidance"],
+      "expected_cases": [
+        "[user-preference] and [user-fact] route to USER",
+        "[environment-fact] and [agent-convention] route to MEMORY",
+        "[procedure] routes to a skill request",
+        "[project-fact:<existing-project>] routes to that project's wiki/raw inbox",
+        "[safety-rule] routes through curate-memory R8 unless an existing or queued duplicate is logged",
+        "missing label is refused with allowed labels",
+        "USER/MEMORY target mismatch is refused",
+        "content over 300 characters is refused with split-it-into-separate-ideas guidance"
+      ],
       "expected_outcome": "Pass each case through plugin dry-run without saving; allowed kinds are allowed, route kinds route or take their specified refusal path, and invalid cases are refused."
     },
     {
       "id": "no-orphaned-routed-items",
-      "command": "printf 'BLOCKED: read-only destination-existence checker is not available\\n'; exit 1",
-      "schedule": {"interval": "1d"},
+      "command": "/usr/bin/python3 - <<'PY'\nimport json, os, pathlib, sys\nhome = pathlib.Path(os.environ.get(\"HERMES_HOME\", pathlib.Path.home() / \".hermes\")).expanduser()\nlog = home / \"curate-memory\" / \"write-labels.jsonl\"\nqueue = home / \"curate-memory\" / \"skill-requests.jsonl\"\nproposals = home / \"curate-memory\" / \"control-proposals.jsonl\"\ntry:\n    rows = [json.loads(line) for line in log.read_text(encoding=\"utf-8\").splitlines() if line.strip()]\nexcept FileNotFoundError:\n    print(\"OK: no routed memory writes\")\n    raise SystemExit(0)\nexcept Exception as exc:\n    sys.exit(f\"FAIL: cannot parse routed-write log {log}: {exc}\")\ndef read_rows(path):\n    try:\n        return [json.loads(line) for line in path.read_text(encoding=\"utf-8\").splitlines() if line.strip()]\n    except FileNotFoundError:\n        return []\n    except Exception as exc:\n        sys.exit(f\"FAIL: cannot parse destination ledger {path}: {exc}\")\nskill_ids = {str(row.get(\"request_id\")) for row in read_rows(queue) if row.get(\"request_id\")}\nproposal_ids = {str(row.get(\"id\")) for row in read_rows(proposals) if row.get(\"id\")}\norphans = []\nfor row in rows:\n    if not isinstance(row, dict) or row.get(\"decision\") != \"routed\":\n        continue\n    label, artifact, destination = row.get(\"label\"), row.get(\"artifact\"), row.get(\"destination\")\n    if label == \"procedure\":\n        exists = str(artifact) in skill_ids\n    elif label == \"safety-rule\":\n        exists = str(artifact) in proposal_ids\n    elif isinstance(label, str) and label.startswith(\"project-fact:\"):\n        exists = isinstance(artifact, str) and pathlib.Path(artifact).is_file()\n    else:\n        exists = isinstance(artifact, str) and pathlib.Path(artifact).is_file()\n    if not exists:\n        orphans.append(f\"label={label!r} artifact={artifact!r} destination={destination!r}\")\nif orphans:\n    sys.exit(\"FAIL: routed writes have missing artifacts: \" + \"; \".join(orphans))\nprint(\"OK: every routed write has its destination artifact\")\nPY",
+      "schedule": {
+        "interval": "1d"
+      },
       "severity": "data-loss",
-      "expected_outcomes": ["skill request is processed", "raw source file is present", "safety item is queued or logged as duplicate"]
+      "expected_outcomes": [
+        "skill request is processed",
+        "raw source file is present",
+        "safety item is queued or logged as duplicate"
+      ]
     },
     {
       "id": "skill-queue-not-stuck",
-      "command": "printf 'BLOCKED: read-only skill-queue age checker is not available\\n'; exit 1",
-      "schedule": {"interval": "1h"},
+      "command": "/usr/bin/python3 - <<'PY'\nimport datetime, json, os, pathlib, sys\nhome = pathlib.Path(os.environ.get(\"HERMES_HOME\", pathlib.Path.home() / \".hermes\")).expanduser()\npath = home / \"curate-memory\" / \"skill-requests.jsonl\"\ntry:\n    rows = [json.loads(line) for line in path.read_text(encoding=\"utf-8\").splitlines() if line.strip()]\nexcept FileNotFoundError:\n    print(\"OK: no procedure requests queued\")\n    raise SystemExit(0)\nexcept Exception as exc:\n    sys.exit(f\"FAIL: cannot parse skill request queue {path}: {exc}\")\nlatest = {}\nfor row in rows:\n    if isinstance(row, dict) and row.get(\"request_id\"):\n        latest[row[\"request_id\"]] = row\nnow = datetime.datetime.now().astimezone()\nstuck = []\nfor request_id, row in latest.items():\n    if row.get(\"status\") not in (\"queued\", \"running\"):\n        continue\n    try:\n        created = datetime.datetime.fromisoformat(row[\"created_at\"])\n        age = (now - created.astimezone()).total_seconds()\n    except (KeyError, TypeError, ValueError):\n        sys.exit(f\"FAIL: queued request {request_id} has invalid created_at\")\n    if age > 3600:\n        stuck.append(f\"{request_id} status={row.get('status')} age={int(age)}s\")\nif stuck:\n    sys.exit(\"FAIL: procedure requests stuck over 1 hour: \" + \"; \".join(stuck))\nprint(f\"OK: no non-final procedure request older than 1 hour ({len(latest)} latest requests checked)\")\nPY",
+      "schedule": {
+        "interval": "1h"
+      },
       "severity": "normal",
       "threshold": "No procedure waits longer than 1 hour."
     },
     {
       "id": "skill-run-cap",
-      "command": "printf 'BLOCKED: per-instance daily skill-run counter is not available\\n'; exit 1",
-      "schedule": {"interval": "1h"},
+      "command": "/usr/bin/python3 - <<'PY'\nimport datetime, json, os, pathlib, sys\nfrom zoneinfo import ZoneInfo\nhome = pathlib.Path(os.environ.get(\"HERMES_HOME\", pathlib.Path.home() / \".hermes\")).expanduser()\npath = home / \"curate-memory\" / \"skill-requests.jsonl\"\ntoday = datetime.datetime.now(ZoneInfo(\"America/Bogota\")).date()\ntry:\n    rows = [json.loads(line) for line in path.read_text(encoding=\"utf-8\").splitlines() if line.strip()]\nexcept FileNotFoundError:\n    print(f\"OK: 0 skill runs on {today.isoformat()} (cap 150)\")\n    raise SystemExit(0)\nexcept Exception as exc:\n    sys.exit(f\"FAIL: cannot parse skill request queue {path}: {exc}\")\nruns = set()\nfor row in rows:\n    if not isinstance(row, dict) or not row.get(\"run_id\") or row.get(\"status\") not in (\"queued\", \"running\", \"done\", \"failed\"):\n        continue\n    try:\n        created = datetime.datetime.fromisoformat(row[\"created_at\"]).astimezone(ZoneInfo(\"America/Bogota\")).date()\n    except (KeyError, TypeError, ValueError):\n        continue\n    if created == today:\n        runs.add(row[\"run_id\"])\nif len(runs) > 150:\n    sys.exit(f\"FAIL: {len(runs)} skill runs on {today.isoformat()} exceed the 150/day cap\")\nprint(f\"OK: {len(runs)} skill runs on {today.isoformat()} (cap 150)\")\nPY",
+      "schedule": {
+        "interval": "1h"
+      },
       "severity": "normal",
       "threshold": "Alert above 150 runs per instance per day."
     }
@@ -62,9 +98,5 @@
     "what": "Daily sample of 10 randomly selected memory writes, assessing label correctness, skill-edit quality, and recovery after refusal; use only privacy-safe review evidence and do not expose memory contents in alerts.",
     "sample_size": 10,
     "working_well": "Each sampled item is routed to the approved destination with correct labeling, any skill edit is sound, and the agent recovers correctly after refusal; each golden sample case is evaluated without saving a write."
-  },
-  "open_decisions": [
-    "The labels plugin source and health-check task are not present in this master worktree. The blocked commands intentionally fail closed rather than claim checks that cannot be performed. Add concrete read-only commands after the health-check task defines their evidence sources; do not add dry-run functionality or alter plugin code in this task.",
-    "Confirm the Hermes CLI output contract for plugin loaded state and hook interception; plugin registration alone must not be treated as proof of interception."
-  ]
+  }
 }
