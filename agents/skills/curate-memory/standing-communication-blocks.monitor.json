@@ -1,0 +1,24 @@
+{
+  "feature": "standing-communication-blocks",
+  "checks": [
+    {
+      "id": "standing-source-drift",
+      "command": "out=$(\"${HERMES_MEMORY_REVIEW_PYTHON:-${THESYSTEM_WORKSPACE:-$HOME/workspace}/.agents/memory-review/bin/python}\" \"${THESYSTEM_WORKSPACE:-$HOME/workspace}/agents/skills/curate-memory/scripts/review_memory_requests.py\" lifespan check --hermes-home \"${HERMES_HOME:-$HOME/.hermes}\" 2>&1); rc=$?; if [ \"$rc\" -ne 0 ] || printf '%s' \"$out\" | grep -Eiq 'ERROR:|fail|error'; then printf 'FAIL standing-source comparison\\n'; exit 1; fi; if printf '%s' \"$out\" | grep -Eq '^STANDING (DRIFT|MISSING):'; then printf 'DRIFT standing communication source\\n'; exit 1; fi; printf 'OK standing-source comparison\\n'",
+      "schedule": {"interval": "1d"},
+      "severity": "normal"
+    }
+  ],
+  "safe_state": {
+    "switch": "hold the effective communication settings unchanged",
+    "description": "Do not replace or disable a communication block on drift; the tracked standing baseline is human-owned and drift is not actionable until the human confirms the intended source."
+  },
+  "approved_fixes": [],
+  "sampling": {
+    "what": "Daily comparison result for the canonical main personality and tracked standing communication entries; emit status only, never prompt text.",
+    "sample_size": 1,
+    "working_well": "The check reports no missing or changed source, or reports drift for human review without exposing communication text."
+  },
+  "open_decisions": [
+    "USER.json standing entries are the tracked baseline; the human must confirm that this is the canonical owner-managed baseline before drift can be actionable."
+  ]
+}

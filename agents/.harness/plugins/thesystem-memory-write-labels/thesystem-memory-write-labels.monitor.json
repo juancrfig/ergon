@@ -1,0 +1,70 @@
+{
+  "feature": "memory-write-labels",
+  "checks": [
+    {
+      "id": "plugin-loaded-daily",
+      "command": "printf 'BLOCKED: read-only proof of plugin hook interception is not available\\n'; exit 1",
+      "schedule": {"interval": "1d"},
+      "severity": "normal",
+      "expected_outcome": "Plugin is loaded and its hook intercepts memory writes."
+    },
+    {
+      "id": "plugin-loaded-after-hermes-update",
+      "command": "printf 'BLOCKED: read-only proof of plugin hook interception is not available\\n'; exit 1",
+      "schedule": {"event": "hermes-update"},
+      "severity": "normal",
+      "expected_outcome": "Plugin is loaded and its hook intercepts memory writes."
+    },
+    {
+      "id": "golden-sample-daily",
+      "command": "printf 'BLOCKED: approved dry-run golden-sample mechanism is not implemented\\n'; exit 1",
+      "schedule": {"interval": "1d"},
+      "severity": "normal",
+      "expected_cases": ["[user-preference] and [user-fact] route to USER", "[environment-fact] and [agent-convention] route to MEMORY", "[procedure] routes to a skill request", "[project-fact:<existing-project>] routes to that project's wiki/raw inbox", "[safety-rule] routes through curate-memory R8 unless an existing or queued duplicate is logged", "missing label is refused with allowed labels", "USER/MEMORY target mismatch is refused", "content over 300 characters is refused with split-it-into-separate-ideas guidance"],
+      "expected_outcome": "Pass each case through plugin dry-run without saving; allowed kinds are allowed, route kinds route or take their specified refusal path, and invalid cases are refused."
+    },
+    {
+      "id": "golden-sample-after-hermes-update",
+      "command": "printf 'BLOCKED: approved dry-run golden-sample mechanism is not implemented\\n'; exit 1",
+      "schedule": {"event": "hermes-update"},
+      "severity": "normal",
+      "expected_cases": ["[user-preference] and [user-fact] route to USER", "[environment-fact] and [agent-convention] route to MEMORY", "[procedure] routes to a skill request", "[project-fact:<existing-project>] routes to that project's wiki/raw inbox", "[safety-rule] routes through curate-memory R8 unless an existing or queued duplicate is logged", "missing label is refused with allowed labels", "USER/MEMORY target mismatch is refused", "content over 300 characters is refused with split-it-into-separate-ideas guidance"],
+      "expected_outcome": "Pass each case through plugin dry-run without saving; allowed kinds are allowed, route kinds route or take their specified refusal path, and invalid cases are refused."
+    },
+    {
+      "id": "no-orphaned-routed-items",
+      "command": "printf 'BLOCKED: read-only destination-existence checker is not available\\n'; exit 1",
+      "schedule": {"interval": "1d"},
+      "severity": "data-loss",
+      "expected_outcomes": ["skill request is processed", "raw source file is present", "safety item is queued or logged as duplicate"]
+    },
+    {
+      "id": "skill-queue-not-stuck",
+      "command": "printf 'BLOCKED: read-only skill-queue age checker is not available\\n'; exit 1",
+      "schedule": {"interval": "1h"},
+      "severity": "normal",
+      "threshold": "No procedure waits longer than 1 hour."
+    },
+    {
+      "id": "skill-run-cap",
+      "command": "printf 'BLOCKED: per-instance daily skill-run counter is not available\\n'; exit 1",
+      "schedule": {"interval": "1h"},
+      "severity": "normal",
+      "threshold": "Alert above 150 runs per instance per day."
+    }
+  ],
+  "safe_state": {
+    "switch": "hold memory-write routing and queue state unchanged",
+    "description": "Do not disable the plugin, reroute writes, modify pending requests, or execute any sample write automatically; the approved golden sample is explicitly dry-run only."
+  },
+  "approved_fixes": [],
+  "sampling": {
+    "what": "Daily sample of 10 randomly selected memory writes, assessing label correctness, skill-edit quality, and recovery after refusal; use only privacy-safe review evidence and do not expose memory contents in alerts.",
+    "sample_size": 10,
+    "working_well": "Each sampled item is routed to the approved destination with correct labeling, any skill edit is sound, and the agent recovers correctly after refusal; each golden sample case is evaluated without saving a write."
+  },
+  "open_decisions": [
+    "The labels plugin source and health-check task are not present in this master worktree. The blocked commands intentionally fail closed rather than claim checks that cannot be performed. Add concrete read-only commands after the health-check task defines their evidence sources; do not add dry-run functionality or alter plugin code in this task.",
+    "Confirm the Hermes CLI output contract for plugin loaded state and hook interception; plugin registration alone must not be treated as proof of interception."
+  ]
+}

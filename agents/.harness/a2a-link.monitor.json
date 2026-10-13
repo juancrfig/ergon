@@ -1,0 +1,26 @@
+{
+  "feature": "a2a-link",
+  "checks": [
+    {
+      "id": "a2a-runtime-state",
+      "command": "python3 -c 'import json,os,pathlib,sys; h=pathlib.Path(os.environ.get(\"HERMES_HOME\",pathlib.Path.home()/\".hermes\")); c=h/\"config.yaml\"; p=h/\"gateway_state.json\";\ntry:\n import yaml\nexcept ImportError:\n print(\"FAIL PyYAML unavailable; cannot safely parse Hermes config\"); sys.exit(1)\ntry:\n config=yaml.safe_load(c.read_text()) if c.is_file() else None\nexcept Exception as e:\n print(\"FAIL Hermes config YAML unavailable or invalid\"); sys.exit(1)\npeers=config.get(\"a2a_agents\") if isinstance(config,dict) else None; peers=peers if isinstance(peers,dict) else {}; configured=any(isinstance(peer,dict) and isinstance(peer.get(\"url\"),str) and bool(peer[\"url\"].strip()) for peer in peers.values()); gateway=config.get(\"gateway\") if isinstance(config,dict) else None; platforms=gateway.get(\"platforms\") if isinstance(gateway,dict) else None; receiver=platforms.get(\"a2a\") if isinstance(platforms,dict) else None; enabled=isinstance(receiver,dict) and receiver.get(\"enabled\") is True;\ntry:\n state=json.loads(p.read_text()) if p.is_file() else {}\nexcept Exception:\n state={}\nruntime=state.get(\"platforms\",{}).get(\"a2a\") if isinstance(state,dict) and isinstance(state.get(\"platforms\"),dict) else None; ok=configured and enabled and isinstance(runtime,dict) and runtime.get(\"state\")==\"connected\"; print(\"OK a2a runtime state\" if ok else \"FAIL A2A peer, enabled receiver, or connected runtime state unavailable\"); sys.exit(0 if ok else 1)'",
+      "schedule": {
+        "interval": "15m"
+      },
+      "severity": "normal"
+    }
+  ],
+  "safe_state": {
+    "switch": "hold configured A2A sender and receiver settings unchanged",
+    "description": "Do not change peer URLs, authentication, ports, or gateway state automatically. A failed or missing runtime probe requires human review."
+  },
+  "approved_fixes": [],
+  "sampling": {
+    "what": "Daily result of the configured A2A runtime-state probe; report status only, never peer URLs or authentication values.",
+    "sample_size": 1,
+    "working_well": "A configured A2A runtime is explicitly connected; missing configuration or runtime state is reported as unavailable, never green."
+  },
+  "open_decisions": [
+    "gateway_state.json reports the receiver as platforms.a2a.state == \"connected\" (confirmed against the installed Hermes on palmasia, 2026-10-13). This proves the receiver is up, not that a peer answers; a bounded peer probe would need separate approval."
+  ]
+}

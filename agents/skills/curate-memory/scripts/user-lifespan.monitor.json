@@ -1,0 +1,24 @@
+{
+  "feature": "user-lifespan",
+  "checks": [
+    {
+      "id": "lifespan-review-needed",
+      "command": "home=\"${HERMES_HOME:-$HOME/.hermes}\"; workspace=\"${THESYSTEM_WORKSPACE:-$HOME/workspace}\"; python=\"${HERMES_MEMORY_REVIEW_PYTHON:-python3}\"; out=$(timeout 30s \"$python\" \"$workspace/agents/skills/curate-memory/scripts/review_memory_requests.py\" lifespan check --hermes-home \"$home\" 2>&1); rc=$?; if [ \"$rc\" -ne 0 ] || printf '%s' \"$out\" | grep -Eiq 'fail|error'; then printf 'FAIL lifespan check\\n'; exit 1; elif [ -n \"$out\" ]; then printf 'REVIEW_NEEDED lifespan entries\\n'; else printf 'OK lifespan\\n'; fi",
+      "schedule": {"interval": "1d"},
+      "severity": "data-loss"
+    }
+  ],
+  "safe_state": {
+    "switch": "hold USER.md and USER.json unchanged",
+    "description": "Do not prune or alter memory when the lifespan check reports a problem; the result may contain private memory text and must be reviewed by the human."
+  },
+  "approved_fixes": [],
+  "sampling": {
+    "what": "Daily lifespan-check outcomes and a count of due, unclassified, orphaned, or failed records; do not sample or expose entry text.",
+    "sample_size": 1,
+    "working_well": "The check completes and any non-empty or failure result is surfaced as review-needed without changing USER.md or USER.json."
+  },
+  "open_decisions": [
+    "Confirm that the installed wrapper path and the 08:00 schedule are supplied by the external scheduler; the contract interval alone does not encode a clock time."
+  ]
+}
