@@ -5,6 +5,8 @@
 **Main agent**: the agent the human talks to. It is the human's only interface to theSystem. It is also the
 orchestrator: it runs each approved task by delegating it to a worker and a reviewer subagent.
 
+**Monitor**: the agent that runs each feature's declared health checks, investigates failures, and samples outputs daily to report problems and improvements.
+
 **Project**: one of the company's products, e.g. an Android app. A folder directly inside the workspace.
 
 **Source clone**: a git repository with a project's code, inside the project folder. A project can have several.

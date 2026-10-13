@@ -13,13 +13,14 @@ import sys
 import tempfile
 from pathlib import Path
 
-from thesystem import update
+from thesystem import monitor, update
 from thesystem.errors import CodedError
 
 HELP = """\
 usage: {prog} <command>
 
   update        install the latest theSystem release of this channel and merge its files into the workspace
+  monitor approve <contract.json>  approve and install a health-check contract
 """
 
 
@@ -80,12 +81,15 @@ def main(argv: list[str] | None = None) -> int:
         print(HELP.format(prog=prog), end="")
         return 0
     try:
-        if extra or not args.workspace:
-            raise CodedError("USAGE", "unexpected arguments" if extra else "no workspace configured")
-        workspace = Path(args.workspace).expanduser().resolve()
-        if args.command != "update":
-            raise CodedError("USAGE", HELP.format(prog=prog).strip())
-        result = command_update(workspace)
+        if args.command == "monitor":
+            if len(extra) != 2 or extra[0] != "approve":
+                raise CodedError("USAGE", "usage: monitor approve <contract.json>")
+            hermes_home = Path(os.environ.get("HERMES_HOME") or Path.home() / ".hermes").expanduser()
+            result = monitor.approve(Path(extra[1]), hermes_home)
+        else:
+            if extra or args.command != "update" or not args.workspace:
+                raise CodedError("USAGE", "unexpected arguments" if extra else "no workspace configured")
+            result = command_update(Path(args.workspace).expanduser().resolve())
     except CodedError as error:
         print(json.dumps({"status": "error", "code": error.code, "message": error.message}))
         return 1

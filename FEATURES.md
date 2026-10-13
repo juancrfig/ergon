@@ -7,6 +7,10 @@ Anything not in this map is not wanted. Deferred ideas are open GitHub issues, n
 
 Principle (ADR 0004): tests are a scarce good, created only at the end of development and only with explicit human approval. Verification follows the same principle: agents verify nothing unless the human asks.
 
+## Feature completion and Monitor contracts
+
+A feature is not done until its source code has an adjacent, human-approved Monitor health-check contract. Use the JSON format and approval flow in `monitoring/CONTRACTS.md`. The human approves each contract by invoking `<COMMAND> monitor approve <contract.json>`; the approval records its SHA-256 under `$HERMES_HOME/monitor/approvals.json` and installs the runtime copy under `$HERMES_HOME/monitor/contracts/`. Contract edits invalidate the recorded digest, so the scheduler must skip the changed contract until the human approves it again. Neither the scheduler nor Monitor may approve contracts or edit the approval record.
+
 ## F1 · Install theSystem
 
 Status: wanted
