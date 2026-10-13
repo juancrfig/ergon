@@ -1419,7 +1419,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--date", type=date.fromisoformat)
     parser.add_argument("--expected-record-sha256")
     parser.add_argument("--human-decision", action="store_true")
-    parser.add_argument("--rule", choices=("R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9"),
+    parser.add_argument("--rule", choices=("R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"),
                         help="decide by a human-approved rule instead of an explicit human decision")
     parser.add_argument("--json", action="store_true")
     return parser.parse_args(argv)
