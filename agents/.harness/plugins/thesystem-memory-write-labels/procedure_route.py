@@ -190,8 +190,8 @@ def _validated_targets(skill_directory: Path, files: dict[str, str]) -> list[tup
     return targets
 
 
-def _apply_files(skill_directory: Path, targets: list[tuple[Path, str, str]]) -> list[str]:
-    changed = []
+def _apply_files(skill_directory: Path, targets: list[tuple[Path, str, str]], changed: list[str]) -> list[str]:
+    # Callers pass `changed` in so a failure on a later file still knows which earlier files were replaced.
     for destination, name, content in targets:
         destination.parent.mkdir(parents=True, exist_ok=True)
         if destination.is_symlink() or not destination.resolve().is_relative_to(skill_directory.resolve()):
@@ -261,6 +261,8 @@ def _run_locked(request: dict) -> None:
         )
         command = ["hermes", "chat", "--oneshot", "--provider", "openai-codex", "--model", "gpt-6-luna",
                    "--toolsets", "__thesystem_no_tools__", prompt]
+        applied: list[str] = []
+        summary = ""
         try:
             child_env = os.environ.copy()
             child_env.pop("HERMES_KANBAN_TASK", None)
@@ -273,13 +275,16 @@ def _run_locked(request: dict) -> None:
             if _is_shared_skill_dir(skill_directory):
                 _record_shared_proposal(request, files, summary)
                 return
-            changed = _apply_files(skill_directory, targets)
+            changed = _apply_files(skill_directory, targets, applied)
             if not changed:
                 raise ValueError("subagent output made no file changes")
             _write_learning(request, changed, summary)
             _event(request, "done", changed_files=changed, proposal=None, proposal_status=None)
         except Exception as error:
-            _event(request, "failed", error=f"{type(error).__name__}: {error}")
+            if applied:
+                # Some files were already replaced before the failure; every applied edit must reach the learning log.
+                _write_learning(request, sorted(applied), f"PARTIAL (run failed: {type(error).__name__}): {summary}")
+            _event(request, "failed", error=f"{type(error).__name__}: {error}", changed_files=sorted(applied))
             threading.Thread(target=_alert, args=(f"Skill update failed for request {request['request_id']} (run {request['run_id']}); status is recorded in skill-requests.jsonl.",), daemon=True).start()
         finally:
             fcntl.flock(lock_stream.fileno(), fcntl.LOCK_UN)
