@@ -154,7 +154,7 @@ def run(home: Path, thesystem_clone: Path) -> int:
         "thesystem": git_revision(thesystem_clone),
     }
     version_state = {}
-    events = set()
+    events = set(previous_versions.get("pending_events", [])) if isinstance(previous_versions, dict) else set()
     for product, identifier in current_versions.items():
         previous = previous_versions.get(product, {}) if isinstance(previous_versions, dict) else {}
         old_identifier = previous.get("identifier") if isinstance(previous, dict) else None
@@ -165,13 +165,21 @@ def run(home: Path, thesystem_clone: Path) -> int:
             if old_identifier and old_identifier != identifier:
                 events.add(f"{product}-update")
             version_state[product] = {"identifier": identifier, "detected_at": instant}
+    version_state["pending_events"] = sorted(events)
     atomic_json(versions_path, version_state)
 
+    approvals_readable = True
     try:
         approvals = approvals_for(approvals_path)
     except (OSError, ValueError, json.JSONDecodeError) as error:
         approvals = {}
+        approvals_readable = False
         errors.append(f"Cannot read Monitor approvals ({type(error).__name__})")
+
+    contracts_readable = approvals_readable and contracts_dir.is_dir()
+    contracts_valid = True
+    event_checks = {event: set() for event in events}
+    completed_event_checks = {event: set() for event in events}
 
     runs = load_json(runs_path, {})
     if not isinstance(runs, dict):
@@ -202,6 +210,7 @@ def run(home: Path, thesystem_clone: Path) -> int:
                 if not isinstance(contract.get("checks"), list) or not contract["checks"]:
                     raise ValueError("contract has no checks")
             except (OSError, UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError, ValueError) as error:
+                contracts_valid = False
                 errors.append(f"Invalid or unapproved Monitor contract ({type(error).__name__})")
                 continue
             for check in contract["checks"]:
@@ -211,6 +220,8 @@ def run(home: Path, thesystem_clone: Path) -> int:
                     key = f"{feature}/{check_id}"
                     interval = schedule.get("interval")
                     event = schedule.get("event")
+                    if event in event_checks:
+                        event_checks[event].add(key)
                     last_run = runs.get(key)
                     due = bool(interval and (not isinstance(last_run, dict) or
                                               now - float(last_run.get("timestamp", 0)) >= interval_seconds(interval)))
@@ -218,6 +229,8 @@ def run(home: Path, thesystem_clone: Path) -> int:
                     if not (due or triggered):
                         continue
                     green, detail = run_check(check)
+                    if event in completed_event_checks:
+                        completed_event_checks[event].add(key)
                     runs[key] = {"timestamp": now, "status": "green" if green else "red"}
                     if green:
                         append_jsonl(green_path, {"timestamp": instant, "feature": feature, "check": check_id,
@@ -229,8 +242,13 @@ def run(home: Path, thesystem_clone: Path) -> int:
                                 diagnostic_path):
                             sent_alerts[alert_key] = instant
                 except (KeyError, TypeError, ValueError) as error:
+                    contracts_valid = False
                     errors.append(f"Invalid check in {feature} ({type(error).__name__})")
 
+    if contracts_readable and contracts_valid:
+        events = {event for event in events if event_checks[event] != completed_event_checks[event]}
+    version_state["pending_events"] = sorted(events)
+    atomic_json(versions_path, version_state)
     atomic_json(runs_path, runs)
     atomic_json(sent_path, sent_alerts)
     if errors:
