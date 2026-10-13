@@ -166,6 +166,17 @@ fi
 
 if (( hermes )); then
   step "Configuring Hermes"
+  plugin_source="$harness/plugins/thesystem-memory-write-labels"
+  plugin_target="$hermes_root/plugins/thesystem-memory-write-labels"
+  if [[ ! -f "$plugin_source/plugin.yaml" || ! -f "$plugin_source/__init__.py" ]]; then
+    fail "the memory-write labels plugin is missing from the installer"
+  fi
+  rm -rf "$plugin_target"
+  mkdir -p "$(dirname "$plugin_target")"
+  cp -R "$plugin_source" "$plugin_target"
+  if ! problem=$(hermes plugins enable thesystem-memory-write-labels </dev/null 2>&1); then
+    fail "could not enable the memory-write labels plugin: $problem"
+  fi
   # One pass over the main agent's config (each Hermes command takes a second or more just to start):
   # - Trust the workspace so Hermes loads its skills (.agents/skills); Hermes ignores repo-local skills until trusted.
   # - terminal.cwd: the main agent works there, so every main-agent session (Telegram, cron and CLI, even

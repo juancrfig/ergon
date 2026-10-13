@@ -1,0 +1,6 @@
+name: thesystem-memory-write-labels
+version: "1.0.0"
+description: "Enforces labeled Hermes memory writes and records decisions."
+provides_hooks:
+  - pre_tool_call
+  - transform_tool_result
