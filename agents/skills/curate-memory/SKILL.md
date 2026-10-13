@@ -236,6 +236,26 @@ it refuses to overwrite USER.json. `lifespan prune` removes ORPHANED metadata.
 USER.md remains owned by Hermes's memory tool and `/memory approve`; preserve
 its exact entry text because staged replace/remove approval matches it exactly.
 
+## Existing memory label backfill
+
+Run this explicitly once when the owner requests initial classification. It asks
+`gpt-6-luna` twice per entry using isolated one-shot Hermes chats, then records
+canonical `kind` metadata by entry hash in `memories/USER.json` and
+`memories/MEMORY.json`. Route kinds carry `routing: "PROPOSED"` and remain in
+their original store. Doubtful entries alone are included in one summary sent
+to `TELEGRAM_HOME_CHANNEL`; when delivery fails, the summary is appended to
+`curate-memory/alerts.jsonl`.
+
+```sh
+python3 agents/skills/curate-memory/scripts/backfill_memory_labels.py
+```
+
+The command uses `HERMES_HOME` or `~/.hermes`, writes a `backfill_done`
+timestamp in each metadata document, and is a no-op for a completed store
+unless `--force` is supplied. Existing metadata fields are preserved. It never
+changes USER.md or MEMORY.md, and it does not automatically route, move, or
+delete entries.
+
 ## Staleness check
 
 `show` also checks, locally and read-only, whether the request still fits its target, and
