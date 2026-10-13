@@ -15,9 +15,18 @@ Write the spec to `<project>/tickets/<ticket>/spec.md`. Writing it does not auth
    Read [Workspace ticket layout](../to-tasks/references/ticket-layout.md) before creating or changing ticket files.
 
 2. Write the spec using the template below. Include no test plan and no verification steps: tests come only at the
-   end of the ticket, with the human's explicit approval.
+   end of the ticket, with the human's explicit approval. Scenarios are not a test plan: they state observable
+   behaviour, not how to check it.
 
-3. Load `to-tasks` and continue straight into proposing the task split. Show the spec's link with the split, so the human reviews both at once. If they correct the spec, update it and redo the split.
+3. Write the approval page `approval.md` next to the spec. Read [Spec approval template](references/approval-template.md)
+   first. Delegate the scenarios to a subagent that did not write the spec: pass it only the spec path and the
+   template. It writes every scenario into the spec's Scenarios section, and returns the key ones in full, the rest as
+   titles, and every point where the spec forced it to guess. Turn each guess into an Open question. You write
+   Outcome, Decisions, Not doing and Open.
+
+4. Load `to-tasks` and continue straight into proposing the task split. Show the approval page in chat (not the full
+   spec) with the split, so the human reviews both at once. The full spec stays for agents; link it only. If they
+   correct anything, update the spec and the approval page, and redo the split.
 
 <spec-template>
 
@@ -60,6 +69,12 @@ Exception: if a prototype produced a snippet that encodes a decision more precis
 ## Out of Scope
 
 A description of the things that are out of scope for this spec.
+
+## Scenarios
+
+Every observable behaviour, written by the scenario subagent (see step 3): id, title, Given / When / Then. Key
+scenarios first (also shown in full on the approval page), then the rest. Evidence runs prove these; approved tests
+later cover them.
 
 ## Further Notes
 
