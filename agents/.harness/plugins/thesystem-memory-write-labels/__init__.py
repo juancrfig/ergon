@@ -140,7 +140,80 @@ def _route(entry: str, label: str, argument: str | None, context: dict[str, Any]
     return {"decision": "refused", "destination": label, "artifact": None,
             "message": f"Memory write refused: route not yet available for [{label}]. Keep it out of memory until its route is enabled."}
 
+def _handle_project_fact(entry: str, label: str, argument: str | None, context: dict[str, Any]) -> dict[str, Any]:
+    workspace = Path.cwd().resolve()
+    workspace_directories = {"agents", "docs", "tickets", "artifacts", "wiki"}
+    projects = sorted(
+        (path for path in workspace.iterdir() if path.is_dir() and not path.name.startswith(".")
+         and path.name not in workspace_directories),
+        key=lambda path: path.name,
+    )
+    project_names = [path.name for path in projects]
+    requested = (argument or "").strip()
+    if requested.casefold() in {"none", "none fits", "no project"}:
+        from tools import write_approval as approval
+
+        payload = {"action": "add", "target": "memory", "content": entry}
+        record = approval.stage_write(
+            approval.MEMORY, payload, summary=f"project-unknown: {entry[:120]}",
+            origin=approval.current_origin(),
+        )
+        pending = _home() / "pending" / "memory" / f"{record.get('id', '')}.json"
+        if not record.get("id") or not pending.is_file():
+            raise RuntimeError("human review request was not persisted")
+        return {
+            "decision": "routed", "destination": "human review queue", "artifact": str(pending),
+            "message": "No project was selected. The original fact was added to the human review queue "
+                       "with reason project-unknown.",
+        }
+
+    candidate = workspace / requested
+    try:
+        resolved = candidate.resolve(strict=True)
+        inside_workspace = resolved.parent == workspace
+    except (OSError, RuntimeError):
+        resolved = candidate
+        inside_workspace = False
+    if (not requested or Path(requested).is_absolute() or not inside_workspace
+            or not resolved.is_dir() or resolved.name != requested
+            or requested not in project_names):
+        available = ", ".join(project_names) if project_names else "(none)"
+        return {
+            "decision": "refused", "destination": requested or "project wiki inbox", "artifact": None,
+            "message": f"Unknown project {requested!r}. Existing project folders: {available}. "
+                       "Retry with an existing project name, or explicitly state that none fits.",
+        }
+
+    raw = resolved / "wiki" / "raw"
+    raw.mkdir(parents=True, exist_ok=True)
+    if raw.resolve().parent.parent.parent != workspace:
+        raise ValueError("project raw source directory resolves outside the workspace")
+    import hashlib
+
+    now = datetime.now(timezone.utc)
+    timestamp = now.strftime("%Y%m%dT%H%M%SZ")
+    digest = hashlib.sha256(entry.encode("utf-8")).hexdigest()[:8]
+    destination = raw / f"memory-{timestamp}-{digest}.md"
+    session = context.get("session_id")
+    metadata = (
+        "---\n"
+        f"origin_instance: {json.dumps(_identity(), ensure_ascii=False)}\n"
+        f"origin_session: {json.dumps(str(session) if session is not None else '', ensure_ascii=False)}\n"
+        f"origin_time: {json.dumps(now.isoformat().replace('+00:00', 'Z'))}\n"
+        f"decision_log: {json.dumps(str(_home() / 'curate-memory' / 'write-labels.jsonl'))}\n"
+        "---\n"
+    )
+    with destination.open("x", encoding="utf-8") as stream:
+        stream.write(entry + "\n\n" + metadata)
+    return {
+        "decision": "routed", "destination": str(raw), "artifact": str(destination),
+        "message": f"Project fact routed to {requested}. Source file: {destination}. "
+                   "It is pending project ingest; do not retry it as memory.",
+    }
+
+
 ROUTE_HANDLERS = {kind: _route for kind in ROUTE_KINDS}
+ROUTE_HANDLERS["project-fact"] = _handle_project_fact
 
 
 def _ensure_active(context: dict[str, Any]) -> None:
