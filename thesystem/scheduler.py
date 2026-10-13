@@ -230,7 +230,8 @@ def run(home: Path, thesystem_clone: Path) -> int:
                     if event in event_checks:
                         event_checks[event].add(key)
                     last_run = runs.get(key)
-                    due = bool(interval and (not isinstance(last_run, dict) or
+                    # A newly approved contract version runs at once, so results from the old version never linger.
+                    due = bool(interval and (not isinstance(last_run, dict) or last_run.get("contract") != digest or
                                               now - float(last_run.get("timestamp", 0)) >= interval_seconds(interval)))
                     triggered = bool(event and event in events)
                     if not (due or triggered):
@@ -238,7 +239,7 @@ def run(home: Path, thesystem_clone: Path) -> int:
                     green, detail = run_check(check)
                     if event in completed_event_checks:
                         completed_event_checks[event].add(key)
-                    runs[key] = {"timestamp": now, "status": "green" if green else "red"}
+                    runs[key] = {"timestamp": now, "status": "green" if green else "red", "contract": digest}
                     if green:
                         append_jsonl(green_path, {"timestamp": instant, "feature": feature, "check": check_id,
                                                   "status": "green"})
