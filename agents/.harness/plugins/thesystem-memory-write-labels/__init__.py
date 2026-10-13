@@ -173,15 +173,19 @@ def _safety_controls(exclude_id: str | None = None) -> list[tuple[str, str]]:
         pass
     proposal_path = _home() / "curate-memory" / "control-proposals.jsonl"
     try:
+        proposals: dict[str, dict[str, Any]] = {}
         for line in proposal_path.read_text(encoding="utf-8").splitlines():
             try:
                 row = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if (isinstance(row, dict) and row.get("id") != exclude_id
+            if isinstance(row, dict) and isinstance(row.get("id"), str):
+                proposals[row["id"]] = row
+        for proposal_id, row in proposals.items():
+            if (proposal_id != exclude_id
                     and row.get("status") in {"screening", "pending-human", "approved"}
                     and isinstance(row.get("text"), str)):
-                controls.append((f"{proposal_path}#{row.get('id', 'unknown')}", row["text"]))
+                controls.append((f"{proposal_path}#{proposal_id}", row["text"]))
     except OSError:
         pass
     return controls
@@ -238,19 +242,22 @@ def _judge_safety_duplicate(text: str, candidates: list[tuple[str, str]]) -> tup
 
 
 def _update_control_proposal(path: Path, proposal_id: str, updates: dict[str, Any]) -> None:
-    with path.open("r+", encoding="utf-8") as stream:
+    with path.open("a+", encoding="utf-8") as stream:
         fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
-        rows = [json.loads(line) for line in stream if line.strip()]
-        for row in rows:
-            if isinstance(row, dict) and row.get("id") == proposal_id:
-                row.update(updates)
-                break
-        else:
-            raise FileNotFoundError(f"Control proposal {proposal_id} disappeared")
         stream.seek(0)
-        stream.truncate()
-        for row in rows:
-            stream.write(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n")
+        current = None
+        for line in stream:
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            if isinstance(row, dict) and row.get("id") == proposal_id:
+                current = row
+        if current is None:
+            raise FileNotFoundError(f"Control proposal {proposal_id} disappeared")
+        current.update(updates)
+        current["updated_at"] = _now()
+        stream.seek(0, os.SEEK_END)
+        stream.write(json.dumps(current, ensure_ascii=False, separators=(",", ":")) + "\n")
         stream.flush()
         os.fsync(stream.fileno())
         fcntl.flock(stream.fileno(), fcntl.LOCK_UN)

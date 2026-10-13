@@ -1238,21 +1238,20 @@ def forward_request(args: argparse.Namespace) -> Path:
 
 def control_proposals(home: Path) -> list[dict[str, Any]]:
     path = home / "curate-memory" / "control-proposals.jsonl"
-    pending = []
+    latest: dict[str, dict[str, Any]] = {}
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
     except FileNotFoundError:
-        return pending
+        return []
     for number, line in enumerate(lines, 1):
         try:
             row = json.loads(line)
         except json.JSONDecodeError as exc:
             raise ReviewError(f"Unreadable control proposal at {path}:{number}: {exc}") from exc
-        if not isinstance(row, dict):
-            raise ReviewError(f"Invalid control proposal at {path}:{number}: expected object")
-        if row.get("status") == "pending-human":
-            pending.append(row)
-    return pending
+        if not isinstance(row, dict) or not isinstance(row.get("id"), str):
+            raise ReviewError(f"Invalid control proposal at {path}:{number}: expected object with id")
+        latest[row["id"]] = row
+    return [row for row in latest.values() if row.get("status") == "pending-human"]
 
 
 def decide_control(home: Path, proposal_id: str, decision: str, reason: str) -> dict[str, Any]:
@@ -1263,15 +1262,18 @@ def decide_control(home: Path, proposal_id: str, decision: str, reason: str) -> 
     path = home / "curate-memory" / "control-proposals.jsonl"
     if not path.is_file():
         raise ReviewError("No control proposals are available.")
-    with path.open("r+", encoding="utf-8") as stream:
-        import fcntl
+    import fcntl
+    with path.open("a+", encoding="utf-8") as stream:
         fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
-        rows = [json.loads(line) for line in stream if line.strip()]
-        found = None
-        for row in rows:
-            if isinstance(row, dict) and row.get("id") == proposal_id:
-                found = row
-                break
+        stream.seek(0)
+        latest: dict[str, dict[str, Any]] = {}
+        for line in stream:
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            if isinstance(row, dict) and isinstance(row.get("id"), str):
+                latest[row["id"]] = row
+        found = latest.get(proposal_id)
         if found is None:
             raise ReviewError(f"Control proposal {proposal_id} was not found.")
         if found.get("status") != "pending-human":
@@ -1279,10 +1281,9 @@ def decide_control(home: Path, proposal_id: str, decision: str, reason: str) -> 
         found["status"] = "approved" if decision == "approve" else "rejected"
         found["decision_reason"] = reason
         found["decided_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        stream.seek(0)
-        stream.truncate()
-        for row in rows:
-            stream.write(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n")
+        found["updated_at"] = found["decided_at"]
+        stream.seek(0, os.SEEK_END)
+        stream.write(json.dumps(found, ensure_ascii=False, separators=(",", ":")) + "\n")
         stream.flush()
         os.fsync(stream.fileno())
         fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
