@@ -18,3 +18,14 @@ worker: {}
 reviewer:
   skills:
     - skills/code-review
+frontend:
+  rules:
+    - rules/clickable-hover-feedback.md
+    - rules/color-contrast-preflight.md
+    - rules/keyboard-focus-only.md
+    - rules/keyframe-stops-use-concrete-values.md
+    - rules/motion-by-frequency-and-purpose.md
+    - rules/no-hardcoded-colors.md
+    - rules/no-surprise-scrollbars.md
+    - rules/scrollbar-default-style.md
+    - rules/state-synced-css-animations.md
