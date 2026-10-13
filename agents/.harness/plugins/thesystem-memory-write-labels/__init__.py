@@ -249,7 +249,10 @@ def _update_control_proposal(path: Path, proposal_id: str, updates: dict[str, An
         for line in stream:
             if not line.strip():
                 continue
-            row = json.loads(line)
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue  # corrupt rows are skipped per record; the resume path alerts on them
             if isinstance(row, dict) and row.get("id") == proposal_id:
                 current = row
         if current is None:
@@ -272,7 +275,10 @@ def _screen_safety_proposal(proposal_id: str) -> None:
     try:
         proposals: dict[str, dict[str, Any]] = {}
         for line in path.read_text(encoding="utf-8").splitlines():
-            row = json.loads(line)
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue  # corrupt rows are skipped per record; the resume path alerts on them
             if isinstance(row, dict) and isinstance(row.get("id"), str):
                 proposals[row["id"]] = row
         proposal = proposals.get(proposal_id)

@@ -1273,7 +1273,10 @@ def decide_control(home: Path, proposal_id: str, decision: str, reason: str) -> 
         for line in stream:
             if not line.strip():
                 continue
-            row = json.loads(line)
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue  # corrupt rows are skipped per record; the resume path alerts on them
             if isinstance(row, dict) and isinstance(row.get("id"), str):
                 latest[row["id"]] = row
         found = latest.get(proposal_id)
