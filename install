@@ -248,9 +248,11 @@ Unit=thesystem-monitor.service
 [Install]
 WantedBy=timers.target
 EOF
-  systemctl --user daemon-reload >/dev/null 2>&1 || true
-  systemctl --user enable thesystem-monitor.timer >/dev/null 2>&1 || true
-  systemctl --user restart thesystem-monitor.timer >/dev/null 2>&1 || true
+  # The Monitor depends on this timer, so a provisioning failure is reported instead of swallowed.
+  if ! { systemctl --user daemon-reload && systemctl --user enable thesystem-monitor.timer \
+         && systemctl --user restart thesystem-monitor.timer; } >/dev/null 2>&1; then
+    echo "WARNING: the Monitor scheduler timer (thesystem-monitor.timer) could not be enabled; health checks will not run." >&2
+  fi
   loginctl enable-linger "${USER:-$(id -un)}" >/dev/null 2>&1 || true
 fi
 
