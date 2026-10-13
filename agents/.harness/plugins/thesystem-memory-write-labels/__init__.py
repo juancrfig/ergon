@@ -263,6 +263,82 @@ def _update_control_proposal(path: Path, proposal_id: str, updates: dict[str, An
         fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
 
 
+_SCREENING_LOCK = threading.Lock()
+_SCREENING_IDS: set[str] = set()
+
+
+def _screen_safety_proposal(proposal_id: str) -> None:
+    path = _home() / "curate-memory" / "control-proposals.jsonl"
+    try:
+        proposals: dict[str, dict[str, Any]] = {}
+        for line in path.read_text(encoding="utf-8").splitlines():
+            row = json.loads(line)
+            if isinstance(row, dict) and isinstance(row.get("id"), str):
+                proposals[row["id"]] = row
+        proposal = proposals.get(proposal_id)
+        if not proposal or proposal.get("status") != "screening":
+            return
+        text = proposal.get("text")
+        if not isinstance(text, str):
+            raise ValueError("proposal text is missing")
+        candidates = _safety_duplicate_candidate(text, _safety_controls(proposal_id))
+        duplicate = _judge_safety_duplicate(text, candidates)
+        if duplicate:
+            _update_control_proposal(path, proposal_id, {
+                "status": "duplicate", "duplicate_of": {"quote": duplicate[0], "source": duplicate[1]},
+                "decision_reason": "System Two cited an exact existing control.", "decided_at": _now(),
+            })
+            return
+        _update_control_proposal(path, proposal_id, {
+            "status": "pending-human", "decision_reason": "No exact duplicate was established; human review required.",
+            "decided_at": _now(),
+        })
+        _alert(f"Safety control proposal {proposal_id} is awaiting human review: {text}")
+    except Exception as error:
+        try:
+            _update_control_proposal(path, proposal_id, {
+                "status": "pending-human", "decision_reason": f"Duplicate review failed; human review required ({type(error).__name__}).",
+                "decided_at": _now(),
+            })
+        except Exception:
+            pass
+        _alert(f"Safety control proposal {proposal_id} duplicate review failed; it remains for human review: {type(error).__name__}: {error}")
+    finally:
+        with _SCREENING_LOCK:
+            _SCREENING_IDS.discard(proposal_id)
+
+
+def _start_safety_screening(proposal_id: str) -> None:
+    with _SCREENING_LOCK:
+        if proposal_id in _SCREENING_IDS:
+            return
+        _SCREENING_IDS.add(proposal_id)
+    try:
+        threading.Thread(target=_screen_safety_proposal, args=(proposal_id,), daemon=True).start()
+    except Exception:
+        with _SCREENING_LOCK:
+            _SCREENING_IDS.discard(proposal_id)
+        raise
+
+
+def _resume_safety_screening() -> None:
+    path = _home() / "curate-memory" / "control-proposals.jsonl"
+    try:
+        proposals: dict[str, dict[str, Any]] = {}
+        for line in path.read_text(encoding="utf-8").splitlines():
+            row = json.loads(line)
+            if isinstance(row, dict) and isinstance(row.get("id"), str):
+                proposals[row["id"]] = row
+    except FileNotFoundError:
+        return
+    except Exception as error:
+        _alert(f"Could not resume safety control proposal screening: {type(error).__name__}: {error}")
+        return
+    for proposal_id, row in proposals.items():
+        if row.get("status") == "screening":
+            _start_safety_screening(proposal_id)
+
+
 def _handle_safety_rule(entry: str, label: str, argument: str | None,
                         context: dict[str, Any]) -> dict[str, Any]:
     proposal_id = os.urandom(4).hex()
@@ -273,19 +349,14 @@ def _handle_safety_rule(entry: str, label: str, argument: str | None,
         "duplicate_of": None, "decision_reason": "", "decided_at": None,
     }
     _append_jsonl(path, row)
-    candidates = _safety_duplicate_candidate(entry, _safety_controls(proposal_id))
-    duplicate = _judge_safety_duplicate(entry, candidates)
-    if duplicate:
+    try:
+        _start_safety_screening(proposal_id)
+    except Exception as error:
         _update_control_proposal(path, proposal_id, {
-            "status": "duplicate", "duplicate_of": {"quote": duplicate[0], "source": duplicate[1]},
-            "decision_reason": "System Two cited an exact existing control.", "decided_at": _now(),
+            "status": "pending-human", "decision_reason": f"Duplicate review could not be started; human review required ({type(error).__name__}).",
+            "decided_at": _now(),
         })
-        return {"decision": "routed", "destination": str(path), "artifact": proposal_id,
-                "message": f"Not saved to memory: safety proposal {proposal_id} was rejected as a duplicate of {duplicate[0]!r} ({duplicate[1]})."}
-    _update_control_proposal(path, proposal_id, {
-        "status": "pending-human", "decision_reason": "No exact duplicate was established; human review required."
-    })
-    _alert(f"Safety control proposal {proposal_id} is awaiting human review: {entry}")
+        _alert(f"Safety control proposal {proposal_id} duplicate review could not be started; it is awaiting human review: {type(error).__name__}: {error}")
     return {"decision": "routed", "destination": str(path), "artifact": proposal_id,
             "message": f"Not saved to memory: sent to the control review queue as {proposal_id}."}
 
@@ -528,6 +599,7 @@ def _transform_tool_result(**kwargs):
 
 
 def register(ctx):
+    _resume_safety_screening()
     ctx.register_hook("pre_tool_call", _pre_tool_call)
     ctx.register_hook("transform_tool_result", _transform_tool_result)
     ctx.register_system_prompt_section(
