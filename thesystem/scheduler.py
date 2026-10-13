@@ -206,6 +206,7 @@ def run(home: Path, thesystem_clone: Path) -> int:
                     if alert_key not in sent_alerts and deliver_alert(
                             home, f"Monitor approval mismatch: {feature}; checks skipped until re-approval.", diagnostic_path):
                         sent_alerts[alert_key] = instant
+                    contracts_valid = False
                     continue
                 if not isinstance(contract.get("checks"), list) or not contract["checks"]:
                     raise ValueError("contract has no checks")
