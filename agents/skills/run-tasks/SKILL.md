@@ -78,7 +78,8 @@ Save the answer as `review.md` and the verdict in `run.json`. No verdict line: t
 
 ## 5. Decide
 
-- `PASS`: the task becomes `pre-done`. Tell the human it waits for their merge.
+- `PASS`: the task becomes `pre-done`. Run the merge dry run (see `tests-and-verification-need-human-approval.md`);
+  if it passes, merge without asking the human and report it; if it fails, retry the task with the findings.
 - `FAIL` on the first run: retry once on your own. Start a new run (step 2 reuses the branch) and add the reviewer's
   findings to the worker's context under "Fix these review findings".
 - `FAIL` on the retry: the task becomes `changes-requested`. Bring it to the human.

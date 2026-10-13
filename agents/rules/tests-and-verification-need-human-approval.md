@@ -4,6 +4,9 @@ human explicitly approves each test. Verification follows the same principle: do
 runs, linters or smoke checks to confirm your own work unless the human explicitly asks for it. Gates are the
 exception: the project's deterministic checks (compile, type check, build), declared in its verification guide
 (`verify-<project>/gate.json`). Workers run the gate before finishing and fix what it reports; this needs no approval.
+Merge dry runs are the second exception: before merging a `pre-done` task, the main agent exercises the merged result
+in a scratch copy (install into a throwaway home, feed sample inputs, read the outputs) without touching live
+instances. They need no approval, add no files to the repository, and decide the merge.
 Approval of a spec, a task split or a task is not approval of tests or evidence runs. Never block or delay delivery
 because tests or evidence runs are missing, and never claim that something was tested or verified when it was not.
 

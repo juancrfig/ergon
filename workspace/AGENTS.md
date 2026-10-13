@@ -69,13 +69,14 @@ blockers:
 ```
 
 Status: `blocked`, `ready`, `running`, `changes-requested` (reviewer said no twice), `failed` (a run broke),
-`pre-done` (reviewer approved; waiting for the human), `done` (merged). Task ids (folder names) are unique in the
+`pre-done` (reviewer approved; waiting for the merge dry run), `done` (merged). Task ids (folder names) are unique in the
 workspace. The reviewer always uses the `base` and `reviewer` roles (override them in `<project>/agents/roles.yaml`)
 plus the worker's rules.
 
 ## Reviewing results with the human
 
-- `pre-done`: show the task and its review. When the human says merge, merge it (`run-tasks`).
+- `pre-done`: you decide the merge, not the human. Merge after a dry run of the merged result passes (`run-tasks`);
+  report what merged and what the dry run showed. A failed dry run sends the task back to its worker.
 - `changes-requested`, `failed`, or a rejected `pre-done`: work out why with the human. Read the run evidence lazily,
   starting with `review.md`. The human then improves the roles; run the task again (`run-tasks`).
 - When every task of a ticket is `done`, propose a short list of candidate tests to the human. Write only the tests
