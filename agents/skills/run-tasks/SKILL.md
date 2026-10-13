@@ -10,8 +10,13 @@ task to subagents, record the run and update the task's `status`. Every task `to
 ready tasks without asking again.
 
 Read [Workspace ticket layout](../to-tasks/references/ticket-layout.md) first. Follow
-`../../rules/tests-and-verification-need-human-approval.md`: workers and reviewers write no tests and verify nothing
-unless the task quotes the human's explicit approval.
+`../../rules/tests-and-verification-need-human-approval.md`: workers and reviewers write no tests and run no evidence
+runs unless the task quotes the human's explicit approval. Gates are the exception: they run on every task (step 3b).
+
+**Gate.** Each project declares its gate in `<project>/agents/skills/verify-<project>/gate.json`, run with
+`../verification-heuristics/scripts/gate.py` (contract: `../verification-heuristics/references/gate.md`). A project
+with no `gate.json` stops at step 2: tell the human, and propose the gate as the project's first task. Exception: the
+task whose job is to create the gate.
 
 ## 1. Find the ready tasks
 
@@ -48,9 +53,19 @@ One `delegate_task` entry per task. Subagents know nothing of this conversation,
 - The full task body (below the front matter), verbatim.
 - The worker's rules: paste each rule file in full.
 - The worker's skills: list each `SKILL.md` path and tell it to read the ones that apply before working.
-- "Do not write, change or run tests, and do not run the application, builds, linters or checks to verify your work,
-  unless the task quotes the human's approval. If the task leaves a decision open that you need, stop and say so
-  instead of guessing."
+- "Do not write or change tests, and do not run the application or evidence runs to verify your work, unless the task
+  quotes the human's explicit approval. If the task leaves a decision open that you need, stop and say so instead of
+  guessing."
+- The gate: "Before finishing, run the project's gate: `python3 <gate.py path> <gate.json path> --root <worktree
+  path>`. It runs every check and prints each tool's error messages in full. Fix every error your change caused, then
+  run it again until it is green. If an error was already there before your change and the task does not cover it,
+  leave it and list it in your summary."
+- "If an edit tool reports that its match was not found, do not retry fragments: read the whole file again and
+  rewrite it entirely with its correct final content."
+- "Before finishing, read each file you changed once from top to bottom to confirm it is complete and coherent. This
+  is reading, not running checks."
+- For a worker with the `frontend` role: "Before finishing, re-read your UI change against each of your rules,
+  applying its 'Enforce with' steps by reading the code (not by running anything)."
 - "End with a short summary: what you changed and anything left undone."
 
 When the worker returns:
@@ -63,6 +78,23 @@ When the worker returns:
 4. No change at all: the run is `failed` ("the worker finished without changing any file").
 5. Save `git diff <base> <commit>` as `worker.diff`, and record the commit in `run.json`.
 
+## 3b. Run the gate
+
+The orchestrator runs the gate itself on the worker's commit. Why: the worker's own run is an instruction it can
+skip; this run is the trigger that cannot be skipped.
+
+1. Once per run, before the first gate round: run the gate on the base commit in a temporary worktree with
+   `--save-errors <run>/gate-base.json`, then remove that worktree. Its result does not decide anything; it only marks
+   which errors were already there.
+2. Run `gate.py <gate.json> --root <worktree> --log <run> --baseline <run>/gate-base.json`. Save its stdout as
+   `<run>/gate-<round>.txt` (round 1, 2, 3). Exit 2 (setup or config): the run is `failed` with code `gate-setup`.
+3. Green, or red with only `[old]` errors: continue to the reviewer (step 4). List the `[old]` errors in `run.json`.
+4. Red with `[new]` errors: send the worker a new delegation with the same context, plus "Gate round <n> of 2 is red.
+   Fix every `[new]` error below, then run the gate again." and the full gate output pasted verbatim. Commit its fix
+   as in step 3 and run the gate again. Up to 2 fix rounds.
+5. Still `[new]` errors after 2 fix rounds: the run is `failed` with code `gate`. Bring the last gate output to the
+   human. Gate rounds are not review failures and do not use the reviewer's automatic retry.
+
 ## 4. Delegate the reviewer
 
 One `delegate_task` entry per task, after its worker. The `context` holds:
@@ -70,8 +102,11 @@ One `delegate_task` entry per task, after its worker. The `context` holds:
 - "You are the independent reviewer for task `<task-id>`. Read the worker's change with
   `git -C <worktree> diff <base> <commit>`. Do not change any file."
 - The full task body, the reviewer's rules (pasted in full) and its skill paths (`code-review` at least).
-- "Review only by reading the diff and the code. Do not run tests, the application, builds or checks unless the task
-  quotes the human's approval. Check the change against the task and its acceptance criteria, and against the rules."
+- Everything the worker of this run received beyond the task body: earlier review findings it had to fix and any
+  extra instructions. Why: a reviewer that lacks an instruction the worker followed rejects deliberate decisions.
+- "Review only by reading the diff and the code. The gate is green (its last output is in `<run>/gate-<round>.txt`);
+  do not run tests, the application or evidence runs unless the task quotes the human's approval, and do not repeat
+  the gate. Check the change against the task and its acceptance criteria, and against the rules."
 - "Report concrete findings. End with exactly one line: `VERDICT: PASS` or `VERDICT: FAIL`."
 
 Save the answer as `review.md` and the verdict in `run.json`. No verdict line: the run is `failed`.
@@ -87,6 +122,11 @@ Save the answer as `review.md` and the verdict in `run.json`. No verdict line: t
 - `FAIL` on the retry: the task becomes `changes-requested`. Bring it to the human.
 - A broken run (delegation error, isolation broken, no change, no verdict): the task becomes `failed`. Record
   `{"code", "message"}` under `error` in `run.json` and bring it to the human.
+
+Every `FAIL`, `failed` run, or reviewer finding that the worker should not have produced comes with a follow-up
+proposal: the change to a rule, role, skill or the handoff checklist that would have prevented it. Show the proposal
+to the human with the report; write it only after approval. Why: each problem should make the system better, not only
+be reported.
 
 Finish each run: set `status` and `finished_at` in `run.json`. Report outcomes only: which tasks are `pre-done`, and
 which need the human, with the reason.
