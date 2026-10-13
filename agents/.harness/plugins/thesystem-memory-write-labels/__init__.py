@@ -13,6 +13,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from . import procedure_route
+
 PLUGIN_ID = "thesystem-memory-write-labels"
 ALLOWED_LABELS = (
     "user-preference", "user-fact", "environment-fact", "agent-convention", "procedure",
@@ -245,8 +247,7 @@ def _handle_project_fact(entry: str, label: str, argument: str | None, context: 
     }
 
 
-ROUTE_HANDLERS = {kind: _route for kind in ROUTE_KINDS}
-ROUTE_HANDLERS["project-fact"] = _handle_project_fact
+ROUTE_HANDLERS = {**{kind: _route for kind in ROUTE_KINDS}, "project-fact": _handle_project_fact, "procedure": procedure_route.handle}
 
 
 def _ensure_active(context: dict[str, Any]) -> None:
@@ -483,6 +484,7 @@ def _transform_tool_result(**kwargs):
 
 
 def register(ctx):
+    procedure_route.recover()
     ctx.register_hook("pre_tool_call", _pre_tool_call)
     ctx.register_hook("transform_tool_result", _transform_tool_result)
     ctx.register_system_prompt_section(
