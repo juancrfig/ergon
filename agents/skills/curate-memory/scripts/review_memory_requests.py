@@ -1237,6 +1237,7 @@ def forward_request(args: argparse.Namespace) -> Path:
     return destination
 
 
+<<<<<<< HEAD
 def review_skill_proposals(args: argparse.Namespace) -> None:
     queue = args.home_root / "curate-memory" / "skill-requests.jsonl"
     latest: dict[str, dict[str, Any]] = {}
@@ -1295,6 +1296,78 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         decide_parser.add_argument("--decision", choices=("approve", "reject"), required=True)
         args = parser.parse_args(argv[1:])
         args.command = "skill-proposals"
+=======
+def control_proposals(home: Path) -> list[dict[str, Any]]:
+    path = home / "curate-memory" / "control-proposals.jsonl"
+    latest: dict[str, dict[str, Any]] = {}
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return []
+    for number, line in enumerate(lines, 1):
+        # A corrupt row is reported and skipped so the remaining proposals stay reviewable.
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as exc:
+            print(f"WARNING: skipped unreadable control proposal at {path}:{number}: {exc}", file=sys.stderr)
+            continue
+        if not isinstance(row, dict) or not isinstance(row.get("id"), str):
+            print(f"WARNING: skipped invalid control proposal at {path}:{number}: expected object with id", file=sys.stderr)
+            continue
+        latest[row["id"]] = row
+    return [row for row in latest.values() if row.get("status") == "pending-human"]
+
+
+def decide_control(home: Path, proposal_id: str, decision: str, reason: str) -> dict[str, Any]:
+    if not re.fullmatch(r"[0-9a-f]{8}", proposal_id):
+        raise ReviewError("Control proposal id must be exactly 8 lowercase hex characters.")
+    if decision not in {"approve", "reject"} or not reason.strip():
+        raise ReviewError("Control decision requires approve|reject and a non-empty --reason.")
+    path = home / "curate-memory" / "control-proposals.jsonl"
+    if not path.is_file():
+        raise ReviewError("No control proposals are available.")
+    import fcntl
+    with path.open("a+", encoding="utf-8") as stream:
+        fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+        stream.seek(0)
+        latest: dict[str, dict[str, Any]] = {}
+        for line in stream:
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue  # corrupt rows are skipped per record; the resume path alerts on them
+            if isinstance(row, dict) and isinstance(row.get("id"), str):
+                latest[row["id"]] = row
+        found = latest.get(proposal_id)
+        if found is None:
+            raise ReviewError(f"Control proposal {proposal_id} was not found.")
+        if found.get("status") != "pending-human":
+            raise ReviewError(f"Control proposal {proposal_id} is not pending-human (status: {found.get('status')}).")
+        found["status"] = "approved" if decision == "approve" else "rejected"
+        found["decision_reason"] = reason
+        found["decided_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        found["updated_at"] = found["decided_at"]
+        stream.seek(0, os.SEEK_END)
+        stream.write(json.dumps(found, ensure_ascii=False, separators=(",", ":")) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+        fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+    return {"id": proposal_id, "status": found["status"], "decision_reason": reason,
+            "decided_at": found["decided_at"]}
+
+
+def _parse_args(argv: list[str]) -> argparse.Namespace:
+    if argv and argv[0] == "decide-control":
+        parser = argparse.ArgumentParser(description="Record a human decision for a proposed control.")
+        parser.add_argument("id")
+        parser.add_argument("decision", choices=("approve", "reject"))
+        parser.add_argument("--reason", required=True)
+        parser.add_argument("--home-root", type=Path, default=Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")))
+        args = parser.parse_args(argv[1:])
+        args.command = "decide-control"
+>>>>>>> thesystem/labels-route-safety
         return args
     if argv and argv[0] == "forward":
         parser = argparse.ArgumentParser(description="Forward a reviewed memory request to project wiki sources.")
@@ -1327,7 +1400,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         args.command = "lifespan"
         return args
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("inventory", "show", "decide", "learn", "forward", "native-apply", "sweep", "shadow"))
+    parser.add_argument("command", choices=("inventory", "controls", "show", "decide", "decide-control", "learn", "forward", "native-apply", "sweep", "shadow"))
     parser.add_argument("--home-root", type=Path, default=Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes")))
     parser.add_argument("--hermes-home", type=Path, default=Path.home() / ".hermes")
     parser.add_argument("--workspace", type=Path, default=Path.cwd())
@@ -1357,6 +1430,12 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv or sys.argv[1:])
+    if args.command == "decide-control":
+        print(json.dumps(decide_control(args.home_root, args.id, args.decision, args.reason), ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "controls":
+        print(json.dumps({"controls": control_proposals(args.home_root)}, ensure_ascii=False, indent=2))
+        return 0
     if args.command == "native-apply":
         if not args.subsystem or not args.pending_id or not args.expected_record_sha256 or args.decision not in {"approve", "reject"}:
             raise ReviewError("Native Hermes decision requires subsystem, pending id, decision, and reviewed record hash.")
