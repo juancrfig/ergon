@@ -1,0 +1,6 @@
+name: delegate-tier-router
+version: "1.0.0"
+description: "Routes delegate_task by tier: agy pool first, then Luna 6, then Haiku 5.5."
+provides_hooks:
+  - pre_tool_call
+  - transform_tool_result
