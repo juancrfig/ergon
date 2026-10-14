@@ -177,6 +177,18 @@ if (( hermes )); then
   if ! problem=$(hermes plugins enable thesystem-memory-write-labels </dev/null 2>&1); then
     fail "could not enable the memory-write labels plugin: $problem"
   fi
+  # Tiered delegation (delegate-tier-router): opt-in, only on servers that have the `agy` CLI. Without agy the
+  # router would block delegate_task and point to a pool that cannot run, so it is copied but not enabled.
+  router_source="$harness/plugins/delegate-tier-router"
+  if [[ -f "$router_source/plugin.yaml" && -f "$harness/bin/agy-pool" ]]; then
+    mkdir -p "$hermes_root/plugins" "$bin_dir"
+    rm -rf "$hermes_root/plugins/delegate-tier-router"
+    cp -R "$router_source" "$hermes_root/plugins/delegate-tier-router"
+    cp "$harness/bin/agy-pool" "$bin_dir/agy-pool" && chmod +x "$bin_dir/agy-pool"
+    if command -v agy >/dev/null 2>&1; then
+      hermes plugins enable delegate-tier-router </dev/null >/dev/null 2>&1 || printf 'warning: could not enable delegate-tier-router\n' >&2
+    fi
+  fi
   # One pass over the main agent's config (each Hermes command takes a second or more just to start):
   # - Trust the workspace so Hermes loads its skills (.agents/skills); Hermes ignores repo-local skills until trusted.
   # - terminal.cwd: the main agent works there, so every main-agent session (Telegram, cron and CLI, even
