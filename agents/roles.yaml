@@ -12,6 +12,8 @@ base:
     - rules/second-order-thinking-checks.md
     - rules/decide-small-changes-without-approval.md
     - rules/push-thesystem-only-through-the-guard.md
+    - rules/long-steps-run-in-background.md
+    - rules/merge-gate-reruns-only-when-covered-paths-changed.md
   skills:
     - skills/systematic-debugging
 worker: {}
@@ -29,3 +31,4 @@ frontend:
     - rules/no-surprise-scrollbars.md
     - rules/scrollbar-default-style.md
     - rules/state-synced-css-animations.md
+    - rules/bound-visual-fix-loops.md
