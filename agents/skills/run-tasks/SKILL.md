@@ -113,8 +113,10 @@ Save the answer as `review.md` and the verdict in `run.json`. No verdict line: t
 
 ## 5. Decide
 
-- `PASS`: the task becomes `pre-done`. Run the merge dry run (see `tests-and-verification-need-human-approval.md`);
-  if it passes, merge without asking the human and report it; if it fails, retry the task with the findings.
+- `PASS`: the task becomes `pre-done`. Run the merge dry run (see `tests-and-verification-need-human-approval.md`),
+  re-running the gate only when a gate-covered path changed since the worker's passing commit
+  (`merge-gate-reruns-only-when-covered-paths-changed.md`); if it passes, merge without asking the human and report it;
+  if it fails, retry the task with the findings.
   Interim: the main agent's dry run double-checks the verification layers while they are new. Once the three
   verification layers are working and battle tested, they alone approve the merge: propose dropping this dry run then.
 - `FAIL` on the first run: retry once on your own. Start a new run (step 2 reuses the branch) and add the reviewer's
