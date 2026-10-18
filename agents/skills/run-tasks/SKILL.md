@@ -139,6 +139,27 @@ be reported.
 Finish each run: set `status` and `finished_at` in `run.json`. Report outcomes only: which tasks are `pre-done`, and
 which need the human, with the reason.
 
+## 6. Retrospective (every finished run)
+
+Every run that reached a review verdict gets an automatic retrospective. The human does not ask for it. Why: the
+first retrospective the human asked for found a bug the review had approved, plus a third of the worker's time lost
+to re-reading files. Each run should feed the next.
+
+1. Right after the verdict (`pre-done`, `changes-requested`, or after the merge), delegate one retro subagent in the
+   background. Do not wait for it: the next ready task starts at once.
+2. Its `context`: "Load the `retro` skill and run it in automatic mode on task `<task-id>`, run `<run-id>`." Followed
+   by the paths of the task, the run folder, the worker's and reviewer's transcripts with their timings, the roles
+   and rules each received, the gate config, and every earlier `retro.md` of the same ticket.
+3. It writes `<run>/retro.md` and changes nothing else.
+4. When it returns, read `retro.md`:
+   - A defect in the merged code that the review missed: fix it like any small change. Add it to a ticket task that
+     has not started, or create a fix task. Tell the human in the next report.
+   - A change to the environment (rule, skill, role, task template, check, script): bring it to the human in the next
+     report, ranked by time saved × ease. Write it only after approval. If it improves a theSystem default, offer it
+     with `propose-default`.
+   - A finding that earlier retros already raised and the human already decided: do not raise it again, unless it
+     recurs after the fix (then say the fix did not work).
+
 ## Merge (the human said merge)
 
 Only a `pre-done` task merges.

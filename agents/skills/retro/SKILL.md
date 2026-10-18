@@ -6,7 +6,24 @@ disable-model-invocation: true
 
 Sources: [mattpocock/skills](https://github.com/mattpocock/skills) v1.3.1 `retro` (MIT), adapted to theSystem.
 
-The human has asked for a **retrospective**. You suggest changes to the agents' **environment** (rules, skills, roles, task text, context files, checks) so future runs go better. You propose; the human decides. Change nothing until they approve each item.
+The human has asked for a **retrospective**, or `run-tasks` started one automatically after a task run (**automatic mode**). You suggest changes to the agents' **environment** (rules, skills, roles, task text, context files, checks) so future runs go better. You propose; the human decides. Change nothing until they approve each item.
+
+## Automatic mode
+
+`run-tasks` runs you after every task run that reached a verdict. Nobody is waiting on you, and you cannot ask the
+human anything. Differences from the steps below:
+
+- Evidence: the run folder, plus the worker's and reviewer's transcripts. Measure where the time went (worker,
+  gate rounds, review) from timestamps, and count repeated reads of the same file.
+- Also check the change itself against the task's acceptance criteria. A defect the review missed is the most
+  valuable finding: give the file, the line and how it fails.
+- Read the earlier `retro.md` files of the same ticket. Report only new findings, or old ones that came back after
+  their fix (say so). Never repeat a finding the human already decided.
+- Change nothing. Write `<run>/retro.md`: at most 400 words, findings ranked by time saved × ease. For each:
+  evidence (file and numbers), the proposed change, where it lives (check, rule, skill, role, task template,
+  script), and the estimated saving. Code defects come first, under their own heading. Your final answer is the
+  same text.
+- Skip step 4: the main agent brings your findings to the human.
 
 ## Steps
 
