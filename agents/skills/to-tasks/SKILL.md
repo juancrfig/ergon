@@ -50,6 +50,16 @@ Give each task its **blockers**: the tasks that must be done before it can start
 
 Propose each task's **roles** from the global `agents/roles.yaml` and the project's `agents/roles.yaml` (a project role replaces a global role with the same name). Every agent also gets `base` automatically, so never list it. Use `worker` when no other role fits.
 
+**Conventions that contradict a role's defaults.** Before the human confirms, compare the project conventions you
+copy into tasks (stack, libraries, dependency limits, rendering approach) with the defaults in the skills of the
+roles you propose (for example the frontend component library). Show each contradiction to the human as a decision
+with its cost. Never resolve it silently in the task text: a convention like "one runtime dependency" once ruled out
+the approved component library without anyone choosing that.
+
+**Human interfaces end with a walkthrough.** When a ticket adds or changes screens, its last task runs the
+walkthrough protocol of the `smooth-frontend` skill on the merged result, blocked by every interface task. The
+human approved that protocol as the last verification layer, so the task needs no new approval.
+
 ### 3. Confirm the split with the human
 
 Show the split as a numbered list. For each task:

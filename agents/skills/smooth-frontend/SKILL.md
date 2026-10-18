@@ -60,6 +60,73 @@ movement.
 **Review.** Watch new animations in slow motion or frame by frame, look again the next day, test gestures on a real
 phone.
 
+## Taste: layout and flow
+
+Learned from walking a point-of-sale app as a first-time cashier.
+
+**Navigation by role.** Group screens by who uses them, not by data area. List the roles first (for example cashier,
+waiter, kitchen, owner) and the jobs each one does in a shift. Each role sees only its own tabs, at most four or five.
+A single-purpose role (kitchen, bar) gets one full screen with no navigation. A device remembers its role. Screens a
+role never needs are not in its menu, even as icons.
+
+**Walk it as the user.** Before building, take each role's real jobs ("sell 3 burgers and 2 mojitos", "receive a meat
+delivery", "close the day") and ask, starting from the first screen: is it obvious where I go? Assume the user knows
+the business but none of the code or the design conversation. Any guess or tap-around is a finding. After building,
+run the walkthrough protocol below.
+
+**Interfaces sit on the CLI.** Every job a screen does must also work through the CLI, so an agent can do it from a
+voice note or chat. The web is one optional shell; design the CLI command first, then the screen over the same
+domain function.
+
+**Show inputs as they become needed (progressive disclosure).** Start with only the inputs that are mandatory or that
+decide which inputs come next. Reveal the next inputs when an earlier answer makes them relevant. Optional extras
+(notes, free lines, due dates, invoices) hide behind one small "+" action. Do not take it to the extreme: a short form
+whose fields are always needed stays one form.
+
+**Collapse what is answered.** Once a value is entered, shrink it to a compact summary or chip ("2 × Hamburguesa ·
+$50.000", "Efectivo") that stays editable with one tap. The screen grows with the work, not with the possibilities.
+
+**No fixed counts.** Never hard-code "item 1, item 2 (optional)" slots. Any list the user builds (sale lines, order
+lines, recipe ingredients, purchase lines) is a repeatable row with "+ añadir"; the domain limit is the only limit.
+
+**Pick from growing lists by search and tap, not a long select.** Catalogs that grow (recipes, items) use a search
+field plus large tap targets grouped by type (comida / trago), most used first. A tap adds one; +/− adjusts quantity.
+
+**Show the result before the commit.** A form that records money shows the running total and its parts before the
+submit button.
+
+**Action screens and status screens are separate.** A screen for doing a job (record a sale) does not also carry
+dashboards (balances, summaries, logs). Status lives in its own place, for the role that reads it.
+
+**Code follows the sections.** One module or folder per section (per role area), plus one shared layer for layout,
+navigation and common pickers. A section never imports another section, and no file grows past what an agent reads
+comfortably (about 400–600 lines). An agent fixing one section then loads only that section. A single 2,300-line
+web file was the incident.
+
+**Icons.** Icon-only buttons only where the meaning is universal (+, ×, delete, refresh, back). Navigation tabs keep a
+short text label under the icon: in a walkthrough, most icon-only tabs were ambiguous to a first-time user.
+
+## Walkthrough protocol (last verification layer)
+
+The human approved this as the final check of every human interface, after the gate, the review and the merge
+dry run. It finds what code review misses: missing flows, dead ends, fixed limits, and data that one role
+creates but another role never receives (for example a counter sale that sent nothing to the kitchen).
+
+1. **Scenarios first.** Write the 80/20 jobs for each role from the real business, not from the screens: the jobs
+   done every shift, the rush-hour version, the mistake and its correction, and the hand-off to another role.
+   Get them from the spec and the human's words; mark the ones you assumed.
+2. **Safe copy.** Run the app from a clean copy with a throwaway database and realistic seed data (a full menu, stock,
+   open tables, an open day). Never production.
+3. **Walk as the user.** Phone width first (390×844), then desktop. For each scenario start on the role's first
+   screen and do the job only with what the screen shows. Record every point where you had to guess, scroll to find,
+   type something the system already knows, or could not finish.
+4. **Follow the hand-off.** After each job, open the screen of the role that must react (kitchen, cashier, owner)
+   and check the result arrived there.
+5. **Same job by CLI.** Do each scenario once through the CLI, as the voice/chat agent would. A job the web can do but
+   the CLI cannot is a finding.
+6. **Report** findings ranked by frequency × pain: what the user tried, what happened, what they needed. Separate
+   screen-only fixes from domain changes; domain changes go to the human before any task.
+
 ## Component library
 
 Free resources only. Two layers:
