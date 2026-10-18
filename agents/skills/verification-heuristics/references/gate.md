@@ -48,6 +48,14 @@ Copy the recipe for the project's stack. Change it only for a stated reason.
   TypeScript strict before any other task. Why: a gate without a type checker cannot catch most agent errors, so a
   stack without one gets no recipe.
 - Every project is typed (TypeScript strict, or Python with pyright strict): the type checker is the cheapest gate.
+- **Every stack: file size first.** The first step is `python3 <skills>/verification-heuristics/scripts/file_size.py
+  --config <guide>/file-size.json` (run from the worktree root). It fails when an agent-authored file passes 5,000
+  tokens (bytes/4; about 450 lines), skipping lockfiles, build output, generated, vendored and binary files and READMEs, and
+  prints how to split. Files already over the limit when the check is turned on are recorded once with `--init`
+  and may not grow (a ratchet); splitting them is its own task, after which `--update` lowers their entries. Why:
+  workers re-read large files in short slices; one worker re-opened a 20 KB file 26 times in a run. A deterministic
+  limit keeps files small enough to read once. It runs in the gate, not a pre-commit hook, because workers do not
+  commit: the gate is where the worker reads the error and splits the file itself.
 
 ## Feedback to the agent
 

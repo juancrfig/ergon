@@ -8,12 +8,9 @@ base:
     - rules/tests-and-verification-need-human-approval.md
     - rules/comments-state-why-not-what.md
     - rules/install-reconciles-canonical-declarations.md
-    - rules/overlays-escape-clipping-ancestors.md
     - rules/second-order-thinking-checks.md
     - rules/decide-small-changes-without-approval.md
-    - rules/push-thesystem-only-through-the-guard.md
     - rules/long-steps-run-in-background.md
-    - rules/merge-gate-reruns-only-when-covered-paths-changed.md
   skills:
     - skills/systematic-debugging
 worker: {}
@@ -22,6 +19,7 @@ reviewer:
     - skills/code-review
 frontend:
   rules:
+    - rules/overlays-escape-clipping-ancestors.md
     - rules/clickable-hover-feedback.md
     - rules/color-contrast-preflight.md
     - rules/keyboard-focus-only.md
@@ -32,3 +30,5 @@ frontend:
     - rules/scrollbar-default-style.md
     - rules/state-synced-css-animations.md
     - rules/bound-visual-fix-loops.md
+  skills:
+    - skills/smooth-frontend

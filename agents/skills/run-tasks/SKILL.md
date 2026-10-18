@@ -53,9 +53,12 @@ One `delegate_task` entry per task. Subagents know nothing of this conversation,
 - The full task body (below the front matter), verbatim.
 - The worker's rules: paste each rule file in full.
 - The worker's skills: list each `SKILL.md` path and tell it to read the ones that apply before working.
-- "Do not write or change tests, and do not run the application or evidence runs to verify your work, unless the task
-  quotes the human's explicit approval. If the task leaves a decision open that you need, stop and say so instead of
-  guessing."
+- "If the task leaves a decision open that you need, stop and say so instead of guessing." (The tests-and-verification
+  rule is already pasted with the rules; do not repeat it here.)
+- "Read files in large chunks (the whole file, or 500+ lines), not short slices. Before wiring a CLI, API or screen over
+  existing functions, list their signatures and return shapes once and work from that list instead of re-opening the
+  source files for each parameter." Why: a worker re-opened the same three files almost 100 times in 50-line slices,
+  about a third of a 24-minute run.
 - The gate: "Before finishing, run the project's gate: `python3 <gate.py path> <gate.json path> --root <worktree
   path>`. It runs every check and prints each tool's error messages in full. Fix every error your change caused, then
   run it again until it is green. If an error was already there before your change and the task does not cover it,
@@ -99,14 +102,17 @@ skip; this run is the trigger that cannot be skipped.
 
 One `delegate_task` entry per task, after its worker. The `context` holds:
 
-- "You are the independent reviewer for task `<task-id>`. Read the worker's change with
-  `git -C <worktree> diff <base> <commit>`. Do not change any file."
+- "You are the independent reviewer for task `<task-id>`. The worker's change is saved in full at `<run>/worker.diff`;
+  read that file in large chunks. Do not change any file." Followed by the output of `git diff --stat <base> <commit>`.
+  Why: a reviewer paging a large diff through shell slices spent most of its run on navigation.
 - The full task body, the reviewer's rules (pasted in full) and its skill paths (`code-review` at least).
 - Everything the worker of this run received beyond the task body: earlier review findings it had to fix and any
   extra instructions. Why: a reviewer that lacks an instruction the worker followed rejects deliberate decisions.
 - "Review only by reading the diff and the code. The gate is green (its last output is in `<run>/gate-<round>.txt`);
   do not run tests, the application or evidence runs unless the task quotes the human's approval, and do not repeat
-  the gate. Check the change against the task and its acceptance criteria, and against the rules."
+  the gate. Check the change against the task and its acceptance criteria, and against the rules. If the change alters
+  a stored schema, check that existing data gets the change too, as the task states (a migration, or a reset the
+  human accepted)." Why: a nullable column was declared only for new databases and a review approved it.
 - "Report concrete findings. End with exactly one line: `VERDICT: PASS` or `VERDICT: FAIL`."
 
 Save the answer as `review.md` and the verdict in `run.json`. No verdict line: the run is `failed`.
