@@ -17,7 +17,7 @@ must be under the limit. Splitting a listed file is its own task; after it, `--u
      "allow": {"src/cli.py": 19692}}
 
 Files agents do not author are never checked: lockfiles, build output, vendored and generated code, minified files,
-binaries, data, and anything marked `linguist-generated` or `linguist-vendored` in `.gitattributes`.
+binaries, data, READMEs, and anything marked `linguist-generated` or `linguist-vendored` in `.gitattributes`.
 
 Usage:
     file_size.py [--root DIR] [--config FILE] [--init [--headroom N] | --update]
@@ -43,6 +43,8 @@ NOT_AUTHORED = [
     # Data and binaries.
     "*.sqlite", "*.sqlite3", "*.db", "*.csv", "*.parquet", "*.pdf", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.webp",
     "*.ico", "*.svg", "*.woff", "*.woff2", "*.ttf", "*.otf", "*.mp3", "*.mp4", "*.zip", "*.gz", "*.tar",
+    # Human-facing documentation: read by people, not re-opened by agents while editing code.
+    "README", "README.*",
     CONFIG,
 ]
 
