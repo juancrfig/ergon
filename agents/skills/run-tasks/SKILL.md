@@ -38,6 +38,10 @@ For each task, in its project's source clone (`<project>/<source_clone>`):
 2. Branch: the task's `branch` field, or `thesystem/<task-id>`. Reuse it if it exists (a retry keeps earlier commits).
 3. Create the worktree at `<workspace>/.thesystem/worktrees/<task-id>`:
    `git worktree add -b <branch> <path> <base>` (or `git worktree add <path> <branch>` when the branch exists).
+   Then link the source clone's installed environments into it (for example `.venv`, `node_modules`, each present
+   one: `ln -s <source>/<env> <worktree>/<env>`) and add `/<env>` (no trailing slash, so it matches the link) to the
+   clone's `.git/info/exclude`. Why: a new worktree has no installed dependencies; a worker lost 15% of its run
+   finding the missing test tool and rebuilding the environment.
 4. Create `<task>/runs/<run-id>/` with `run-id` = `YYYYMMDD-HHMMSS`. Write `run.json` with `status: running`, the
    start time, the base branch, base commit, branch and worktree. Set the task's `status: running`.
 5. Resolve the roles: merge `agents/roles.yaml` with `<project>/agents/roles.yaml` (a project role replaces a global

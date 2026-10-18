@@ -115,6 +115,10 @@ For each task, supply:
 - **Starting point:** the inspected source revision and exact relevant files/symbols. Identify what exists, what is missing, and what must be added or changed.
 - **Exact interfaces:** applicable CLIs with commands and working directories, and API method, endpoint, service, parameter names/types, headers, request/response structures, pagination, and error behavior. Include non-sensitive producer-derived examples and their source. Never substitute invented fixtures or credentials. Put this material in the task; a reference to material the worker cannot access is not a handoff.
 - **Dependencies and unknowns:** identify prerequisites and permitted access. Resolve implementation-critical unknowns before declaring the task ready.
+- **Business rules as operations:** state each rule by what the code computes, with the numbers, not by reference to
+  a conversation or to "the current behaviour". Write "applies the normal tips: 2.5% kitchen and 2.5% bar, included in
+  the sale amount", not "leaves tips unchanged". Why: a worker spent a fifth of its run searching git history and the
+  workspace to decode one such phrase.
 
 Include only relevant material, but do not compress away details required to build correctly. Preparation is complete when the worker can implement the task without assuming missing requirements or external contracts.
 
