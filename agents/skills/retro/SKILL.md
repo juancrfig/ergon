@@ -46,6 +46,14 @@ human anything. Differences from the steps below:
    - **No-ops**: instructions that do not change behaviour. _Use when_ a steering file is large.
    - **Information access**: what did the agent need and could not see (dev server logs, read-only access to a service)? _Use when_ a crucial fact was missing.
 
+   For each candidate, before writing it, check whether Hermes Agent already has a related mechanism (its docs at
+   https://hermes-agent.nousresearch.com/docs, or the `hermes-agent` skill): a tool option, a hook, a plugin, a
+   config setting. Name it in one line as a path to inquire into; do not design the solution. Write "no related
+   mechanism found" when the search finds none. Why: building what Hermes already provides adds modules to maintain.
+
+   A candidate that asks the agent to remember a mechanical behaviour (wait so long, always pass this flag) fails
+   tenet 1: make it a check or a configuration, or drop it.
+
    Guideline files theSystem did not write (a clone's own `AGENTS.md`, `CONTRIBUTING.md`, style guides) are the company's. List what you would change in them; edit them only with the human's explicit approval.
 
 4. Present the candidates to the human in order of severity: the evidence, the proposed change and where it goes. After approval, make the change. If it improves a theSystem default (a global skill, rule or role), offer it back with `propose-default`.
