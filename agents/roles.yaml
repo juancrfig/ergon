@@ -30,5 +30,6 @@ frontend:
     - rules/scrollbar-default-style.md
     - rules/state-synced-css-animations.md
     - rules/bound-visual-fix-loops.md
+    - rules/review-visible-text-translations.md
   skills:
     - skills/smooth-frontend
