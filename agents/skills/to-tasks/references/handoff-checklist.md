@@ -72,6 +72,12 @@ found in a task this skill wrote. Why: a worker that meets one of these gaps mus
 - **Agent-instruction files:** changes to agent-instruction files (AGENTS.md and similar) are not part of a worker's
   task; the main agent makes them at merge time. Prevents: a worker blocked by the harness's protection of those files.
 
+- **Extension contract:** when a task adds a table, command, route or screen, name how the project registers one
+  (file, function, an existing example to copy). Prevents: the worker spending minutes grepping to rediscover it.
+- **Existing data:** when a task changes a stored schema, say what happens to data that already exists: migrate it,
+  or reset it because the human said the data is not official yet. Prevents: a change that works only on new
+  databases.
+
 ## Consistency
 
 - **One value, one statement:** a range, limit or status list stated twice in a task (or in two tasks) must match.
