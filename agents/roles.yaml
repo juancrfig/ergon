@@ -16,8 +16,6 @@ base:
     - skills/systematic-debugging
 worker: {}
 reviewer:
-  rules:
-    - rules/review-visible-text-translations.md
   skills:
     - skills/code-review
 frontend:
@@ -31,3 +29,4 @@ frontend:
     - rules/no-surprise-scrollbars.md
     - rules/scrollbar-default-style.md
     - rules/state-synced-css-animations.md
+    - rules/review-visible-text-translations.md
