@@ -10,7 +10,7 @@ docs/adr/        architecture decision records
 docs/factory.md  the whole factory (Mermaid); update it with every change
 ergon/           the code: run it as `python3 -m ergon` from the repo root
 nodes/<node>/    a node: contracts (JSON Schemas) and diagrams.md (Mermaid, kept current)
-profiles/<name>/ a node agent's skills; profiles/AGENTS.md lists every skill in use
+profiles/<name>/ a node agent's skills; profiles/AGENTS.md: each agent's skills, tools and Hermes context
 ```
 
 Rules for maintainers:
