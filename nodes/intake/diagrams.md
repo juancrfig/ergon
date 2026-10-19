@@ -29,9 +29,9 @@ sequenceDiagram
     S->>C: request (JSON)
     C->>C: check schema, context gate, fetch source, skip duplicates
     C->>A: prompt and tool scope, built by code
-    A->>C: read_source, search_wiki, read_page (logged)
+    A->>C: search_wiki, read_pages (logged)
     A->>C: proposal (JSON)
-    C->>C: check citations, links, tags, length, what was read
+    C->>C: check citations, links, tags, length
     C-->>A: errors (at most 2 retries)
     C->>H: proposal waits in review
     H->>C: approve

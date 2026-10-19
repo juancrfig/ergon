@@ -62,17 +62,10 @@ class Intake(Node):
         known = set(self.wiki.pages())
         semantic = []
         if len(known) > 1:
-            log = agent.scope(run_dir, self.wiki.pages_dir, None)
+            agent.scope(run_dir, self.wiki.pages_dir)
             prompt = self._context("health-check", request, None)
-
-            def check(r):
-                out = [f"findings[{i}]: unknown page {f['page']!r}" for i, f in enumerate(r["findings"])
-                       if f["page"] not in known or f.get("other_page", f["page"]) not in known]
-                unread = sorted(known - agent.reads(log)[0])
-                if unread:  # contradictions can sit between any two pages, so every page must be read
-                    out.append(f"you did not read {len(unread)} pages; read each with read_page: "
-                               + ", ".join(f"[[{s}]]" for s in unread[:30]))
-                return out
+            check = lambda r: [f"findings[{i}]: unknown page {f['page']!r}" for i, f in enumerate(r["findings"])
+                               if f["page"] not in known or f.get("other_page", f["page"]) not in known]
             semantic = agent.ask(PROFILE, prompt, CONTRACTS / "health-report.json", run_dir, "health-report", check)["findings"]
         report = {"date": today(), "mechanical": mechanical, "semantic": semantic}
         (run_dir / "report.json").write_text(json.dumps(report, indent=2) + "\n")
@@ -84,12 +77,9 @@ class Intake(Node):
 
     def _propose(self, rid, request, label, text, fingerprint, must_read) -> str:
         run_dir = self.belt.run_dir(rid)
-        source = run_dir / "source.txt"
-        source.write_text(text)
-        log = agent.scope(run_dir, self.wiki.pages_dir, source)
-        check = lambda r: self.wiki.proposal_problems(r) + _read_problems(r, log, set(self.wiki.pages()))
-        proposal = agent.ask(PROFILE, self._context("propose", request, (label, len(text)), must_read),
-                             CONTRACTS / "proposal.json", run_dir, "proposal", check)
+        agent.scope(run_dir, self.wiki.pages_dir)
+        proposal = agent.ask(PROFILE, self._context("propose", request, (label, text), must_read),
+                             CONTRACTS / "proposal.json", run_dir, "proposal", self.wiki.proposal_problems)
         meta = {"wiki_fingerprint": self.wiki.fingerprint(), "source_fingerprint": fingerprint}
         (run_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
         self.belt.move(rid, "working", "review")
@@ -105,9 +95,8 @@ class Intake(Node):
         if must_read:
             parts.append("Read these pages before anything else: " + ", ".join(f"[[{s}]]" for s in must_read) + ".")
         if source:
-            label, length = source
-            parts += [f"# Source: {label}", f"{length} characters. Read all of it with read_source, starting at offset 0. "
-                      "Code rejects an answer given before the whole source was read."]
+            label, text = source
+            parts += [f"# Source: {label}", text]  # whole, never cut: a source too big for the model fails the run
         return "\n\n".join(p for p in parts if p) + "\n"
 
     def _fetch(self, source: dict) -> tuple[str, str, str]:
@@ -158,22 +147,6 @@ class Intake(Node):
     def _ledger(self) -> dict:
         path = self.belt.root / "ledger.json"
         return json.loads(path.read_text()) if path.exists() else {}
-
-
-def _read_problems(proposal: dict, log: Path, existing: set) -> list[str]:
-    """What the agent must have read before its proposal counts: all of the source, and every existing page it
-    edits or classifies the source against."""
-    pages, covered, total = agent.reads(log)
-    out = []
-    if covered < total:
-        out.append(f"you read {covered} of the source's {total} characters; read the rest with read_source")
-    for i, edit in enumerate(proposal["edits"]):
-        if edit["op"] in ("replace", "delete") and edit["page"] not in pages:
-            out.append(f"edits[{i}]: you {edit['op']} [[{edit['page']}]] without reading it; read it with read_page")
-    for i, item in enumerate(proposal["items"]):
-        if item["status"] != "new" and item.get("page") in existing and item["page"] not in pages:
-            out.append(f"items[{i}]: you classify against [[{item['page']}]] without reading it; read it with read_page")
-    return out
 
 
 def _describe(doc: dict) -> str:

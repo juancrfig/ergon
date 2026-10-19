@@ -13,7 +13,7 @@ Turns a goal into user stories. Agent: `planner` (profiles/planner), frontier-re
 
 ## Who does what
 - Code: request and answer checks, the planner's prompt (goal, wiki index, earlier rounds) and tool scope, round
-  checks (unique ids, recommendation among the options, sources are real pages the planner read), skipped answers
+  checks (unique ids, recommendation among the options, sources are real pages), skipped answers
   take the recommendation.
 - Agent: reads the wiki pages it needs through the wiki tool (ADR 0016); asks the questions that change the
   stories; writes the stories.

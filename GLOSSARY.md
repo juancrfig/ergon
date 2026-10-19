@@ -19,8 +19,8 @@ must earn its place.
 **Profile**: the Hermes profile an agent runs through. It holds only the model, credentials and the wiki tool entry,
 set by hand.
 
-**Wiki tool**: the agents' only tools: read a page, search the wiki, read the source in parts. Read-only, scoped by
-code to one wiki and one source per run.
+**Wiki tool**: the agents' only tools: search the wiki and read pages. Read-only, scoped by code to one wiki per
+run.
 
 **Belt**: the folders a node's requests move through: inbox, working, waiting, review, done, rejected.
 _Avoid_: queue, channel.

@@ -1,10 +1,9 @@
-"""The only tools a node agent has: read-only access to one project's wiki and to one request's source (ADR 0016).
+"""The only tools a node agent has: read-only access to one project's wiki (ADR 0016).
 
 Hermes starts this as an MCP server over stdio, one process per agent run. The run folder comes as the only argument
 (the profile passes ${ERGON_RUN}, which the runner sets). The scope is fixed by code in <run>/tool-scope.json:
-  {"pages": "<abs path to wiki/pages>", "source": "<abs path to the source text>" or null}
-  plus "log", the call log's file name in <run>. Every call is appended to it, so code can check what the agent read
-  before accepting its answer.
+  {"pages": "<abs path to wiki/pages>", "log": "<call log file name in run>"}
+Every call is appended to the log, so the run records what the agent read.
 
 Standalone on purpose: Hermes runs this file directly, so it imports nothing from ergon. Standard library only.
 """
@@ -15,18 +14,16 @@ import time
 from pathlib import Path
 
 SLUG = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
-CHUNK = 20_000      # characters per read_source call
 MAX_HITS = 20       # pages returned by one search
 
 TOOLS = [
-    {"name": "read_page", "description": "Read one wiki page, front matter included, by its slug (the name in [[slug]]).",
-     "inputSchema": {"type": "object", "properties": {"slug": {"type": "string"}}, "required": ["slug"]}},
+    {"name": "read_pages", "description": "Read wiki pages, front matter included, by their slugs (the names in "
+                                          "[[slug]]). Ask for every page you need in one call.",
+     "inputSchema": {"type": "object", "properties": {"slugs": {"type": "array", "items": {"type": "string"}}},
+                     "required": ["slugs"]}},
     {"name": "search_wiki", "description": "Find the wiki pages whose title or text contain a phrase (case-insensitive). "
                                            "Returns each page's slug and up to 3 matching lines.",
      "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}},
-    {"name": "read_source", "description": f"Read the request's source, {CHUNK} characters at a time, from a character "
-                                           "offset (start at 0). Each answer says where the next part starts.",
-     "inputSchema": {"type": "object", "properties": {"offset": {"type": "integer", "minimum": 0}}}},
 ]
 
 
@@ -35,20 +32,23 @@ class Scope:
         self.run = run
         scope = json.loads((run / "tool-scope.json").read_text())
         self.pages = Path(scope["pages"])
-        self.source = Path(scope["source"]) if scope.get("source") else None
         self.log_path = run / scope.get("log", "tool-calls.jsonl")
 
     def log(self, entry: dict) -> None:
         with self.log_path.open("a") as f:
             f.write(json.dumps({"at": time.time(), **entry}) + "\n")
 
-    def read_page(self, slug: str) -> str:
-        path = self.pages / f"{slug}.md"
-        if not SLUG.match(slug or "") or not path.is_file():
-            self.log({"tool": "read_page", "slug": slug, "found": False})
-            return f"No wiki page {slug!r}. Slugs are the names in the index, like [[refund-policy]]."
-        self.log({"tool": "read_page", "slug": slug, "found": True})
-        return path.read_text()
+    def read_pages(self, slugs: list) -> str:
+        found, out = [], []
+        for slug in dict.fromkeys(s for s in slugs if isinstance(s, str)):
+            path = self.pages / f"{slug}.md"
+            if SLUG.match(slug) and path.is_file():
+                found.append(slug)
+                out.append(f"# Page [[{slug}]]\n\n{path.read_text()}")
+            else:
+                out.append(f"# No wiki page [[{slug}]]. Slugs are the names in the index.")
+        self.log({"tool": "read_pages", "asked": list(slugs), "found": found})
+        return "\n\n".join(out) or "Ask for at least one slug."
 
     def search_wiki(self, query: str) -> str:
         needle = (query or "").strip().lower()
@@ -63,23 +63,11 @@ class Scope:
         more = f"\n\n({len(hits) - MAX_HITS} more pages match; search a narrower phrase)" if len(hits) > MAX_HITS else ""
         return "\n\n".join(hits[:MAX_HITS]) + more
 
-    def read_source(self, offset: int) -> str:
-        if self.source is None:
-            return "This request has no source."
-        text = self.source.read_text()
-        start = max(0, min(int(offset or 0), len(text)))
-        end = min(start + CHUNK, len(text))
-        self.log({"tool": "read_source", "start": start, "end": end, "total": len(text)})
-        tail = f"next offset: {end}" if end < len(text) else "end of source"
-        return f"[characters {start}-{end} of {len(text)}; {tail}]\n\n{text[start:end]}"
-
     def call(self, name: str, args: dict) -> str:
-        if name == "read_page":
-            return self.read_page(args.get("slug", ""))
+        if name == "read_pages":
+            return self.read_pages(args.get("slugs") or [])
         if name == "search_wiki":
             return self.search_wiki(args.get("query", ""))
-        if name == "read_source":
-            return self.read_source(args.get("offset", 0))
         raise KeyError(name)
 
 

@@ -18,9 +18,9 @@ One JSON request per file on the node's belt (`<project>/.ergon/intake/`). Contr
   `<id>.result.json` lands in that folder.
 
 ## Who does what
-- Code: request checks, fetching, duplicate detection, the agent's prompt and tool scope, proposal checks (including
-  what the agent read), applying, index, log, commit, ledger.
-- Agent: reads the source and the pages it needs through the wiki tool (ADR 0016); drafts items and edits; finds
+- Code: request checks, fetching, duplicate detection, the agent's prompt and tool scope, proposal checks,
+  applying, index, log, commit, ledger.
+- Agent: reads the pages it needs through the wiki tool (ADR 0016); drafts items and edits; finds
   contradictions and weak claims.
 - Human: approves or rejects each proposal.
 

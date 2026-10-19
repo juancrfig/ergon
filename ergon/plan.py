@@ -38,11 +38,11 @@ class Plan(Node):
         run_dir = self.belt.run_dir(rid)
         rounds = self._rounds(run_dir)
         number, final = len(rounds) + 1, len(rounds) + 1 >= MAX_ROUNDS
-        log = agent.scope(run_dir, self.wiki.pages_dir, None, f"tool-calls-round-{number}.jsonl")
+        agent.scope(run_dir, self.wiki.pages_dir, f"tool-calls-round-{number}.jsonl")
         prompt = self._context(request, rounds, number, final)
         known = set(self.wiki.pages())
         answer = agent.ask(PROFILE, prompt, self.contracts / "round.json", run_dir, f"round-{number}",
-                           lambda r: _round_problems(r, known, final, agent.reads(log)[0]))
+                           lambda r: _round_problems(r, known, final))
         if "questions" in answer:
             self.belt.move(rid, "working", "waiting")
             return f"round {number}: {len(answer['questions'])} questions wait for your answers"
@@ -53,8 +53,8 @@ class Plan(Node):
     def _context(self, request, rounds, number, final) -> str:
         """Everything the planner is given. Pages it reads through the wiki tool, and the log records them."""
         parts = [SKILL.read_text().strip(), "# Wiki index", self.wiki.index_text(),
-                 "Read the pages you need with read_page; find pages with search_wiki. A story may cite only pages "
-                 "you read.", "# Goal", request["goal"]]
+                 "Find pages with search_wiki; read the ones you need with one read_pages call. Cite only pages you "
+                 "read.", "# Goal", request["goal"]]
         for i, (questions, answers) in enumerate(rounds, 1):
             parts.append(f"# Round {i}: your questions and the human's answers")
             given = {a["question"]: a["answer"] for a in answers}
@@ -130,7 +130,7 @@ class Plan(Node):
         return "\n".join(lines)
 
 
-def _round_problems(answer: dict, known: set, final: bool, read: set) -> list[str]:
+def _round_problems(answer: dict, known: set, final: bool) -> list[str]:
     """Everything about a round that code can decide."""
     out = []
     if "questions" in answer:
@@ -144,6 +144,4 @@ def _round_problems(answer: dict, known: set, final: bool, read: set) -> list[st
     ids = [s["id"] for s in answer["stories"]]
     out += [f"story id {i!r} is repeated" for i in sorted({i for i in ids if ids.count(i) > 1})]
     out += [f"{s['id']}: source [[{p}]] is not a wiki page" for s in answer["stories"] for p in s["sources"] if p not in known]
-    out += [f"{s['id']}: source [[{p}]] was not read; read it with read_page before citing it"
-            for s in answer["stories"] for p in s["sources"] if p in known and p not in read]
     return out
