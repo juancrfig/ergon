@@ -11,8 +11,8 @@ ADR 0006 copied a whole config and refused runs on drift; 0010 dropped it so the
 ## Decision
 - `profiles/hermes.yaml` is the canonical Hermes config for every node profile, in Hermes' own config shape. It
   never holds model, provider or credentials.
-- Before each run, code applies it: every top-level key it sets replaces the profile's own; every other key, model
-  and credentials included, stays. The file wins over hand edits, so nothing drifts and nothing is compared.
+- Before each run, code applies it: every key it sets, down to the second level, replaces the profile's own; every
+  other key stays: the model, the credentials and hand-set values such as `agent.reasoning_effort`. The file wins over hand edits, so nothing drifts and nothing is compared.
 - The wiki tool path reaches the profile as `${ERGON_TOOL}`, set per run like `${ERGON_RUN}`, so the file holds no
   machine path.
 - It also turns on Hermes' hard stop for replayed tool calls (CLI runs only warn by default) and sets context

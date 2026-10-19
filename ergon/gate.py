@@ -28,14 +28,30 @@ def _blocks(text: str) -> list:
     return blocks
 
 
+def _subkeys(lines: list) -> list:
+    """Split one top-level block into (second-level key, lines); the key line itself has key None."""
+    subs = [(None, [])]
+    for line in lines[1:]:
+        if line.startswith("  ") and line[2:3] not in (" ", "#", "-") and ":" in line:
+            subs.append((line.split(":", 1)[0].strip(), []))
+        subs[-1][1].append(line)
+    return subs[1:]
+
+
 def apply(name: str) -> Path:
-    """Replace each top-level key of the profile's config that profiles/hermes.yaml sets; keep every other key."""
+    """Set every key profiles/hermes.yaml sets, down to the second level; keep every other key of the profile, so a
+    hand-set value such as agent.reasoning_effort survives."""
     config = installed(name) / "config.yaml"
-    canonical = CANONICAL.read_text()
-    keys = {k for k, _ in _blocks(canonical) if k}
-    kept = "".join("".join(lines) for k, lines in _blocks(config.read_text() if config.exists() else "")
-                   if k not in keys and k is not None)
-    config.write_text(kept.rstrip("\n") + "\n" + "".join("".join(l) for k, l in _blocks(canonical) if k))
+    profile = dict((k, l) for k, l in _blocks(config.read_text() if config.exists() else "") if k)
+    out = []
+    for k, lines in _blocks(CANONICAL.read_text()):
+        if not k:
+            continue
+        ours = {sk for sk, _ in _subkeys(lines)}
+        extra = [l for sk, ls in _subkeys(profile.pop(k, [])) if sk not in ours for l in ls]
+        out.append("".join(lines).rstrip("\n") + "\n" + "".join(extra))
+    kept = "".join("".join(l) for l in profile.values())
+    config.write_text(kept.rstrip("\n") + "\n" + "".join(out))
     return config
 
 
