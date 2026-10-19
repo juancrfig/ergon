@@ -7,6 +7,18 @@ A framework to reliably build high-quality software by leveraging AI agents
 - **[Hermes Harness](https://hermes-agent.nousresearch.com/docs)**
 - **[llm-wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)**
 
+# Install
+
+Needs Python 3 and Hermes. From the repo root, once per machine and project:
+
+```
+./install <project folder>     # creates the node profiles and the project's folders
+hermes -p wiki-maintainer model  # then set each profile's model and credentials by hand
+hermes -p planner model
+```
+
+Running it again is safe: existing profiles are left as they are.
+
 # The Four Problems
 
 1. How to gather, curate, and maintain knowledge?
