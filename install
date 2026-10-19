@@ -1,0 +1,31 @@
+#!/bin/sh
+# Prepares this machine and one project for ergon: the Hermes profiles of the current nodes and the project's
+# folders. Usage: ./install [project folder, default: the current folder]
+# It never sets a model or credentials: a new profile gets SET-BY-HAND, and runs are refused until the human sets
+# them with `hermes -p <profile> model` (ADR 0011).
+set -eu
+command -v python3 >/dev/null 2>&1 || { echo "install: python3 is not installed" >&2; exit 1; }
+command -v hermes >/dev/null 2>&1 || { echo "install: hermes is not installed" >&2; exit 1; }
+project=$(cd "${1:-.}" && pwd)
+cd "$(dirname "$0")"
+exec python3 - "$project" <<'PY'
+import subprocess, sys
+from pathlib import Path
+from ergon import gate
+from ergon.cli import NODES
+
+project = Path(sys.argv[1])
+for node in NODES:
+    if gate.installed(node.profile).exists():
+        print(f"profile {node.profile}: exists, left as it is")
+    else:
+        subprocess.run(["hermes", "profile", "create", node.profile, "--no-skills", "--no-alias"], check=True,
+                       stdout=subprocess.DEVNULL)
+        gate.set_placeholder_model(node.profile)
+        print(f"profile {node.profile}: created; set its model: hermes -p {node.profile} model")
+    gate.apply(node.profile)
+    node(project)  # creates the node's belt folders in the project
+for folder in ("wiki/pages", "wiki/raw"):
+    (project / folder).mkdir(parents=True, exist_ok=True)
+print(f"project {project}: folders ready")
+PY

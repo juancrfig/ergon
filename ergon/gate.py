@@ -39,12 +39,20 @@ def apply(name: str) -> Path:
     return config
 
 
+def set_placeholder_model(name: str) -> None:
+    """Give a new profile the SET-BY-HAND model, so no run starts on a model the human did not pick."""
+    config = installed(name) / "config.yaml"
+    text = config.read_text() if config.exists() else ""
+    kept = "".join("".join(lines) for k, lines in _blocks(text) if k not in ("model", None))
+    config.write_text(f"model:\n  default: {PLACEHOLDER}\n  provider: {PLACEHOLDER}\n" + kept)
+
+
 def require(name: str) -> None:
     """Apply the canonical config, then refuse the run while the model is not set."""
     home = installed(name)
     if not home.exists():
-        raise SystemExit(f"Hermes profile {name!r} does not exist. Create it and set its model by hand:\n"
-                         f"  hermes profile create {name} --no-skills --no-alias\n  hermes -p {name} model")
+        raise SystemExit(f"Hermes profile {name!r} does not exist. Run ./install, then set its model by hand:"
+                         f" hermes -p {name} model")
     config = apply(name)
     text = config.read_text()
     if PLACEHOLDER in text or "model:" not in text:

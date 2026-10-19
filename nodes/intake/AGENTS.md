@@ -26,8 +26,8 @@ One JSON request per file on the node's belt (`<project>/.ergon/intake/`). Contr
 
 ## Commands
 ```
-hermes profile create wiki-maintainer --no-skills --no-alias   # once; then set its model and credentials:
-hermes -p wiki-maintainer model                     # code applies the rest (profiles/hermes.yaml)
+./install <project>                  # once: profiles and folders (repo root)
+hermes -p wiki-maintainer model  # once: set its model and credentials by hand
 python3 -m ergon submit request.json
 python3 -m ergon run intake                         # drafts a proposal for every queued request
 python3 -m ergon show <id>

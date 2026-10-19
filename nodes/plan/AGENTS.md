@@ -22,8 +22,8 @@ Turns a goal into user stories. Agent: `planner` (profiles/planner), frontier-re
 
 ## Commands
 ```
-hermes profile create planner --no-skills --no-alias   # once; then set its model and credentials:
-hermes -p planner model                      # code applies the rest (profiles/hermes.yaml)
+./install <project>                  # once: profiles and folders (repo root)
+hermes -p planner model          # once: set its model and credentials by hand
 python3 -m ergon submit goal.json            # {"type": "plan", "from": "juanes", "goal": "..."}
 python3 -m ergon run plan                    # one round per plan in the inbox
 python3 -m ergon pending
