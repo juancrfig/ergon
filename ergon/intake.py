@@ -15,7 +15,6 @@ from ergon.wiki import today
 CONTRACTS = Path(__file__).resolve().parent.parent / "nodes" / "intake" / "contracts"
 PROFILE = "wiki-maintainer"
 SKILLS = gate.REPO / "profiles" / PROFILE / "skills"
-REVIEW_LIMIT = 3          # backpressure: stop drafting while this many proposals wait for the human
 FULL_WIKI_CHARS = 60_000  # above this, the model first picks the pages it needs from the index
 SOURCE_CHARS = 120_000
 
@@ -28,9 +27,6 @@ class Intake(Node):
     def run(self, log=print) -> None:
         gate.require(PROFILE)
         for rid in self.belt.ids("inbox"):
-            if len(self.belt.ids("review")) >= REVIEW_LIMIT:
-                log(f"paused: {REVIEW_LIMIT} proposals wait for approval; {len(self.belt.ids('inbox'))} requests queued")
-                return
             self.belt.move(rid, "inbox", "working")
             request = self.belt.read(rid)
             problems = self.request_problems(request)

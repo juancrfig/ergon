@@ -27,7 +27,7 @@ One JSON request per file on the node's belt (`<project>/.ergon/intake/`). Contr
 ```
 hermes profile create wiki-maintainer --no-skills   # once; set its model by hand
 python3 -m ergon submit request.json
-python3 -m ergon run intake                         # pauses while 3 proposals wait for approval
+python3 -m ergon run intake                         # drafts a proposal for every queued request
 python3 -m ergon show <id>
 python3 -m ergon approve <id>   |   python3 -m ergon reject <id> "reason"
 ```
