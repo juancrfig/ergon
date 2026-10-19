@@ -23,6 +23,8 @@ def tool_entry() -> str:
             "    - ${ERGON_RUN}\n")
 
 
+PLACEHOLDER = "SET-BY-HAND"  # where a profile's model goes until the human picks one (ADR 0018)
+
 # Hermes' own system prompt sections that do not fit a read-only agent answering in JSON: coding-agent posture
 # (edit files, run tests, commit), "finish the job", tool-use pushes, the workspace snapshot, and a terminal hint
 # replaced by one line. Without them Hermes adds about 2,900 characters instead of 8,800 (ADR 0017).
@@ -51,6 +53,9 @@ def require(name: str) -> None:
     if str(TOOL) not in text or "${ERGON_RUN}" not in text:
         raise SystemExit(f"Hermes profile {name!r} does not start ergon's wiki tool. Add this to {config}"
                          f" (merge it into mcp_servers if the key exists):\n\n{tool_entry()}")
+    if PLACEHOLDER in text:
+        raise SystemExit(f"Hermes profile {name!r} has no model yet: {PLACEHOLDER} is still in {config}. Set the model"
+                         f" and its credentials by hand: hermes -p {name} model")
     missing = [l.strip() for l in PROMPT_SETTINGS.splitlines() if ":" in l and not l.rstrip().endswith(":")
                and l.strip() not in {t.strip() for t in text.splitlines()}]
     if missing:
