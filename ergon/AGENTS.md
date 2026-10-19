@@ -5,8 +5,10 @@
 - `agent.py`: runs a node agent through its Hermes profile and checks its JSON answer against a contract.
 - `gate.py`: refuses a run when the agent's Hermes profile does not exist.
 - `wiki.py`: the project wiki and every wiki operation with one right answer.
+- `node.py`: what every node shares: belt, contracts, request checks, replies, rejection.
 - `intake.py`: the Intake node.
-- `cli.py`: the command line.
+- `plan.py`: the Plan node.
+- `cli.py`: the command line, the first adapter (ADR 0012). A new node is added to its `NODES`.
 
 Code does every step with one right answer; the model gets only judgment work (ADR 0007). The agent's entire
 context is built in the node module (ADR 0008): never let Hermes add skills, memory or project files.

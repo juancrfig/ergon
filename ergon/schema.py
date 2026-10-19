@@ -17,9 +17,14 @@ def load(path: Path) -> dict:
 
 def errors(value, schema: dict, path: str = "$") -> list[str]:
     if "oneOf" in schema:
-        if sum(1 for option in schema["oneOf"] if not errors(value, option, path)) != 1:
-            return [f"{path}: must match exactly one of {len(schema['oneOf'])} allowed shapes"]
-        return []
+        found = [errors(value, option, path) for option in schema["oneOf"]]
+        matches = sum(1 for e in found if not e)
+        if matches == 1:
+            return []
+        if matches > 1:
+            return [f"{path}: matches more than one of {len(found)} allowed shapes"]
+        # Report the closest shape's errors: they tell the sender what to fix.
+        return [f"{path}: matches none of {len(found)} allowed shapes; closest one says:"] + min(found, key=len)
     kind = schema.get("type")
     if kind and (not isinstance(value, _TYPES[kind]) or (kind == "integer" and isinstance(value, bool))):
         return [f"{path}: expected {kind}"]

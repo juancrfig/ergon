@@ -1,7 +1,9 @@
 """A node's belt: one JSON file per request, moved between state folders.
 
-inbox -> working -> review (waits for the human) -> done, or -> rejected with a reason.
+inbox -> working -> review (waits for the human's approval) -> done, or -> rejected with a reason.
+working -> waiting (waits for the human's answers) -> inbox, for nodes that ask questions.
 A rename on one disk is atomic, so two runs can never claim the same request.
+Every move is appended to events.jsonl: the source of every metric.
 """
 import json
 import os
@@ -10,7 +12,8 @@ import secrets
 import time
 from pathlib import Path
 
-STATES = ("inbox", "working", "review", "done", "rejected")
+STATES = ("inbox", "working", "waiting", "review", "done", "rejected")
+PENDING = ("waiting", "review")  # states that wait for the human
 
 
 class Belt:
@@ -45,10 +48,17 @@ class Belt:
         tmp = self.root / ".tmp" / f"{rid}.json"
         tmp.write_text(json.dumps(request, indent=2) + "\n")
         os.rename(tmp, self.file("inbox", rid))
+        self._event(rid, None, "inbox")
         return rid
 
     def move(self, rid: str, src: str, dst: str) -> None:
         os.rename(self.file(src, rid), self.file(dst, rid))
+        self._event(rid, src, dst)
+
+    def _event(self, rid: str, src: str | None, dst: str) -> None:
+        event = {"time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "id": rid, "from": src, "to": dst}
+        with (self.root / "events.jsonl").open("a") as log:
+            log.write(json.dumps(event) + "\n")
 
     def reject(self, rid: str, src: str, reason: str) -> None:
         (self.run_dir(rid) / "rejected.txt").write_text(reason.rstrip() + "\n")

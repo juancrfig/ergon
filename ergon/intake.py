@@ -8,12 +8,11 @@ import urllib.request
 from html.parser import HTMLParser
 from pathlib import Path
 
-from ergon import agent, gate, schema
-from ergon.belt import Belt
-from ergon.wiki import Wiki, today
+from ergon import agent, gate
+from ergon.node import Node
+from ergon.wiki import today
 
-NODE = Path(__file__).resolve().parent.parent / "nodes" / "intake"
-CONTRACTS = NODE / "contracts"
+CONTRACTS = Path(__file__).resolve().parent.parent / "nodes" / "intake" / "contracts"
 PROFILE = "wiki-maintainer"
 SKILLS = gate.REPO / "profiles" / PROFILE / "skills"
 REVIEW_LIMIT = 3          # backpressure: stop drafting while this many proposals wait for the human
@@ -21,24 +20,8 @@ FULL_WIKI_CHARS = 60_000  # above this, the model first picks the pages it needs
 SOURCE_CHARS = 120_000
 
 
-class Intake:
-    def __init__(self, project: Path):
-        self.project = Path(project).resolve()
-        self.wiki = Wiki(self.project)
-        self.belt = Belt(self.project / ".ergon" / "intake")
-
-    # --- arrival ----------------------------------------------------------------------------------------------
-
-    def request_problems(self, request) -> list[str]:
-        if not isinstance(request, dict) or request.get("type") not in ("ingest", "correct", "health-check"):
-            return ["$.type: must be one of ['ingest', 'correct', 'health-check']"]
-        return schema.errors(request, schema.load(CONTRACTS / f"request.{request['type']}.json"))
-
-    def submit(self, request: dict) -> str:
-        problems = self.request_problems(request)
-        if problems:
-            raise ValueError("request rejected:\n" + "\n".join(problems))
-        return self.belt.put(request)
+class Intake(Node):
+    name, profile, types = "intake", PROFILE, ("ingest", "correct", "health-check")
 
     # --- the run loop -----------------------------------------------------------------------------------------
 
@@ -52,13 +35,13 @@ class Intake:
             request = self.belt.read(rid)
             problems = self.request_problems(request)
             if problems:
-                self._finish_rejected(rid, request, "working", "malformed request:\n" + "\n".join(problems))
+                self.finish_rejected(rid, request, "working", "malformed request:\n" + "\n".join(problems))
                 log(f"{rid}: rejected (malformed)")
                 continue
             try:
                 outcome = getattr(self, "_" + request["type"].replace("-", "_"))(rid, request)
             except (agent.AgentError, OSError, ValueError) as exc:
-                self._finish_rejected(rid, request, "working", f"failed: {exc}")
+                self.finish_rejected(rid, request, "working", f"failed: {exc}")
                 outcome = f"rejected: {exc}"
             log(f"{rid}: {outcome}")
 
@@ -66,13 +49,13 @@ class Intake:
         text, fingerprint, label = self._fetch(request["source"])
         ledger = self._ledger()
         if fingerprint in ledger:
-            self._finish_rejected(rid, request, "working", f"duplicate: this source was ingested by {ledger[fingerprint]}")
+            self.finish_rejected(rid, request, "working", f"duplicate: this source was ingested by {ledger[fingerprint]}")
             return "rejected (duplicate source)"
         return self._propose(rid, request, label, text, fingerprint, must_read=[])
 
     def _correct(self, rid: str, request: dict) -> str:
         if request["page"] not in self.wiki.pages():
-            self._finish_rejected(rid, request, "working", f"page {request['page']!r} does not exist")
+            self.finish_rejected(rid, request, "working", f"page {request['page']!r} does not exist")
             return "rejected (unknown page)"
         evidence = request["evidence"]
         text, fingerprint, label = (evidence["text"], None, "evidence from the sender") if "text" in evidence \
@@ -94,7 +77,7 @@ class Intake:
         report = {"date": today(), "mechanical": mechanical, "semantic": semantic}
         (run_dir / "report.json").write_text(json.dumps(report, indent=2) + "\n")
         self.belt.move(rid, "working", "done")
-        self._reply(request, rid, "done", f"{len(mechanical)} mechanical and {len(semantic)} semantic findings")
+        self.reply(request, rid, "done", f"{len(mechanical)} mechanical and {len(semantic)} semantic findings")
         return f"health report: {len(mechanical)} mechanical, {len(semantic)} semantic findings"
 
     # --- drafting ---------------------------------------------------------------------------------------------
@@ -154,14 +137,10 @@ class Intake:
     # --- the human's decision ---------------------------------------------------------------------------------
 
     def show(self, rid: str) -> str:
-        request, state = self.belt.read(rid), self.belt.state_of(rid)
-        run_dir = self.belt.run_dir(rid)
-        lines = [f"{rid} · {request['type']} from {request['from']} · {state}"]
+        run_dir, lines = self.belt.run_dir(rid), [self.header(rid)]
         for name in ("proposal.json", "report.json"):
             if (run_dir / name).exists():
                 lines.append(_describe(json.loads((run_dir / name).read_text())))
-        if (run_dir / "rejected.txt").exists():
-            lines.append("Rejected: " + (run_dir / "rejected.txt").read_text())
         return "\n".join(lines)
 
     def approve(self, rid: str) -> str:
@@ -179,36 +158,12 @@ class Intake:
             ledger[meta["source_fingerprint"]] = rid
             (self.belt.root / "ledger.json").write_text(json.dumps(ledger, indent=2) + "\n")
         self.belt.move(rid, "review", "done")
-        self._reply(request, rid, "done", proposal["summary"])
+        self.reply(request, rid, "done", proposal["summary"])
         return f"applied: {proposal['summary']}" + (f" (commit {commit})" if commit else "")
-
-    def reject(self, rid: str, reason: str) -> None:
-        state = self.belt.state_of(rid)
-        if state not in ("inbox", "review"):
-            raise ValueError(f"{rid} is {state}; only inbox or review requests can be rejected")
-        self._finish_rejected(rid, self.belt.read(rid), state, f"rejected by the human: {reason}")
-
-    # --- helpers ----------------------------------------------------------------------------------------------
-
-    def _finish_rejected(self, rid, request, state, reason) -> None:
-        self.belt.reject(rid, state, reason)
-        self._reply(request, rid, "rejected", reason)
-
-    def _reply(self, request, rid, status, summary) -> None:
-        target = request.get("reply_to") if isinstance(request, dict) else None
-        if not target:
-            return
-        folder = (self.project / target).resolve()
-        if self.project in folder.parents and folder.is_dir():
-            result = {"request_id": rid, "node": "intake", "status": status, "summary": summary}
-            (folder / f"{rid}.result.json").write_text(json.dumps(result, indent=2) + "\n")
 
     def _ledger(self) -> dict:
         path = self.belt.root / "ledger.json"
         return json.loads(path.read_text()) if path.exists() else {}
-
-    def status(self) -> str:
-        return " · ".join(f"{s} {len(self.belt.ids(s))}" for s in ("inbox", "working", "review", "done", "rejected"))
 
 
 def _describe(doc: dict) -> str:

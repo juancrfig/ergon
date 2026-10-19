@@ -18,10 +18,14 @@ must earn its place.
 
 **Profile**: the Hermes profile an agent runs through. It holds only the model and credentials, set by hand.
 
-**Belt**: the folders a node's requests move through: inbox, working, review, done, rejected.
+**Belt**: the folders a node's requests move through: inbox, working, waiting, review, done, rejected.
 _Avoid_: queue, channel.
 
 **Request**: one JSON file on a belt, valid against its type's contract.
 _Avoid_: message, ticket.
 
 **Proposal**: an agent's output that waits for the human's approval before code applies it.
+
+**Story**: a user story, Plan's output: one capability a user can see or use, with observable `done_when` criteria.
+
+**Round**: one planner answer: questions for the human, or the final stories.

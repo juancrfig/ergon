@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "The human's answers to one round of questions",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "answers"
+  ],
+  "properties": {
+    "answers": {
+      "type": "array",
+      "maxItems": 7,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "question",
+          "answer"
+        ],
+        "properties": {
+          "question": {
+            "type": "string",
+            "pattern": "^q[0-9]+$"
+          },
+          "answer": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "description": "One of the options copied exactly, or free text. A question left out takes its recommended option."
+          }
+        }
+      }
+    }
+  }
+}

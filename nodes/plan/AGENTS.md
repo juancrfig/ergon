@@ -1,0 +1,31 @@
+# Plan node
+
+Turns a goal into user stories. Agent: `planner` (profiles/planner), frontier-reasoning. Decisions: ADR 0011, 0013.
+
+## Input
+- `plan`: the human's goal. `contracts/request.plan.json`. Documents go through Intake first.
+- Answers to a round of questions. `contracts/answers.json`
+
+## Output
+- Each round (`contracts/round.json`): questions, which wait in `waiting/` for answers, or stories, which wait in
+  `review/` for approval. At most 5 rounds.
+- Approved stories: `runs/<id>/stories.json`. With `reply_to`, a `<id>.result.json` points to them.
+
+## Who does what
+- Code: request and answer checks, the planner's entire context (goal, wiki, earlier rounds), round checks
+  (unique ids, recommendation among the options, sources are real pages), skipped answers take the recommendation.
+- Agent: asks the questions that change the stories; writes the stories.
+- Human: answers, then approves or rejects the stories.
+
+## Commands
+```
+hermes profile create planner --no-skills   # once; set its model by hand
+python3 -m ergon submit goal.json            # {"type": "plan", "from": "juanes", "goal": "..."}
+python3 -m ergon run plan                    # one round per plan in the inbox
+python3 -m ergon pending
+python3 -m ergon show <id>
+python3 -m ergon answer <id> answers.json    # {"answers": [{"question": "q1", "answer": "..."}]}
+python3 -m ergon approve <id>   |   python3 -m ergon reject <id> "reason"
+```
+
+Diagrams: `diagrams.md`. Update them with every change to this node.
