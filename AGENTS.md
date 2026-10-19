@@ -7,6 +7,7 @@ A factory of nodes. A node turns a defined input into a structured output; its c
 README.md        the only README: for humans
 GLOSSARY.md      one word per concept
 docs/adr/        architecture decision records
+docs/state.md    diagrams of the current state (Mermaid); update it with every change
 bin/ergon        entry point
 ergon/           the code shared by every node, plus one module per node
 nodes/<node>/    a node's contracts (JSON Schemas)
