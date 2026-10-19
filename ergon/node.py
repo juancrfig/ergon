@@ -1,8 +1,7 @@
 """What every node shares: its belt, its contracts, request checks, replies and rejection."""
-import json
 from pathlib import Path
 
-from ergon import schema
+from ergon import agent, gate, schema
 from ergon.belt import Belt
 from ergon.wiki import Wiki
 
@@ -11,7 +10,7 @@ NODES = Path(__file__).resolve().parent.parent / "nodes"
 
 class Node:
     name = ""      # folder under nodes/ and under <project>/.ergon/
-    profile = ""   # Hermes profile of the node's agent
+    profile = ""   # Hermes profile of the node's agent; run() refuses to start without it (ADR 0010)
     types = ()     # request types this node accepts; each has nodes/<name>/contracts/request.<type>.json
 
     def __init__(self, project: Path):
@@ -24,6 +23,27 @@ class Node:
         if not isinstance(request, dict) or request.get("type") not in self.types:
             return [f"$.type: must be one of {list(self.types)}"]
         return schema.errors(request, schema.load(self.contracts / f"request.{request['type']}.json"))
+
+    def run(self, log=print) -> None:
+        """Take every request in the inbox through handle(); a malformed or failed one is rejected with its reason."""
+        gate.require(self.profile)
+        for rid in self.belt.ids("inbox"):
+            self.belt.move(rid, "inbox", "working")
+            request = self.belt.read(rid)
+            problems = self.request_problems(request)
+            if problems:
+                self.finish_rejected(rid, request, "working", "malformed request:\n" + "\n".join(problems))
+                log(f"{rid}: rejected (malformed)")
+                continue
+            try:
+                outcome = self.handle(rid, request)
+            except (agent.AgentError, OSError, ValueError) as exc:
+                self.finish_rejected(rid, request, "working", f"failed: {exc}")
+                outcome = f"rejected: {exc}"
+            log(f"{rid}: {outcome}")
+
+    def handle(self, rid: str, request: dict) -> str:
+        raise NotImplementedError
 
     def submit(self, request: dict) -> str:
         problems = self.request_problems(request)
@@ -39,16 +59,6 @@ class Node:
 
     def finish_rejected(self, rid, request, state, reason) -> None:
         self.belt.reject(rid, state, reason)
-        self.reply(request, rid, "rejected", reason)
-
-    def reply(self, request, rid, status, summary, **extra) -> None:
-        target = request.get("reply_to") if isinstance(request, dict) else None
-        if not target:
-            return
-        folder = (self.project / target).resolve()
-        if self.project in folder.parents and folder.is_dir():
-            result = {"request_id": rid, "node": self.name, "status": status, "summary": summary, **extra}
-            (folder / f"{rid}.result.json").write_text(json.dumps(result, indent=2) + "\n")
 
     def status(self) -> str:
         from ergon.belt import STATES

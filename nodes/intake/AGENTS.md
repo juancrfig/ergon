@@ -1,25 +1,24 @@
 # Intake node
 
-Keeps the project wiki true. Agent: `wiki-maintainer` (profiles/wiki-maintainer). Decisions: ADR 0003, 0005, 0007, 0008, 0010, 0015, 0016.
+Keeps the project wiki true. Agent: `wiki-maintainer` (profiles/wiki-maintainer). Decisions: ADR 0003, 0005, 0007, 0008, 0010, 0015, 0016, 0018.
 
 ## Input
 One JSON request per file on the node's belt (`<project>/.ergon/intake/`). Contracts:
-- `ingest`: a new source, by URL or project file. `contracts/request.ingest.json`
-- `correct`: a page claim plus evidence that it is wrong or outdated. `contracts/request.correct.json`
+- `ingest`: a source file inside the project; a `note` can report a wrong claim, with the source as evidence.
+  `contracts/request.ingest.json`
 - `health-check`: no payload. `contracts/request.health-check.json`
 
 ## Output
-- `ingest`, `correct`: a proposal (`contracts/proposal.json`): items with citations and a classification, plus page
+- `ingest`: a proposal (`contracts/proposal.json`): items with citations and a classification, plus page
   edits. It waits in `review/` until the human approves; then code writes the pages, the index and the log, and
   commits the wiki.
 - `health-check`: a report in `runs/<id>/report.json`: mechanical findings from code, semantic findings
   (`contracts/health-report.json`) from the agent. Writes nothing.
-- Every request ends in `done/` or `rejected/` (reason in `runs/<id>/rejected.txt`). With `reply_to`, a
-  `<id>.result.json` lands in that folder.
+- Every request ends in `done/` or `rejected/` (reason in `runs/<id>/rejected.txt`).
 
 ## Who does what
-- Code: request checks, fetching, duplicate detection, the agent's prompt and tool scope, proposal checks,
-  applying, index, log, commit, ledger.
+- Code: request checks, reading the source, the agent's prompt and tool scope, proposal checks, applying, index,
+  log, commit.
 - Agent: reads the pages it needs through the wiki tool (ADR 0016); drafts items and edits; finds
   contradictions and weak claims.
 - Human: approves or rejects each proposal.

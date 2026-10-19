@@ -38,5 +38,5 @@ sequenceDiagram
     end
     C->>H: stories wait for approval
     H->>C: approve
-    C->>H: stories.json, result in reply_to
+    C->>H: stories.json
 ```

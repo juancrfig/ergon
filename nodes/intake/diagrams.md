@@ -9,8 +9,8 @@ stateDiagram-v2
     [*] --> inbox: submit (schema check)
     inbox --> working: run
     inbox --> rejected: human rejects
-    working --> rejected: malformed, duplicate or failed
-    working --> review: proposal drafted (ingest, correct)
+    working --> rejected: malformed or failed
+    working --> review: proposal drafted (ingest)
     working --> done: report written (health check)
     review --> done: human approves, code writes the wiki
     review --> rejected: human rejects
@@ -27,7 +27,7 @@ sequenceDiagram
     participant A as wiki-maintainer
     participant H as Human
     S->>C: request (JSON)
-    C->>C: check schema, context gate, fetch source, skip duplicates
+    C->>C: check schema, context gate, read the source file
     C->>A: prompt and tool scope, built by code
     A->>C: search_wiki, read_pages (logged)
     A->>C: proposal (JSON)
@@ -35,6 +35,5 @@ sequenceDiagram
     C-->>A: errors (at most 2 retries)
     C->>H: proposal waits in review
     H->>C: approve
-    C->>C: write pages, index, log, commit, ledger
-    C->>S: result in reply_to
+    C->>C: write pages, index, log, commit
 ```

@@ -46,10 +46,10 @@ ADR.
 
 - **Model class**: cheap-smart-enough (ADR 0011).
 - **Skills**, one per call, picked in `ergon/intake.py` `_context`:
-  - `wiki-maintenance`: an `ingest` or `correct` request is drafted into a proposal.
+  - `wiki-maintenance`: an `ingest` request is drafted into a proposal.
   - `health-check`: a `health-check` request runs and the wiki has more than one page.
-- **Context code writes**: the skill, the wiki conventions, the index, the request, the pages to read first (for
-  `correct`), the whole source (for `ingest` and `correct`), and the answer contract.
+- **Context code writes**: the skill, the wiki conventions, the index, the request, the whole source (for
+  `ingest`), and the answer contract.
 - **Answer contract**: `nodes/intake/contracts/proposal.json` or `health-report.json`.
 
 ## planner (Plan)

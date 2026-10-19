@@ -17,24 +17,8 @@ MAX_ROUNDS = 5     # the last round must return stories
 class Plan(Node):
     name, profile, types = "plan", PROFILE, ("plan",)
 
-    def run(self, log=print) -> None:
-        gate.require(PROFILE)
-        for rid in self.belt.ids("inbox"):
-            self.belt.move(rid, "inbox", "working")
-            request = self.belt.read(rid)
-            problems = self.request_problems(request)
-            if problems:
-                self.finish_rejected(rid, request, "working", "malformed request:\n" + "\n".join(problems))
-                log(f"{rid}: rejected (malformed)")
-                continue
-            try:
-                outcome = self._round(rid, request)
-            except (agent.AgentError, OSError, ValueError) as exc:
-                self.finish_rejected(rid, request, "working", f"failed: {exc}")
-                outcome = f"rejected: {exc}"
-            log(f"{rid}: {outcome}")
-
-    def _round(self, rid: str, request: dict) -> str:
+    def handle(self, rid: str, request: dict) -> str:
+        """One round."""
         run_dir = self.belt.run_dir(rid)
         rounds = self._rounds(run_dir)
         number, final = len(rounds) + 1, len(rounds) + 1 >= MAX_ROUNDS
@@ -108,7 +92,6 @@ class Plan(Node):
             raise ValueError(f"wiki pages the stories cite no longer exist: {', '.join(gone)}; reject and plan again")
         self.belt.move(rid, "review", "done")
         path = str((run_dir / "stories.json").relative_to(self.project))
-        self.reply(self.belt.read(rid), rid, "done", f"{len(stories)} stories approved", stories=path)
         return f"approved: {len(stories)} stories in {path}"
 
     def show(self, rid: str) -> str:

@@ -22,11 +22,6 @@
       "minLength": 1,
       "maxLength": 20000,
       "description": "What the human wants built, in their words. Documents go through Intake first; the planner reads the wiki."
-    },
-    "reply_to": {
-      "type": "string",
-      "maxLength": 500,
-      "pattern": "^(?!/)(?!.*\\.\\.)"
     }
   }
 }

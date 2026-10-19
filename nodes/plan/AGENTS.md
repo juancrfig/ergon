@@ -9,7 +9,7 @@ Turns a goal into user stories. Agent: `planner` (profiles/planner), frontier-re
 ## Output
 - Each round (`contracts/round.json`): questions, which wait in `waiting/` for answers, or stories, which wait in
   `review/` for approval. At most 5 rounds.
-- Approved stories: `runs/<id>/stories.json`. With `reply_to`, a `<id>.result.json` points to them.
+- Approved stories: `runs/<id>/stories.json`.
 
 ## Who does what
 - Code: request and answer checks, the planner's prompt (goal, wiki index, earlier rounds) and tool scope, round

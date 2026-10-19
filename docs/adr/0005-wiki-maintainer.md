@@ -1,6 +1,6 @@
 # 0005 · The wiki-maintainer is the only wiki writer
 
-Status: accepted (2026-10-18)
+Status: accepted (2026-10-18). The `correct` type and URL sources superseded by 0018.
 
 ## Context
 The Intake node keeps the project wiki current. Several agents learn things the wiki should hold.

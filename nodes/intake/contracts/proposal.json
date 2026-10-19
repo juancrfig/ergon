@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Intake proposal (model output for ingest and correct)",
+  "title": "Intake proposal (model output for ingest)",
   "type": "object",
   "additionalProperties": false,
   "required": [
