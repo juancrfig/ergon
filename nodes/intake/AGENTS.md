@@ -1,6 +1,6 @@
 # Intake node
 
-Keeps the project wiki true. Agent: `wiki-maintainer` (profiles/wiki-maintainer). Decisions: ADR 0003, 0005-0007.
+Keeps the project wiki true. Agent: `wiki-maintainer` (profiles/wiki-maintainer). Decisions: ADR 0003, 0005, 0007, 0008, 0010.
 
 ## Input
 One JSON request per file on the node's belt (`<project>/.ergon/intake/`). Contracts:
@@ -25,7 +25,7 @@ One JSON request per file on the node's belt (`<project>/.ergon/intake/`). Contr
 
 ## Commands
 ```
-ergon profile install wiki-maintainer      # once
+hermes profile create wiki-maintainer --no-skills   # once; set its model by hand
 ergon intake submit request.json
 ergon intake run                           # pauses while 3 proposals wait for approval
 ergon intake show <id>

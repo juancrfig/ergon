@@ -11,7 +11,7 @@ docs/factory.md  the whole factory (Mermaid); update it with every change
 bin/ergon        entry point
 ergon/           the code shared by every node, plus one module per node
 nodes/<node>/    a node: contracts (JSON Schemas) and diagrams.md (Mermaid, kept current)
-profiles/<name>/ a node agent's definition: Hermes config and skills
+profiles/<name>/ a node agent's skills
 ```
 
 Rules for maintainers:

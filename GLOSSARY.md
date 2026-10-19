@@ -16,8 +16,7 @@ must earn its place.
 
 **Agent**: the model that does a node's judgment work, run through one Hermes profile.
 
-**Profile**: an agent's definition in the ergon repo: its Hermes config and its skills. The installed copy must match
-it (the context gate).
+**Profile**: the Hermes profile an agent runs through. It holds only the model and credentials, set by hand.
 
 **Belt**: the folders a node's requests move through: inbox, working, review, done, rejected.
 _Avoid_: queue, channel.

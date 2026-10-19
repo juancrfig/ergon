@@ -1,10 +1,9 @@
-"""ergon <node|profile> <command>. The project is the current folder unless --project is given."""
+"""ergon <node> <command>. The project is the current folder unless --project is given."""
 import argparse
 import json
 import sys
 from pathlib import Path
 
-from ergon import gate
 from ergon.intake import Intake
 
 
@@ -23,21 +22,8 @@ def main(argv=None) -> int:
     rej.add_argument("id")
     rej.add_argument("reason")
 
-    profile = groups.add_parser("profile", help="node agent profiles").add_subparsers(dest="cmd", required=True)
-    for name in ("install", "check"):
-        profile.add_parser(name).add_argument("name")
-
     args = parser.parse_args(argv)
     try:
-        if args.group == "profile":
-            if args.cmd == "install":
-                gate.install(args.name)
-                print(f"{args.name}: installed and matches the ergon repo")
-            else:
-                problems = gate.drift(args.name)
-                print("\n\n".join(problems) if problems else f"{args.name}: matches the ergon repo")
-                return 1 if problems else 0
-            return 0
         node = Intake(args.project)
         if args.cmd == "submit":
             print(node.submit(json.loads(args.file.read_text())))

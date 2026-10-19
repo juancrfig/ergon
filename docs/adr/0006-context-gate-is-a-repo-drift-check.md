@@ -1,6 +1,6 @@
 # 0006 · The context gate is a repo drift check
 
-Status: accepted (2026-10-18)
+Status: superseded by 0010
 
 ## Context
 ADR 0002 requires a hard gate before any context reaches an agent profile, and left the mechanism open.
