@@ -15,8 +15,6 @@ from ergon.wiki import today
 CONTRACTS = Path(__file__).resolve().parent.parent / "nodes" / "intake" / "contracts"
 PROFILE = "wiki-maintainer"
 SKILLS = gate.REPO / "profiles" / PROFILE / "skills"
-FULL_WIKI_CHARS = 60_000  # above this, the model first picks the pages it needs from the index
-SOURCE_CHARS = 120_000
 
 
 class Intake(Node):
@@ -56,19 +54,25 @@ class Intake(Node):
         evidence = request["evidence"]
         text, fingerprint, label = (evidence["text"], None, "evidence from the sender") if "text" in evidence \
             else self._fetch(evidence)
-        claim = f"Claim on [[{request['page']}]], reported wrong or outdated:\n\n> {request['claim']}\n\nEvidence:\n\n"
-        return self._propose(rid, request, label, claim + text, fingerprint, must_read=[request["page"]])
+        return self._propose(rid, request, label, text, fingerprint, must_read=[request["page"]])
 
     def _health_check(self, rid: str, request: dict) -> str:
         run_dir = self.belt.run_dir(rid)
         mechanical = self.wiki.mechanical_findings()
-        pages = self.wiki.pages()
+        known = set(self.wiki.pages())
         semantic = []
-        if len(pages) > 1:
-            known = set(pages)
-            prompt = self._context("health-check", request, pages, source=None)
-            check = lambda r: [f"findings[{i}]: unknown page {f['page']!r}" for i, f in enumerate(r["findings"])
-                               if f["page"] not in known or f.get("other_page", f["page"]) not in known]
+        if len(known) > 1:
+            log = agent.scope(run_dir, self.wiki.pages_dir, None)
+            prompt = self._context("health-check", request, None)
+
+            def check(r):
+                out = [f"findings[{i}]: unknown page {f['page']!r}" for i, f in enumerate(r["findings"])
+                       if f["page"] not in known or f.get("other_page", f["page"]) not in known]
+                unread = sorted(known - agent.reads(log)[0])
+                if unread:  # contradictions can sit between any two pages, so every page must be read
+                    out.append(f"you did not read {len(unread)} pages; read each with read_page: "
+                               + ", ".join(f"[[{s}]]" for s in unread[:30]))
+                return out
             semantic = agent.ask(PROFILE, prompt, CONTRACTS / "health-report.json", run_dir, "health-report", check)["findings"]
         report = {"date": today(), "mechanical": mechanical, "semantic": semantic}
         (run_dir / "report.json").write_text(json.dumps(report, indent=2) + "\n")
@@ -80,36 +84,30 @@ class Intake(Node):
 
     def _propose(self, rid, request, label, text, fingerprint, must_read) -> str:
         run_dir = self.belt.run_dir(rid)
-        pages = self.wiki.pages()
-        if sum(len(p.text) for p in pages.values()) > FULL_WIKI_CHARS:
-            pick = agent.ask(PROFILE, self._context("select", request, {}, (label, text)),
-                             CONTRACTS / "page-selection.json", run_dir, "page-selection",
-                             lambda r: [f"unknown page {s!r}" for s in r["pages"] if s not in pages])
-            pages = {s: pages[s] for s in dict.fromkeys(must_read + pick["pages"])}
-        proposal = agent.ask(PROFILE, self._context("propose", request, pages, (label, text)),
-                             CONTRACTS / "proposal.json", run_dir, "proposal", self.wiki.proposal_problems)
+        source = run_dir / "source.txt"
+        source.write_text(text)
+        log = agent.scope(run_dir, self.wiki.pages_dir, source)
+        check = lambda r: self.wiki.proposal_problems(r) + _read_problems(r, log, set(self.wiki.pages()))
+        proposal = agent.ask(PROFILE, self._context("propose", request, (label, len(text)), must_read),
+                             CONTRACTS / "proposal.json", run_dir, "proposal", check)
         meta = {"wiki_fingerprint": self.wiki.fingerprint(), "source_fingerprint": fingerprint}
         (run_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
         self.belt.move(rid, "working", "review")
         return f"proposal waits for approval: {proposal['summary']}"
 
-    def _context(self, purpose: str, request: dict, pages: dict, source) -> str:
-        """The agent's entire context. Nothing else reaches the model."""
+    def _context(self, purpose: str, request: dict, source, must_read=()) -> str:
+        """Everything the agent is given. The rest it reads through the wiki tool, and the log records it."""
         skill = "health-check.md" if purpose == "health-check" else "wiki-maintenance.md"
         conv = self.wiki.conventions
         parts = [(SKILLS / skill).read_text().strip(), "# Wiki conventions",
                  f"Allowed tags: {', '.join(conv['tags']) or 'any'}. Page limit: {conv['max_page_lines']} lines.",
-                 conv["notes"] or "", "# Wiki index", self.wiki.index_text()]
-        if purpose == "select":
-            parts += ["# Your job now", "The wiki is too large to show whole. Pick the pages (at most 15) you must "
-                      "read to classify this source against the wiki."]
-        for slug, page in pages.items():
-            parts += [f"# Page [[{slug}]]", page.text]
-        parts += ["# Request", json.dumps(request, indent=2)]
+                 conv["notes"] or "", "# Wiki index", self.wiki.index_text(), "# Request", json.dumps(request, indent=2)]
+        if must_read:
+            parts.append("Read these pages before anything else: " + ", ".join(f"[[{s}]]" for s in must_read) + ".")
         if source:
-            label, text = source
-            clipped = text[:SOURCE_CHARS]
-            parts += [f"# Source: {label}", clipped + ("\n\n[source clipped by ergon]" if len(text) > SOURCE_CHARS else "")]
+            label, length = source
+            parts += [f"# Source: {label}", f"{length} characters. Read all of it with read_source, starting at offset 0. "
+                      "Code rejects an answer given before the whole source was read."]
         return "\n\n".join(p for p in parts if p) + "\n"
 
     def _fetch(self, source: dict) -> tuple[str, str, str]:
@@ -160,6 +158,22 @@ class Intake(Node):
     def _ledger(self) -> dict:
         path = self.belt.root / "ledger.json"
         return json.loads(path.read_text()) if path.exists() else {}
+
+
+def _read_problems(proposal: dict, log: Path, existing: set) -> list[str]:
+    """What the agent must have read before its proposal counts: all of the source, and every existing page it
+    edits or classifies the source against."""
+    pages, covered, total = agent.reads(log)
+    out = []
+    if covered < total:
+        out.append(f"you read {covered} of the source's {total} characters; read the rest with read_source")
+    for i, edit in enumerate(proposal["edits"]):
+        if edit["op"] in ("replace", "delete") and edit["page"] not in pages:
+            out.append(f"edits[{i}]: you {edit['op']} [[{edit['page']}]] without reading it; read it with read_page")
+    for i, item in enumerate(proposal["items"]):
+        if item["status"] != "new" and item.get("page") in existing and item["page"] not in pages:
+            out.append(f"items[{i}]: you classify against [[{item['page']}]] without reading it; read it with read_page")
+    return out
 
 
 def _describe(doc: dict) -> str:

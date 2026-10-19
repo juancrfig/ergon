@@ -1,6 +1,6 @@
 # 0010 · The run fixes the context; profiles hold only model and credentials
 
-Status: accepted (2026-10-18). Supersedes 0006.
+Status: accepted (2026-10-18). Supersedes 0006. Amended by 0016: the one toolset is the wiki tool.
 
 ## Context
 ADR 0006 copied a config file from the repo into each Hermes profile and refused runs when it drifted. The human

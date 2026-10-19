@@ -7,7 +7,6 @@ import json
 from pathlib import Path
 
 from ergon import agent, gate, schema
-from ergon.intake import CONTRACTS as INTAKE_CONTRACTS, FULL_WIKI_CHARS
 from ergon.node import Node
 
 PROFILE = "planner"
@@ -39,11 +38,11 @@ class Plan(Node):
         run_dir = self.belt.run_dir(rid)
         rounds = self._rounds(run_dir)
         number, final = len(rounds) + 1, len(rounds) + 1 >= MAX_ROUNDS
-        pages = self._pages(rid, request, run_dir)
-        prompt = self._context(request, pages, rounds, number, final)
+        log = agent.scope(run_dir, self.wiki.pages_dir, None, f"tool-calls-round-{number}.jsonl")
+        prompt = self._context(request, rounds, number, final)
         known = set(self.wiki.pages())
         answer = agent.ask(PROFILE, prompt, self.contracts / "round.json", run_dir, f"round-{number}",
-                           lambda r: _round_problems(r, known, final))
+                           lambda r: _round_problems(r, known, final, agent.reads(log)[0]))
         if "questions" in answer:
             self.belt.move(rid, "working", "waiting")
             return f"round {number}: {len(answer['questions'])} questions wait for your answers"
@@ -51,25 +50,11 @@ class Plan(Node):
         self.belt.move(rid, "working", "review")
         return f"round {number}: {len(answer['stories'])} stories wait for approval"
 
-    def _pages(self, rid, request, run_dir) -> dict:
-        pages = self.wiki.pages()
-        if sum(len(p.text) for p in pages.values()) <= FULL_WIKI_CHARS:
-            return pages
-        chosen = run_dir / "page-selection.json"
-        if not chosen.exists():  # chosen once per plan, in its first round
-            prompt = (SKILL.read_text() + "\n\n# Wiki index\n\n" + self.wiki.index_text() + "\n# Goal\n\n"
-                      + request["goal"] + "\n\n# Your job now\nThe wiki is too large to show whole. Pick the pages "
-                      "(at most 15) you must read to plan this goal.\n")
-            agent.ask(PROFILE, prompt, INTAKE_CONTRACTS / "page-selection.json", run_dir, "page-selection",
-                      lambda r: [f"unknown page {s!r}" for s in r["pages"] if s not in pages])
-        return {s: pages[s] for s in json.loads(chosen.read_text())["pages"] if s in pages}
-
-    def _context(self, request, pages, rounds, number, final) -> str:
-        """The planner's entire context. Nothing else reaches the model."""
-        parts = [SKILL.read_text().strip(), "# Wiki index", self.wiki.index_text()]
-        for slug, page in pages.items():
-            parts += [f"# Page [[{slug}]]", page.text]
-        parts += ["# Goal", request["goal"]]
+    def _context(self, request, rounds, number, final) -> str:
+        """Everything the planner is given. Pages it reads through the wiki tool, and the log records them."""
+        parts = [SKILL.read_text().strip(), "# Wiki index", self.wiki.index_text(),
+                 "Read the pages you need with read_page; find pages with search_wiki. A story may cite only pages "
+                 "you read.", "# Goal", request["goal"]]
         for i, (questions, answers) in enumerate(rounds, 1):
             parts.append(f"# Round {i}: your questions and the human's answers")
             given = {a["question"]: a["answer"] for a in answers}
@@ -145,7 +130,7 @@ class Plan(Node):
         return "\n".join(lines)
 
 
-def _round_problems(answer: dict, known: set, final: bool) -> list[str]:
+def _round_problems(answer: dict, known: set, final: bool, read: set) -> list[str]:
     """Everything about a round that code can decide."""
     out = []
     if "questions" in answer:
@@ -159,4 +144,6 @@ def _round_problems(answer: dict, known: set, final: bool) -> list[str]:
     ids = [s["id"] for s in answer["stories"]]
     out += [f"story id {i!r} is repeated" for i in sorted({i for i in ids if ids.count(i) > 1})]
     out += [f"{s['id']}: source [[{p}]] is not a wiki page" for s in answer["stories"] for p in s["sources"] if p not in known]
+    out += [f"{s['id']}: source [[{p}]] was not read; read it with read_page before citing it"
+            for s in answer["stories"] for p in s["sources"] if p in known and p not in read]
     return out

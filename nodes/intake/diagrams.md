@@ -28,9 +28,10 @@ sequenceDiagram
     participant H as Human
     S->>C: request (JSON)
     C->>C: check schema, context gate, fetch source, skip duplicates
-    C->>A: entire context, built by code
+    C->>A: prompt and tool scope, built by code
+    A->>C: read_source, search_wiki, read_page (logged)
     A->>C: proposal (JSON)
-    C->>C: check citations, links, tags, length
+    C->>C: check citations, links, tags, length, what was read
     C-->>A: errors (at most 2 retries)
     C->>H: proposal waits in review
     H->>C: approve

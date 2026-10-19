@@ -1,6 +1,6 @@
 # Intake node
 
-Keeps the project wiki true. Agent: `wiki-maintainer` (profiles/wiki-maintainer). Decisions: ADR 0003, 0005, 0007, 0008, 0010.
+Keeps the project wiki true. Agent: `wiki-maintainer` (profiles/wiki-maintainer). Decisions: ADR 0003, 0005, 0007, 0008, 0010, 0015, 0016.
 
 ## Input
 One JSON request per file on the node's belt (`<project>/.ergon/intake/`). Contracts:
@@ -18,20 +18,23 @@ One JSON request per file on the node's belt (`<project>/.ergon/intake/`). Contr
   `<id>.result.json` lands in that folder.
 
 ## Who does what
-- Code: request checks, fetching, duplicate detection, the agent's entire context, proposal checks, applying,
-  index, log, commit, ledger.
-- Agent: drafts items and edits; finds contradictions and weak claims.
+- Code: request checks, fetching, duplicate detection, the agent's prompt and tool scope, proposal checks (including
+  what the agent read), applying, index, log, commit, ledger.
+- Agent: reads the source and the pages it needs through the wiki tool (ADR 0016); drafts items and edits; finds
+  contradictions and weak claims.
 - Human: approves or rejects each proposal.
 
 ## Commands
 ```
-hermes profile create wiki-maintainer --no-skills   # once; set its model by hand
+hermes profile create wiki-maintainer --no-skills   # once; set its model and add the wiki tool by hand (the
+                                                    # first run prints the config entry if it is missing)
 python3 -m ergon submit request.json
 python3 -m ergon run intake                         # drafts a proposal for every queued request
 python3 -m ergon show <id>
 python3 -m ergon approve <id>   |   python3 -m ergon reject <id> "reason"
 ```
 
-Everything the agent saw is in `runs/<id>/*.prompt.md`; everything it answered, in `*.output.txt`.
+What the agent was given is in `runs/<id>/*.prompt.md`; what it read, in `tool-calls.jsonl`; what it answered, in
+`*.output.txt`.
 
 Diagrams: `diagrams.md`. Update them with every change to this node.

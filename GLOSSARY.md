@@ -16,7 +16,11 @@ must earn its place.
 
 **Agent**: the model that does a node's judgment work, run through one Hermes profile.
 
-**Profile**: the Hermes profile an agent runs through. It holds only the model and credentials, set by hand.
+**Profile**: the Hermes profile an agent runs through. It holds only the model, credentials and the wiki tool entry,
+set by hand.
+
+**Wiki tool**: the agents' only tools: read a page, search the wiki, read the source in parts. Read-only, scoped by
+code to one wiki and one source per run.
 
 **Belt**: the folders a node's requests move through: inbox, working, waiting, review, done, rejected.
 _Avoid_: queue, channel.

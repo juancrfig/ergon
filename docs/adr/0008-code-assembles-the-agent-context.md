@@ -1,6 +1,6 @@
 # 0008 · Code assembles the agent's entire context
 
-Status: accepted (2026-10-18)
+Status: accepted (2026-10-18). Page selection and "no working tools" superseded by 0016.
 
 ## Context
 ADR 0002 makes context a gated resource. If an agent loads skills, memory or project files itself, or opens pages
