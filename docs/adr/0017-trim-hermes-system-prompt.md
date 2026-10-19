@@ -14,7 +14,9 @@ the prompt drop to about 2,900 characters with the same answer and the same tool
 ## Decision
 - Every node profile carries `gate.PROMPT_SETTINGS`: coding context off, task completion, parallel tool call, tool
   use and execution guidance off, no environment probe or bot protocol, and the terminal hint replaced by "Code
-  reads your final answer, not a person." `gate.require` refuses a run when any line is missing.
+  reads your final answer, not a person." Tool search is off: with it on, Hermes hid the wiki tool behind three
+  lookup tools (`tool_search`, `tool_describe`, `tool_call`), which costs turns. The wiki tool entry turns MCP
+  resource and prompt helpers off. `gate.require` refuses a run when any line is missing.
 - After each agent call, code copies the system prompt Hermes stored for that session into the run folder
   (`<call>.system-prompt.md`). A call whose prompt cannot be found fails.
 

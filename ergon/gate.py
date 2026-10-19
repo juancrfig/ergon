@@ -20,14 +20,14 @@ TOOL = REPO / "ergon" / "wikitool.py"
 
 def tool_entry() -> str:
     return (f"mcp_servers:\n  ergon:\n    command: python3\n    args:\n    - {TOOL}\n"
-            "    - ${ERGON_RUN}\n")
+            "    - ${ERGON_RUN}\n    tools:\n      resources: false\n      prompts: false\n")
 
 
 PLACEHOLDER = "SET-BY-HAND"  # where a profile's model goes until the human picks one (ADR 0011)
 
 # Hermes' own system prompt sections that do not fit a read-only agent answering in JSON: coding-agent posture
 # (edit files, run tests, commit), "finish the job", tool-use pushes, the workspace snapshot, and a terminal hint
-# replaced by one line. Without them Hermes adds about 2,900 characters instead of 8,800 (ADR 0017).
+# replaced by one line, and tool search, which hides the wiki tool behind three lookup tools. Without them Hermes adds about 2,900 characters instead of 8,800 (ADR 0017).
 PROMPT_SETTINGS = """agent:
   coding_context: 'off'
   task_completion_guidance: false
@@ -39,6 +39,9 @@ PROMPT_SETTINGS = """agent:
 platform_hints:
   cli:
     replace: Code reads your final answer, not a person.
+tools:
+  tool_search:
+    enabled: 'off'
 """
 
 
