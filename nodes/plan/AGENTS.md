@@ -32,4 +32,5 @@ python3 -m ergon answer <id> answers.json    # {"answers": [{"question": "q1", "
 python3 -m ergon approve <id>   |   python3 -m ergon reject <id> "reason"
 ```
 
-Diagrams: `diagrams.md`. Update them with every change to this node.
+The belt as a diagram, for humans: `diagrams.md`. Update it when a state or a move changes. This file is the
+only text description of the node.

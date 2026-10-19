@@ -37,4 +37,5 @@ python3 -m ergon approve <id>   |   python3 -m ergon reject <id> "reason"
 What the agent was given is in `runs/<id>/*.prompt.md`; what it read, in `tool-calls.jsonl`; what it answered, in
 `*.output.txt`.
 
-Diagrams: `diagrams.md`. Update them with every change to this node.
+The belt as a diagram, for humans: `diagrams.md`. Update it when a state or a move changes. This file is the
+only text description of the node.

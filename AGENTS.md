@@ -7,9 +7,9 @@ A factory of nodes. A node turns a defined input into a structured output; its c
 README.md        the only README: for humans
 GLOSSARY.md      one word per concept
 docs/adr/        architecture decision records
-docs/factory.md  the whole factory (Mermaid); update it with every change
+docs/factory.md  the map of nodes (Mermaid); update it when a node or a link between nodes changes
 ergon/           the code: run it as `python3 -m ergon` from the repo root
-nodes/<node>/    a node: contracts (JSON Schemas) and diagrams.md (Mermaid, kept current)
+nodes/<node>/    a node: AGENTS.md (what it does), contracts (JSON Schemas), diagrams.md (its belt)
 profiles/<name>/ a node agent's skills; profiles/AGENTS.md: each agent's skills, tools and Hermes context
 ```
 

@@ -1,7 +1,7 @@
 # Ergon: the factory
 
 The whole factory. Solid boxes are built; dashed boxes are designed but not built.
-Each built node draws its own internals in `nodes/<node>/diagrams.md`.
+Each node describes itself in `nodes/<node>/AGENTS.md`.
 
 ## The factory
 
@@ -29,5 +29,5 @@ flowchart LR
 
 ## Nodes
 
-- [Intake](../nodes/intake/diagrams.md)
-- [Plan](../nodes/plan/diagrams.md)
+- [Intake](../nodes/intake/AGENTS.md)
+- [Plan](../nodes/plan/AGENTS.md)
