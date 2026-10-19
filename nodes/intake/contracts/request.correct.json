@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Intake request: correct",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "from",
+    "page",
+    "claim",
+    "evidence"
+  ],
+  "properties": {
+    "type": {
+      "const": "correct"
+    },
+    "from": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "maxLength": 40,
+      "description": "Node or agent that sent the request."
+    },
+    "page": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "maxLength": 80,
+      "description": "Page that holds the wrong claim."
+    },
+    "claim": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "description": "The claim, quoted from the page."
+    },
+    "evidence": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "text"
+          ],
+          "properties": {
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "url"
+          ],
+          "properties": {
+            "url": {
+              "type": "string",
+              "pattern": "^https?://",
+              "maxLength": 2000
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "file"
+          ],
+          "properties": {
+            "file": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "^(?!/)(?!.*\\.\\.)"
+            }
+          }
+        }
+      ],
+      "description": "Why the claim is wrong or outdated."
+    },
+    "reply_to": {
+      "type": "string",
+      "maxLength": 500,
+      "pattern": "^(?!/)(?!.*\\.\\.)",
+      "description": "Project-relative folder that receives <id>.result.json when the request finishes."
+    }
+  }
+}

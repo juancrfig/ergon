@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Intake request: health-check",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "from"
+  ],
+  "properties": {
+    "type": {
+      "const": "health-check"
+    },
+    "from": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "maxLength": 40,
+      "description": "Node or agent that sent the request."
+    },
+    "reply_to": {
+      "type": "string",
+      "maxLength": 500,
+      "pattern": "^(?!/)(?!.*\\.\\.)",
+      "description": "Project-relative folder that receives <id>.result.json when the request finishes."
+    }
+  }
+}

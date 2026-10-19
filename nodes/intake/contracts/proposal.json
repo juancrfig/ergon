@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Intake proposal (model output for ingest and correct)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "summary",
+    "items",
+    "edits"
+  ],
+  "properties": {
+    "summary": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 200,
+      "description": "One line; becomes the commit message."
+    },
+    "items": {
+      "type": "array",
+      "maxItems": 200,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "text",
+          "citation",
+          "status"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "fact",
+              "obligation",
+              "open-question",
+              "contradiction"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "citation": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 300,
+            "description": "Human provenance: who, what, when. Never a file path."
+          },
+          "status": {
+            "enum": [
+              "new",
+              "known",
+              "update",
+              "contradiction",
+              "obsolete"
+            ]
+          },
+          "page": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "maxLength": 80,
+            "description": "Page the item lands on, if any."
+          }
+        }
+      }
+    },
+    "edits": {
+      "type": "array",
+      "maxItems": 40,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "op",
+          "page"
+        ],
+        "properties": {
+          "op": {
+            "enum": [
+              "create",
+              "replace",
+              "delete"
+            ]
+          },
+          "page": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "maxLength": 80
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "tags": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "maxLength": 80
+            }
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Markdown without front matter. Link pages as [[slug]]."
+          }
+        }
+      }
+    }
+  }
+}
