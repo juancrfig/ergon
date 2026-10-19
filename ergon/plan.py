@@ -12,7 +12,6 @@ from ergon.node import Node
 
 PROFILE = "planner"
 SKILL = gate.REPO / "profiles" / PROFILE / "skills" / "planning.md"
-PENDING_LIMIT = 3  # backpressure: stop while this many plans wait for the human
 MAX_ROUNDS = 5     # the last round must return stories
 
 
@@ -22,10 +21,6 @@ class Plan(Node):
     def run(self, log=print) -> None:
         gate.require(PROFILE)
         for rid in self.belt.ids("inbox"):
-            pending = len(self.belt.ids("waiting")) + len(self.belt.ids("review"))
-            if pending >= PENDING_LIMIT:
-                log(f"paused: {pending} plans wait for you; {len(self.belt.ids('inbox'))} queued")
-                return
             self.belt.move(rid, "inbox", "working")
             request = self.belt.read(rid)
             problems = self.request_problems(request)
