@@ -32,13 +32,13 @@ class Node:
             request = self.belt.read(rid)
             problems = self.request_problems(request)
             if problems:
-                self.finish_rejected(rid, request, "working", "malformed request:\n" + "\n".join(problems))
+                self.belt.reject(rid, "working", "malformed request:\n" + "\n".join(problems))
                 log(f"{rid}: rejected (malformed)")
                 continue
             try:
                 outcome = self.handle(rid, request)
             except (agent.AgentError, OSError, ValueError) as exc:
-                self.finish_rejected(rid, request, "working", f"failed: {exc}")
+                self.belt.reject(rid, "working", f"failed: {exc}")
                 outcome = f"rejected: {exc}"
             log(f"{rid}: {outcome}")
 
@@ -55,10 +55,7 @@ class Node:
         state = self.belt.state_of(rid)
         if state not in ("inbox", "waiting", "review"):
             raise ValueError(f"{rid} is {state}; only requests in inbox, waiting or review can be rejected")
-        self.finish_rejected(rid, self.belt.read(rid), state, f"rejected by the human: {reason}")
-
-    def finish_rejected(self, rid, request, state, reason) -> None:
-        self.belt.reject(rid, state, reason)
+        self.belt.reject(rid, state, f"rejected by the human: {reason}")
 
     def status(self) -> str:
         from ergon.belt import STATES

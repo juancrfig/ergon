@@ -1,6 +1,7 @@
 # Plan node
 
-Turns a goal into user stories. Agent: `planner` (profiles/planner), frontier-reasoning. Decisions: ADR 0011, 0013, 0015, 0016.
+Turns a goal into user stories. Agent: `planner` (profiles/planner), frontier-reasoning. Decisions: ADR 0011, 0013,
+0015-0017, 0019.
 
 ## Input
 - `plan`: the human's goal. `contracts/request.plan.json`. Documents go through Intake first.
@@ -21,7 +22,8 @@ Turns a goal into user stories. Agent: `planner` (profiles/planner), frontier-re
 
 ## Commands
 ```
-hermes profile create planner --no-skills   # once; set its model and add the wiki tool by hand
+hermes profile create planner --no-skills --no-alias   # once; then set its model and credentials:
+hermes -p planner model                      # code applies the rest (profiles/hermes.yaml)
 python3 -m ergon submit goal.json            # {"type": "plan", "from": "juanes", "goal": "..."}
 python3 -m ergon run plan                    # one round per plan in the inbox
 python3 -m ergon pending

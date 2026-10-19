@@ -29,7 +29,6 @@ TOOLS = [
 
 class Scope:
     def __init__(self, run: Path):
-        self.run = run
         scope = json.loads((run / "tool-scope.json").read_text())
         self.pages = Path(scope["pages"])
         self.log_path = run / scope.get("log", "tool-calls.jsonl")

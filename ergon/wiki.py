@@ -147,7 +147,7 @@ class Wiki:
 
     # --- writes (only after human approval) ------------------------------------------------------------------
 
-    def apply(self, proposal: dict, rid: str, kind: str) -> str | None:
+    def apply(self, proposal: dict, rid: str) -> str | None:
         """Write the edits, the index and the log. Commit the wiki if the project is a git repo; return the commit."""
         self.pages_dir.mkdir(parents=True, exist_ok=True)
         for edit in proposal["edits"]:
@@ -158,8 +158,8 @@ class Wiki:
                 path.write_text(render(edit["title"], edit["tags"], edit["body"], today()))
         (self.dir / "index.md").write_text(self.index_text())
         with (self.dir / "log.md").open("a") as log:
-            log.write(f"- {today()} · {kind} · {proposal['summary']} · {rid}\n")
-        return self._commit(f"wiki: {proposal['summary']}\n\nergon intake {kind} {rid}")
+            log.write(f"- {today()} · ingest · {proposal['summary']} · {rid}\n")
+        return self._commit(f"wiki: {proposal['summary']}\n\nergon intake ingest {rid}")
 
     def _commit(self, message: str) -> str | None:
         git = ["git", "-C", str(self.project)]

@@ -3,10 +3,11 @@
 - `schema.py`: the JSON Schema subset contracts use. Extend it here before using a new keyword in a contract.
 - `belt.py`: a node's request folders and atomic moves between them.
 - `agent.py`: runs a node agent through its Hermes profile and checks its JSON answer against a contract.
-- `gate.py`: refuses a run when the agent's Hermes profile does not exist or does not start the wiki tool.
+- `gate.py`: applies `profiles/hermes.yaml` to the agent's Hermes profile; refuses a run while the profile is
+  missing or has no model (ADR 0019).
 - `wikitool.py`: the agents' only tools, read-only, scoped per run (ADR 0016). Standalone: imports nothing from ergon.
 - `wiki.py`: the project wiki and every wiki operation with one right answer.
-- `node.py`: what every node shares: belt, contracts, request checks, replies, rejection.
+- `node.py`: what every node shares: belt, contracts, request checks, the run loop, rejection.
 - `intake.py`: the Intake node.
 - `plan.py`: the Plan node.
 - `cli.py`: the command line, the first adapter (ADR 0012). A new node is added to its `NODES`.

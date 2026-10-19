@@ -77,7 +77,7 @@ class Intake(Node):
         meta = json.loads((run_dir / "meta.json").read_text())
         if meta["wiki_fingerprint"] != self.wiki.fingerprint():
             raise ValueError("the wiki changed since this proposal was drafted; reject it and submit the request again")
-        commit = self.wiki.apply(proposal, rid, self.belt.read(rid)["type"])
+        commit = self.wiki.apply(proposal, rid)
         self.belt.move(rid, "review", "done")
         return f"applied: {proposal['summary']}" + (f" (commit {commit})" if commit else "")
 
