@@ -1,6 +1,6 @@
 # 0011 · Model class per node
 
-Status: accepted (2026-10-18); Intake moved to frontier-reasoning by 0018
+Status: accepted (2026-10-18)
 
 ## Context
 Each node's model is set by hand in its Hermes profile (ADR 0010). The choice needs a rule, not intuition.

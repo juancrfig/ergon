@@ -23,7 +23,7 @@ def tool_entry() -> str:
             "    - ${ERGON_RUN}\n")
 
 
-PLACEHOLDER = "SET-BY-HAND"  # where a profile's model goes until the human picks one (ADR 0018)
+PLACEHOLDER = "SET-BY-HAND"  # where a profile's model goes until the human picks one (ADR 0011)
 
 # Hermes' own system prompt sections that do not fit a read-only agent answering in JSON: coding-agent posture
 # (edit files, run tests, commit), "finish the job", tool-use pushes, the workspace snapshot, and a terminal hint
