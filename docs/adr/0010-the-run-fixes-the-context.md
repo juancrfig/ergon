@@ -16,8 +16,3 @@ wants to set each node's model by hand, and ADR 0008 already keeps every profile
 - No profile drift to manage, no copied API keys.
 - The model each node uses is not recorded in the repo.
 - Residual risk: a Hermes setting that injects prompt text even with `--ignore-rules` would reach the agent unseen.
-
-## Model recommendation per node
-- frontier-reasoning: Plan, Build, Inspect, Learn.
-- cheap-smart-enough: Intake, Split.
-- No model: Gate, Merge.

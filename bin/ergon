@@ -1,4 +1,0 @@
-#!/bin/sh
-# Entry point. Standard library Python only; no install step.
-ERGON_HOME=$(dirname "$(dirname "$(readlink -f "$0")")")
-PYTHONPATH="$ERGON_HOME${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m ergon "$@"
