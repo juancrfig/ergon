@@ -15,7 +15,9 @@ ADR 0006 copied a whole config and refused runs on drift; 0010 dropped it so the
   and credentials included, stays. The file wins over hand edits, so nothing drifts and nothing is compared.
 - The wiki tool path reaches the profile as `${ERGON_TOOL}`, set per run like `${ERGON_RUN}`, so the file holds no
   machine path.
-- It also turns on Hermes' hard stop for replayed tool calls: CLI runs only warn by default.
+- It also turns on Hermes' hard stop for replayed tool calls (CLI runs only warn by default) and sets context
+  compression the same as theSystem's main agent.
+- Every node applies it in `Node.run`, so a new node's agent gets it with no extra step.
 - One file for all profiles while they are the same. A profile gets its own file only when it must differ.
 
 ## Consequences

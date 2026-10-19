@@ -2,6 +2,7 @@
 # Ergon applies it before each run: every top-level key here replaces the profile's own, so this file wins over
 # hand edits. Same shape as ~/.hermes/profiles/<name>/config.yaml. Keep to plain YAML.
 #
+# It applies to every agent in Ergon: each node runs it on its own profile before its first agent call.
 # Not here on purpose: model, provider and credentials. The human sets them by hand (ADR 0011).
 # Everything else a profile holds is left alone.
 
@@ -38,3 +39,19 @@ tools:
 # Ergon runs through the CLI, where Hermes only warns about a replayed tool call. Stop it instead.
 tool_loop_guardrails:
   hard_stop_enabled: true
+
+# Context compression, the same as theSystem's main agent.
+compression:
+  enabled: true
+  progress_notices: false
+  threshold: 0.5
+  threshold_tokens: 150000
+  target_ratio: 0.2
+  protect_last_n: 15
+  min_tail_user_messages: 5
+  max_attempts: 3
+  proactive_prune_tokens: 0
+  micro_compact: false
+  protect_first_n: 0
+  abort_on_summary_failure: true
+  idle_compact_after_seconds: 0
