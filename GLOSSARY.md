@@ -16,8 +16,8 @@ must earn its place.
 
 **Agent**: the model that does a node's judgment work, run through one Hermes profile.
 
-**Profile**: the Hermes profile an agent runs through. It holds only the model, credentials and the wiki tool entry,
-set by hand.
+**Profile**: the Hermes profile an agent runs through. It holds only the model, credentials, the wiki tool entry and
+the settings that trim Hermes' own system prompt, set by hand. `profiles/AGENTS.md` has one card per profile.
 
 **Wiki tool**: the agents' only tools: search the wiki and read pages. Read-only, scoped by code to one wiki per
 run.
