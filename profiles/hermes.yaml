@@ -40,7 +40,8 @@ tools:
 tool_loop_guardrails:
   hard_stop_enabled: true
 
-# Context compression, the same as theSystem's main agent.
+# Context compression, the same as theSystem's main agent, except protect_first_n: the first message is the
+# prompt with the whole source, so it is never summarized.
 compression:
   enabled: true
   progress_notices: false
@@ -52,6 +53,27 @@ compression:
   max_attempts: 3
   proactive_prune_tokens: 0
   micro_compact: false
-  protect_first_n: 0
+  protect_first_n: 1
   abort_on_summary_failure: true
   idle_compact_after_seconds: 0
+
+# Code reads the answer from what Hermes prints; reasoning in the output could hold JSON drafts.
+display:
+  show_reasoning: false
+
+# Ergon agents read no memory (--ignore-rules) and have no memory or skill tool, so Hermes' post-run reviews cannot
+# fire. Memory off says so outright.
+memory:
+  memory_enabled: false
+  user_profile_enabled: false
+
+# Ergon reads the profile's session store right after each run, while Hermes may still write to it.
+database:
+  journal_mode: wal
+
+telemetry:
+  shared_metrics:
+    enabled: false
+
+# The date in the model's instructions.
+timezone: America/Bogota

@@ -14,8 +14,9 @@ approves (ADR 0002). The Hermes profile of the same name (`~/.hermes/profiles/<n
 - Model and credentials: set by hand. Until the human sets them, the model is `SET-BY-HAND` and runs are refused.
 - Everything else: `profiles/hermes.yaml`, the canonical config. Code applies it before each run and it wins over
   hand edits (ADR 0019). It holds the wiki tool entry, the settings that trim Hermes' own system prompt and turn
-  tool search off (ADR 0017), Hermes' hard stop for replayed tool calls, and context compression set like
-  theSystem's main agent.
+  tool search off (ADR 0017), Hermes' hard stop for replayed tool calls, context compression set like
+  theSystem's main agent (the first message, with the source, never summarized), reasoning kept out of the
+  output, memory and telemetry off, and the timezone. Everything else is Hermes' default.
 
 **Tools**: `search_wiki` and `read_pages`. Read-only, scoped by code to one wiki per run (ADR 0016). Every run passes
 `-t ergon`, so no other toolset loads; tool search is off, so the model sees the two tools directly, not behind
