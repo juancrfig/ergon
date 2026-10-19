@@ -1,16 +1,18 @@
 """Runs a node's agent: one Hermes profile, a context assembled by code, a JSON answer checked by code.
 
 The agent gets no skills, memory, SOUL or AGENTS.md from Hermes (--ignore-rules) and one toolset: ergon's read-only
-wiki tool (ADR 0016), scoped by code to one wiki. Every token it is given is in the prompt file saved in the run
-folder; every page it reads is in the tool's call log.
+wiki tool (ADR 0016), scoped by code to one wiki. What it is given is in the run folder: the prompt file code
+wrote and the system prompt Hermes added (copied from the profile's session store); every page it reads is in the
+tool's call log.
 """
 import json
 import os
 import re
+import sqlite3
 import subprocess
 from pathlib import Path
 
-from ergon import schema
+from ergon import gate, schema
 
 
 TOOLSET = "ergon"   # the MCP server name each profile gives ergon/wikitool.py
@@ -39,7 +41,22 @@ def _call(profile: str, prompt: str, run_dir: Path, label: str) -> str:
     (run_dir / f"{label}.output.txt").write_text(result.stdout + ("\n--- stderr ---\n" + result.stderr if result.stderr else ""))
     if result.returncode != 0:
         raise AgentError(f"hermes exited {result.returncode}; see {run_dir / (label + '.output.txt')}")
+    _save_system_prompt(profile, result.stdout + result.stderr, run_dir / f"{label}.system-prompt.md")
     return result.stdout
+
+
+def _save_system_prompt(profile: str, output: str, path: Path) -> None:
+    """Copy the system prompt Hermes sent in this session, so the run folder shows everything the model saw."""
+    found = re.findall(r"session_id:\s*(\S+)", output)
+    if not found:
+        raise AgentError("hermes printed no session_id; cannot record its system prompt")
+    db = gate.installed(profile) / "state.db"
+    with sqlite3.connect(f"file:{db}?mode=ro", uri=True) as con:
+        row = con.execute("SELECT p.prompt FROM sessions s JOIN system_prompts p ON p.hash = s.system_prompt_hash "
+                          "WHERE s.id = ?", (found[-1],)).fetchone()
+    if not row:
+        raise AgentError(f"no system prompt stored for session {found[-1]} in {db}")
+    path.write_text(row[0])
 
 
 def _extract(text: str):

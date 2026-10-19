@@ -3,8 +3,8 @@
 One folder per node agent, holding only `skills/*.md`. A change here is a change to an agent's context: it reaches
 the agent only through a commit the human approves (ADR 0002).
 
-The Hermes profile of the same name holds only the model, credentials and the entry that starts the wiki tool, set by
-hand. Nothing else in it reaches the model (ADR 0010, 0016).
+The Hermes profile of the same name holds only the model, credentials, the entry that starts the wiki tool and the
+settings that trim Hermes' own system prompt (ADR 0017), set by hand; `gate.require` prints what is missing. Nothing else in it reaches the model (ADR 0010, 0016).
 
 ## Skills in use
 

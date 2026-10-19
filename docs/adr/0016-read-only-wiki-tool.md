@@ -25,5 +25,4 @@ read for itself, but they also write and reach every file on the machine, which 
 - What the agent saw is the prompt file plus the tool log.
 - A replacement written without reading the page can drop content; the approval screen shows only page names. Every
   approval is a commit, so the loss can be undone.
-- Hermes still adds its own system prompt (about 8,800 characters with any tool), even with `--ignore-rules`. Not
-  solved here.
+- Hermes still adds its own system prompt, even with `--ignore-rules`. ADR 0017 trims it and records it per run.
