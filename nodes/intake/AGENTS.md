@@ -33,3 +33,5 @@ ergon intake approve <id>   |   ergon intake reject <id> "reason"
 ```
 
 Everything the agent saw is in `runs/<id>/*.prompt.md`; everything it answered, in `*.output.txt`.
+
+Diagrams: `diagrams.md`. Update them with every change to this node.
