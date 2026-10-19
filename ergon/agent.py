@@ -36,7 +36,8 @@ def _call(profile: str, prompt: str, run_dir: Path, label: str) -> str:
     prompt_file.write_text(prompt)
     cmd = ["hermes", "-p", profile, "chat", "-Q", "--oneshot", "--ignore-rules", "-t", TOOLSET,
            "--source", "tool", "--max-turns", str(MAX_TURNS), "--query-file", str(prompt_file)]
-    env = {**os.environ, "ERGON_RUN": str(run_dir.resolve())}  # the wiki tool finds its scope through this
+    env = {**os.environ, "ERGON_RUN": str(run_dir.resolve()),  # the wiki tool finds its scope through this
+           "ERGON_TOOL": str(gate.TOOL)}
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800, env=env)
     (run_dir / f"{label}.output.txt").write_text(result.stdout + ("\n--- stderr ---\n" + result.stderr if result.stderr else ""))
     if result.returncode != 0:

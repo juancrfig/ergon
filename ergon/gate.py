@@ -1,66 +1,52 @@
 """The context gate (ADR 0010): an agent's context is fixed by the run, not by its Hermes profile.
 
 Every run passes --ignore-rules (no SOUL, AGENTS.md, memory or preloaded skills) and one toolset, ergon's read-only
-wiki tool (ADR 0016), so nothing stored in the profile reaches the model. The profile holds only what the human sets
-by hand: model, credentials, the entry that starts the wiki tool and the settings that trim Hermes' own system prompt. The skills an agent reads live in
-profiles/<name>/skills/ in this repo.
+wiki tool (ADR 0016), so nothing stored in the profile reaches the model. Before each run, code applies
+profiles/hermes.yaml to the profile (ADR 0019); the human sets only the model and credentials. The skills an agent
+reads live in profiles/<name>/skills/ in this repo.
 """
 import os
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+CANONICAL = REPO / "profiles" / "hermes.yaml"
+TOOL = REPO / "ergon" / "wikitool.py"   # agent.py passes it to the profile as ${ERGON_TOOL}
+PLACEHOLDER = "SET-BY-HAND"  # where a profile's model goes until the human picks one (ADR 0011)
 
 
 def installed(name: str) -> Path:
     return Path(os.environ.get("HERMES_ROOT", Path.home() / ".hermes")) / "profiles" / name
 
 
-TOOL = REPO / "ergon" / "wikitool.py"
+def _blocks(text: str) -> list:
+    """Split YAML into (top-level key, lines) blocks. Comments and blank lines stay with the block above them."""
+    blocks = [(None, [])]
+    for line in text.splitlines(keepends=True):
+        if line[:1] not in ("", " ", "#", "\n", "\t") and ":" in line:
+            blocks.append((line.split(":", 1)[0].strip(), []))
+        blocks[-1][1].append(line)
+    return blocks
 
 
-def tool_entry() -> str:
-    return (f"mcp_servers:\n  ergon:\n    command: python3\n    args:\n    - {TOOL}\n"
-            "    - ${ERGON_RUN}\n    tools:\n      resources: false\n      prompts: false\n")
-
-
-PLACEHOLDER = "SET-BY-HAND"  # where a profile's model goes until the human picks one (ADR 0011)
-
-# Hermes' own system prompt sections that do not fit a read-only agent answering in JSON: coding-agent posture
-# (edit files, run tests, commit), "finish the job", tool-use pushes, the workspace snapshot, and a terminal hint
-# replaced by one line, and tool search, which hides the wiki tool behind three lookup tools. Without them Hermes adds about 2,900 characters instead of 8,800 (ADR 0017).
-PROMPT_SETTINGS = """agent:
-  coding_context: 'off'
-  task_completion_guidance: false
-  parallel_tool_call_guidance: false
-  tool_use_enforcement: false
-  execution_guidance: false
-  environment_probe: false
-  bot_mode_protocol: false
-platform_hints:
-  cli:
-    replace: Code reads your final answer, not a person.
-tools:
-  tool_search:
-    enabled: 'off'
-"""
+def apply(name: str) -> Path:
+    """Replace each top-level key of the profile's config that profiles/hermes.yaml sets; keep every other key."""
+    config = installed(name) / "config.yaml"
+    canonical = CANONICAL.read_text()
+    keys = {k for k, _ in _blocks(canonical) if k}
+    kept = "".join("".join(lines) for k, lines in _blocks(config.read_text() if config.exists() else "")
+                   if k not in keys and k is not None)
+    config.write_text(kept.rstrip("\n") + "\n" + "".join("".join(l) for k, l in _blocks(canonical) if k))
+    return config
 
 
 def require(name: str) -> None:
+    """Apply the canonical config, then refuse the run while the model is not set."""
     home = installed(name)
     if not home.exists():
         raise SystemExit(f"Hermes profile {name!r} does not exist. Create it and set its model by hand:\n"
-                         f"  hermes profile create {name} --no-skills\n  hermes -p {name} model\n"
-                         f"Then add the wiki tool to {home / 'config.yaml'}:\n\n{tool_entry()}")
-    config = home / "config.yaml"
-    text = config.read_text() if config.exists() else ""
-    if str(TOOL) not in text or "${ERGON_RUN}" not in text:
-        raise SystemExit(f"Hermes profile {name!r} does not start ergon's wiki tool. Add this to {config}"
-                         f" (merge it into mcp_servers if the key exists):\n\n{tool_entry()}")
-    if PLACEHOLDER in text:
-        raise SystemExit(f"Hermes profile {name!r} has no model yet: {PLACEHOLDER} is still in {config}. Set the model"
-                         f" and its credentials by hand: hermes -p {name} model")
-    missing = [l.strip() for l in PROMPT_SETTINGS.splitlines() if ":" in l and not l.rstrip().endswith(":")
-               and l.strip() not in {t.strip() for t in text.splitlines()}]
-    if missing:
-        raise SystemExit(f"Hermes profile {name!r} lets Hermes add coding-agent instructions. Merge this into {config}"
-                         f" (missing: {', '.join(missing)}):\n\n{PROMPT_SETTINGS}")
+                         f"  hermes profile create {name} --no-skills --no-alias\n  hermes -p {name} model")
+    config = apply(name)
+    text = config.read_text()
+    if PLACEHOLDER in text or "model:" not in text:
+        raise SystemExit(f"Hermes profile {name!r} has no model yet ({config}). Set the model and its credentials"
+                         f" by hand: hermes -p {name} model")

@@ -17,7 +17,7 @@ read for itself, but they also write and reach every file on the machine, which 
 - Code does not check what the agent read. The agent is trusted to read a page before it replaces it; the tool's
   limits, the proposal checks, the fingerprint check and the human's approval stay. Issue #65 tracks stricter
   checks, to build only after a real case.
-- The profile holds the entry that starts the tool, set by hand; `gate.require` refuses a run without it.
+- The entry that starts the tool is in `profiles/hermes.yaml`, which code applies to the profile (ADR 0019).
 
 ## Consequences
 - No size limit of ergon's own on the wiki or the source; no page-selection call.

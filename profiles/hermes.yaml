@@ -1,0 +1,40 @@
+# Canonical Hermes config for every node profile (ADR 0019).
+# Ergon applies it before each run: every top-level key here replaces the profile's own, so this file wins over
+# hand edits. Same shape as ~/.hermes/profiles/<name>/config.yaml. Keep to plain YAML.
+#
+# Not here on purpose: model, provider and credentials. The human sets them by hand (ADR 0011).
+# Everything else a profile holds is left alone.
+
+# The read-only wiki tool (ADR 0016). Ergon sets both variables per run; MCP resource and prompt helpers stay off.
+mcp_servers:
+  ergon:
+    command: python3
+    args:
+    - ${ERGON_TOOL}
+    - ${ERGON_RUN}
+    tools:
+      resources: false
+      prompts: false
+
+# Hermes' own system prompt sections that do not fit a read-only agent answering in JSON (ADR 0017).
+agent:
+  coding_context: 'off'
+  task_completion_guidance: false
+  parallel_tool_call_guidance: false
+  tool_use_enforcement: false
+  execution_guidance: false
+  environment_probe: false
+  bot_mode_protocol: false
+
+platform_hints:
+  cli:
+    replace: Code reads your final answer, not a person.
+
+# Tool search hides the wiki tool behind three lookup tools, which costs turns (ADR 0017).
+tools:
+  tool_search:
+    enabled: 'off'
+
+# Ergon runs through the CLI, where Hermes only warns about a replayed tool call. Stop it instead.
+tool_loop_guardrails:
+  hard_stop_enabled: true

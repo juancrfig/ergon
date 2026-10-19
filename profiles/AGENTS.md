@@ -10,11 +10,11 @@ approves (ADR 0002). The Hermes profile of the same name (`~/.hermes/profiles/<n
 
 ## The same for every profile
 
-**Hermes profile**, set by hand. `gate.require` checks it before any model call, refuses the run and prints what is
-missing:
-- Model and credentials. Until the human sets them, the model is `SET-BY-HAND` and runs are refused.
-- The wiki tool entry, `gate.tool_entry()`, with MCP resource and prompt helpers off.
-- `gate.PROMPT_SETTINGS`: trims Hermes' own system prompt and turns tool search off (ADR 0017).
+**Hermes profile**:
+- Model and credentials: set by hand. Until the human sets them, the model is `SET-BY-HAND` and runs are refused.
+- Everything else: `profiles/hermes.yaml`, the canonical config. Code applies it before each run and it wins over
+  hand edits (ADR 0019). It holds the wiki tool entry, the settings that trim Hermes' own system prompt and turn
+  tool search off (ADR 0017), and Hermes' hard stop for replayed tool calls.
 
 **Tools**: `search_wiki` and `read_pages`. Read-only, scoped by code to one wiki per run (ADR 0016). Every run passes
 `-t ergon`, so no other toolset loads; tool search is off, so the model sees the two tools directly, not behind
@@ -38,7 +38,7 @@ coding-agent instructions, the workspace git snapshot.
 **Evidence per run**, in the run folder: `<call>.system-prompt.md` (what Hermes added, copied from its session
 store), `<call>.prompt.md` (what code wrote), the tool call log, and `<call>.output.txt` (the answer).
 
-**How to check a profile**: run its node; `gate.require` checks the Hermes profile first. After a run, compare
+**How to check a profile**: read `profiles/hermes.yaml`; it is what the profile gets. After a run, compare
 `<call>.system-prompt.md` with the list above. Anything extra came with a Hermes upgrade and needs a setting or an
 ADR.
 
