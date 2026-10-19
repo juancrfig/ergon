@@ -118,6 +118,9 @@ def chunks_for(repo: Path, base: str, head: str) -> list[dict[str, str]]:
         messages = git(repo, "log", "--format=%an <%ae>%n%B", head)
     else:
         messages = git(repo, "log", "--format=%an <%ae>%n%B", f"{base}..{head}")
+    # The pusher's own git identity is not company data, and the model kept flagging it: drop it before screening.
+    own = f"{git(repo, 'config', 'user.name', check=False).strip()} <{git(repo, 'config', 'user.email', check=False).strip()}>"
+    messages = "\n".join(line for line in messages.splitlines() if line.strip() != own)
     files = [name for name in git(repo, "diff", "--name-only", "-z", base, head).split("\0") if name]
     sources = [("commit messages", messages)]
     for name in files:
