@@ -12,7 +12,7 @@ A framework to reliably build high-quality software by leveraging AI agents
 Needs Python 3 and Hermes. From the repo root, once per machine and project:
 
 ```
-./install <project folder>     # creates the node profiles and the project's folders
+python3 -m ergon --project <project folder> install   # creates the node profiles and the project's folders
 hermes -p wiki-maintainer model  # then set each profile's model and credentials by hand
 hermes -p planner model
 hermes -p architect model

@@ -8,8 +8,7 @@ README.md        the only README: for humans
 GLOSSARY.md      one word per concept
 docs/adr/        architecture decision records
 docs/factory.md  the map of nodes (Mermaid); update it when a node or a link between nodes changes
-install          once per machine and project: the node profiles and the project folders
-ergon/           the code: run it as `python3 -m ergon` from the repo root
+ergon/           the code: run it as `python3 -m ergon` from the repo root; `install` sets up a machine and a project
 nodes/<node>/    a node: AGENTS.md (what it does), contracts (JSON Schemas), diagrams.md (its belt)
 agents/skills/   every agent's skills, one file each; agents/AGENTS.md: what each agent gets (ADR 0020)
 ```

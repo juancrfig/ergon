@@ -6,7 +6,7 @@
 # Not here on purpose: model, provider and credentials. The human sets them by hand (ADR 0011).
 # Everything else a profile holds is left alone.
 
-# The read-only wiki tool (ADR 0016). Ergon sets both variables per run; MCP resource and prompt helpers stay off.
+# Ergon's read-only wiki tool (ADR 0016), which also reads repos for Split (ADR 0025). Ergon sets both variables per run; MCP resource and prompt helpers stay off.
 mcp_servers:
   ergon:
     command: python3
@@ -17,7 +17,7 @@ mcp_servers:
       resources: false
       prompts: false
 
-# Hermes' own system prompt sections that do not fit a read-only agent answering in JSON (ADR 0017).
+# Hermes' own system prompt sections that do not fit an agent whose final answer is JSON read by code (ADR 0017).
 agent:
   coding_context: 'off'
   task_completion_guidance: false
@@ -66,10 +66,6 @@ display:
 memory:
   memory_enabled: false
   user_profile_enabled: false
-
-# Ergon reads the profile's session store right after each run, while Hermes may still write to it.
-database:
-  journal_mode: wal
 
 telemetry:
   shared_metrics:

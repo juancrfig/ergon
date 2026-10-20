@@ -1,6 +1,6 @@
 """A project wiki, and every wiki operation with one right answer.
 
-Layout: wiki/pages/<slug>.md, wiki/index.md and wiki/log.md (both written only by code), wiki/raw/ (sources),
+Layout: wiki/pages/<slug>.md, wiki/index.md (written only by code), wiki/raw/ (sources),
 wiki/conventions.json (optional: tags, max_page_lines, stale_days, notes).
 
 A page is front matter (title, tags, updated) plus a Markdown body. Pages link each other as [[slug]].
@@ -15,6 +15,7 @@ from pathlib import Path
 FRONT = re.compile(r"\A---\n(.*?)\n---\n(.*)\Z", re.S)
 LINK = re.compile(r"\[\[([a-z0-9]+(?:-[a-z0-9]+)*)\]\]")
 PATHLIKE = re.compile(r"^(/|~|\.{1,2}/|raw/|wiki/)|^[^:]*\.(md|txt|pdf|html?|json|docx?)$", re.I)
+CONVENTION = "convention"   # the tag of a page holding a project rule every design and change must follow
 DEFAULTS = {"tags": [], "max_page_lines": 200, "stale_days": 180, "notes": ""}
 
 
@@ -74,6 +75,12 @@ class Wiki:
             tags = page.meta.get("tags") or []
             lines.append(f"- [[{slug}]] {page.meta.get('title', slug)}" + (f" ({', '.join(tags)})" if tags else ""))
         return "\n".join(lines) + "\n"
+
+    def convention_text(self, pages: dict[str, Page] | None = None) -> str:
+        """Every page tagged convention, in full: the project rules Split and Build are given."""
+        pages = self.pages() if pages is None else pages
+        rules = [p for p in pages.values() if CONVENTION in (p.meta.get("tags") or [])]
+        return "\n\n".join(f"## [[{p.slug}]]\n\n{p.text.strip()}" for p in rules) or "None."
 
     # --- checks -----------------------------------------------------------------------------------------------
 
@@ -148,7 +155,8 @@ class Wiki:
     # --- writes (only after human approval) ------------------------------------------------------------------
 
     def apply(self, proposal: dict, rid: str) -> str | None:
-        """Write the edits, the index and the log. Commit the wiki if the project is a git repo; return the commit."""
+        """Write the edits and the index. Commit the wiki if the project is a git repo; return the commit, which is
+        the wiki's history."""
         self.pages_dir.mkdir(parents=True, exist_ok=True)
         for edit in proposal["edits"]:
             path = self.pages_dir / f"{edit['page']}.md"
@@ -157,8 +165,6 @@ class Wiki:
             else:
                 path.write_text(render(edit["title"], edit["tags"], edit["body"], today()))
         (self.dir / "index.md").write_text(self.index_text())
-        with (self.dir / "log.md").open("a") as log:
-            log.write(f"- {today()} · ingest · {proposal['summary']} · {rid}\n")
         return self._commit(f"wiki: {proposal['summary']}\n\nergon intake ingest {rid}")
 
     def _commit(self, message: str) -> str | None:

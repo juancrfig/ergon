@@ -1,6 +1,6 @@
 """The command line: the first adapter (ADR 0012). It only reads and writes the files on the belts.
 
-The project is the current folder unless --project is given.
+The project is the current folder unless --project is given. Run it from the repo root as python3 -m ergon.
 """
 import argparse
 import json
@@ -8,6 +8,7 @@ import sys
 import time
 from pathlib import Path
 
+from ergon import profiles
 from ergon.belt import PENDING
 from ergon.intake import Intake
 from ergon.plan import Plan
@@ -21,6 +22,7 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="ergon")
     parser.add_argument("--project", type=Path, default=Path.cwd(), help="project folder (holds wiki/)")
     cmd = parser.add_subparsers(dest="cmd", required=True)
+    cmd.add_parser("install", help="once per machine and project: the node profiles and the project's folders")
     cmd.add_parser("submit", help="check a request file and put it on its node's belt").add_argument("file", type=Path)
     cmd.add_parser("run", help="process a node's inbox").add_argument("node", choices=[n.name for n in NODES])
     cmd.add_parser("status", help="requests per state, per node")
@@ -37,7 +39,9 @@ def main(argv=None) -> int:
 
     nodes = [n(args.project) for n in NODES]
     try:
-        if args.cmd == "submit":
+        if args.cmd == "install":
+            install(nodes)
+        elif args.cmd == "submit":
             request = json.loads(args.file.read_text())
             node = next((n for n in nodes if request.get("type") in n.types), None)
             if not node:
@@ -73,3 +77,19 @@ def main(argv=None) -> int:
     except (ValueError, KeyError, OSError) as exc:
         print(exc, file=sys.stderr)
         return 1
+
+
+def install(nodes: list) -> None:
+    """Create each node's profile if missing, apply the canonical config, and make the project's folders. Safe to
+    run again: existing profiles keep their model and credentials, which only the human sets (ADR 0011)."""
+    for node in nodes:
+        if profiles.create(node.profile):
+            print(f"profile {node.profile}: created; set its model: hermes -p {node.profile} model")
+        else:
+            print(f"profile {node.profile}: exists, left as it is")
+        profiles.apply(node.profile)
+        node.belt.create()
+    wiki = nodes[0].wiki
+    for folder in (wiki.pages_dir, wiki.dir / "raw"):
+        folder.mkdir(parents=True, exist_ok=True)
+    print(f"project {wiki.project}: folders ready")

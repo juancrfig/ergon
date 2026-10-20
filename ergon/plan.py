@@ -6,16 +6,15 @@ or the final stories, which wait for approval. Documents reach Plan only through
 import json
 from pathlib import Path
 
-from ergon import agent, gate, schema
+from ergon import agent, profiles, schema
 from ergon.node import Node
 
-PROFILE = "planner"
-SKILL = gate.SKILLS / "planning.md"
+SKILL = profiles.SKILLS / "planning.md"
 MAX_ROUNDS = 5     # the last round must return stories
 
 
 class Plan(Node):
-    name, profile, types = "plan", PROFILE, ("plan",)
+    name, profile, types = "plan", "planner", ("plan",)
 
     def handle(self, rid: str, request: dict) -> str:
         """One round."""
@@ -25,7 +24,7 @@ class Plan(Node):
         agent.scope(run_dir, self.wiki.pages_dir, f"tool-calls-round-{number}.jsonl")
         prompt = self._context(request, rounds, number, final)
         known = set(self.wiki.pages())
-        answer = agent.ask(PROFILE, prompt, self.contracts / "round.json", run_dir, f"round-{number}",
+        answer = agent.ask(self.profile, prompt, self.contracts / "round.json", run_dir, f"round-{number}",
                            lambda r: _round_problems(r, known, final))
         if "questions" in answer:
             self.belt.move(rid, "working", "waiting")
@@ -91,9 +90,14 @@ class Plan(Node):
         if gone:
             raise ValueError(f"wiki pages the stories cite no longer exist: {', '.join(gone)}; reject and plan again")
         self.belt.move(rid, "review", "done")
-        from ergon.split import Split   # approving a plan puts it on Split's belt (ADR 0024)
-        split = Split(self.project).submit({"type": "split", "from": "plan", "plan": rid})
+        split = self.hand_off("split", {"type": "split", "from": "plan", "plan": rid})   # ADR 0024
         return f"approved: {len(stories)} stories; split request {split} waits in Split's inbox"
+
+    def approved(self, rid: str) -> list:
+        """The stories of an approved plan: what Split and Build read of Plan."""
+        if self.belt.state_of(rid) != "done":
+            raise ValueError(f"plan {rid} is not approved")
+        return json.loads((self.belt.run_dir(rid) / "stories.json").read_text())["stories"]
 
     def show(self, rid: str) -> str:
         run_dir, lines = self.belt.run_dir(rid), [self.header(rid)]
@@ -106,18 +110,25 @@ class Plan(Node):
                 lines += [f"     {'★' if o == q['recommended'] else '-'} {o}" for o in q["options"]]
         if (run_dir / "stories.json").exists():
             for s in json.loads((run_dir / "stories.json").read_text())["stories"]:
-                lines.append(f"\n[{s['id']}] {s['title']}\n  As {s['as_a']}, I want {s['i_want']}, so that {s['so_that']}.")
-                lines += ["  Done when:"] + [f"    {criterion_id(s, n)}  {d}" for n, d in enumerate(s["done_when"], 1)]
-                if s["out_of_scope"]:
-                    lines += ["  Out of scope:"] + [f"    - {o}" for o in s["out_of_scope"]]
-                lines.append("  Sources: " + ", ".join(f"[[{p}]]" for p in s["sources"]))
+                lines += ["", story_text(s), "Sources: " + ", ".join(f"[[{p}]]" for p in s["sources"])]
         return "\n".join(lines)
 
 
-def criterion_id(story: dict, n: int) -> str:
-    """A done_when criterion's id: the story id and its 1-based position. Approved stories never change, so it is
-    fixed; later nodes cite criteria by it."""
-    return f"{story['id']}#{n}"
+def criteria(stories: list) -> dict[str, str]:
+    """Every done_when criterion by its id: the story id and its 1-based position. Approved stories never change, so
+    the id is fixed; later nodes cite criteria by it."""
+    return {f"{s['id']}#{n}": d for s in stories for n, d in enumerate(s["done_when"], 1)}
+
+
+def story_text(story: dict, full: bool = True) -> str:
+    """A story as the human and the agents read it; without full, only its title and its as/want/so-that line."""
+    lines = [f"[{story['id']}] {story['title']}",
+             f"As {story['as_a']}, I want {story['i_want']}, so that {story['so_that']}."]
+    if full:
+        lines += ["Done when:"] + [f"- {c}: {d}" for c, d in criteria([story]).items()]
+        if story["out_of_scope"]:
+            lines += ["Out of scope:"] + [f"- {o}" for o in story["out_of_scope"]]
+    return "\n".join(lines)
 
 
 def _round_problems(answer: dict, known: set, final: bool) -> list[str]:

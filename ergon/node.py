@@ -1,11 +1,16 @@
-"""What every node shares: its belt, its contracts, request checks, the run loop and rejection."""
+"""What every node shares: its belt, its contracts, request checks, the run loop, hand-offs and rejection."""
 from pathlib import Path
 
-from ergon import agent, gate, schema
+from ergon import agent, profiles, schema
 from ergon.belt import STATES, Belt
 from ergon.wiki import Wiki
 
 NODES = Path(__file__).resolve().parent.parent / "nodes"
+
+
+def repos(project: Path) -> dict[str, Path]:
+    """The project's repos: every git clone directly inside the project folder (ADR 0025)."""
+    return {p.name: p for p in sorted(Path(project).iterdir()) if p.is_dir() and (p / ".git").exists()}
 
 
 class Node:
@@ -26,7 +31,7 @@ class Node:
 
     def run(self, log=print) -> None:
         """Take every request in the inbox through handle(); a malformed or failed one is rejected with its reason."""
-        gate.require(self.profile)
+        profiles.require(self.profile)
         for rid in self.belt.ids("inbox"):
             self.belt.move(rid, "inbox", "working")
             request = self.belt.read(rid)
@@ -50,6 +55,10 @@ class Node:
         if problems:
             raise ValueError("request rejected:\n" + "\n".join(problems))
         return self.belt.put(request)
+
+    def hand_off(self, node: str, request: dict) -> str:
+        """Put a request on the next node's belt. Code builds it; that node checks it when it runs (ADR 0026)."""
+        return Belt(self.project / ".ergon" / node).put(request)
 
     def reject(self, rid: str, reason: str) -> None:
         state = self.belt.state_of(rid)

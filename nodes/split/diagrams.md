@@ -9,7 +9,7 @@ stateDiagram-v2
     [*] --> inbox: plan approved
     inbox --> working: run
     working --> done: tasks pass code checks
-    working --> rejected: stop (back to Plan), malformed or failed
+    working --> rejected: stop, malformed or failed
     done --> [*]
     rejected --> [*]
 ```

@@ -19,8 +19,9 @@ must earn its place.
 **Profile**: the Hermes profile an agent runs through. The human sets only its model and credentials; code applies
 the rest from `ergon/hermes.yaml` before each run. `agents/AGENTS.md` has one card per profile.
 
-**Wiki tool**: the agents' only tools: search the wiki and read pages. Read-only, scoped by code to one wiki per
-run.
+**Wiki tool**: ergon's own read-only tool, which every agent has: search the wiki and read pages, and, when code
+scopes the run to the project's repos, search and read code. Scoped by code per run. Build's agent also has Hermes'
+terminal and file tools.
 
 **Belt**: the folders a node's requests move through: inbox, working, waiting, review, done, rejected.
 _Avoid_: queue, channel.

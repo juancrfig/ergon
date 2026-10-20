@@ -1,18 +1,17 @@
 """Runs a node's agent: one Hermes profile, a context assembled by code, a JSON answer checked by code.
 
-The agent gets no skills, memory, SOUL or AGENTS.md from Hermes (--ignore-rules) and one toolset: ergon's read-only
-wiki tool (ADR 0016), scoped by code to one wiki. Build also gets Hermes' terminal and file tools (ADR 0023). What it is given is in the run folder: the prompt file code
-wrote and the system prompt Hermes added (copied from the profile's session store); every page it reads is in the
-tool's call log.
+The agent gets no skills, memory, SOUL or AGENTS.md from Hermes (--ignore-rules) and only the toolsets its node
+names: ergon's read-only tool (ADR 0016), scoped by code per run, plus Hermes' terminal and file tools for Build
+(ADR 0023). What it is given is in the run folder: the prompt file code wrote and the system prompt Hermes added
+(from Hermes' session export); every page or file it reads through ergon's tool is in the tool's call log.
 """
 import json
 import os
 import re
-import sqlite3
 import subprocess
 from pathlib import Path
 
-from ergon import gate, schema
+from ergon import profiles, schema
 
 
 TOOLSET = "ergon"   # the MCP server name ergon/hermes.yaml gives ergon/wikitool.py
@@ -43,7 +42,7 @@ def _call(profile: str, prompt: str, run_dir: Path, label: str, tools: tuple = (
            "--source", "tool", "--max-turns", str(turns), "--run-budget", str(MAX_SECONDS),
            "--query-file", str(prompt_file.resolve())] + (["--yolo"] if yolo else [])
     env = {**os.environ, "ERGON_RUN": str(run_dir.resolve()),  # the wiki tool finds its scope through this
-           "ERGON_TOOL": str(gate.TOOL)}
+           "ERGON_TOOL": str(profiles.TOOL)}
     if cwd:
         env["TERMINAL_CWD"] = str(Path(cwd).resolve())   # where Hermes' terminal tool starts
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=MAX_SECONDS + 120, env=env, cwd=cwd)
@@ -59,13 +58,15 @@ def _save_system_prompt(profile: str, output: str, path: Path) -> None:
     found = re.findall(r"session_id:\s*(\S+)", output)
     if not found:
         raise AgentError("hermes printed no session_id; cannot record its system prompt")
-    db = gate.installed(profile) / "state.db"
-    with sqlite3.connect(f"file:{db}?mode=ro", uri=True) as con:
-        row = con.execute("SELECT p.prompt FROM sessions s JOIN system_prompts p ON p.hash = s.system_prompt_hash "
-                          "WHERE s.id = ?", (found[-1],)).fetchone()
-    if not row:
-        raise AgentError(f"no system prompt stored for session {found[-1]} in {db}")
-    path.write_text(row[0])
+    result = subprocess.run(["hermes", "-p", profile, "sessions", "export", "--session-id", found[-1], "--format",
+                             "jsonl", "-"], capture_output=True, text=True)
+    try:
+        prompt = json.loads(result.stdout.splitlines()[0])["system_prompt"]
+    except (IndexError, KeyError, ValueError):
+        prompt = None
+    if not prompt:
+        raise AgentError(f"hermes exported no system prompt for session {found[-1]}: {result.stderr.strip()}")
+    path.write_text(prompt)
 
 
 def _extract(text: str):

@@ -1,6 +1,6 @@
 # 0019 · One canonical Hermes config for node profiles
 
-Status: accepted (2026-10-19). Amends 0010 and 0017.
+Status: accepted (2026-10-19). Amends 0010 and 0017. Installer and module renamed by ADR 0026.
 
 ## Context
 After 0016 and 0017 a node profile needs a wiki tool entry and a dozen prompt settings. They lived as text inside

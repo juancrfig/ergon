@@ -11,7 +11,8 @@ Turns a goal into user stories. Agent: `planner` (agents/AGENTS.md), frontier-re
 - Each round (`contracts/round.json`): questions, which wait in `waiting/` for answers, or stories, which wait in
   `review/` for approval. At most 5 rounds.
 - Approved stories: `runs/<id>/stories.json`. Each `done_when` criterion's id is `<story id>#<n>`, its 1-based
-  position; approved stories never change, so later nodes cite criteria by it.
+  position; approved stories never change, so later nodes cite criteria by it. Approving puts a split request on
+  Split's belt (ADR 0024).
 
 ## Who does what
 - Code: request and answer checks, the planner's prompt (goal, wiki index, earlier rounds) and tool scope, round
@@ -23,7 +24,7 @@ Turns a goal into user stories. Agent: `planner` (agents/AGENTS.md), frontier-re
 
 ## Commands
 ```
-./install <project>                  # once: profiles and folders (repo root)
+python3 -m ergon install              # once: profiles and folders (repo root, --project <project>)
 hermes -p planner model          # once: set its model and credentials by hand
 python3 -m ergon submit goal.json            # {"type": "plan", "from": "juanes", "goal": "..."}
 python3 -m ergon run plan                    # one round per plan in the inbox

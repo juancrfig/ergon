@@ -41,8 +41,8 @@ one. Hermes loads none of its own (`--no-skills`, `--ignore-rules`).
 **Not added**, by `--ignore-rules` and the settings: SOUL, AGENTS.md, memory, Hermes' skill list, plugin sections,
 coding-agent instructions, the workspace git snapshot.
 
-**Evidence per run**, in the run folder: `<call>.system-prompt.md` (what Hermes added, copied from its session
-store), `<call>.prompt.md` (what code wrote), the tool call log, and `<call>.output.txt` (the answer).
+**Evidence per run**, in the run folder: `<call>.system-prompt.md` (what Hermes added, from Hermes' session
+export), `<call>.prompt.md` (what code wrote), the tool call log, and `<call>.output.txt` (the answer).
 
 **How to check a profile**: read `ergon/hermes.yaml`; it is what the profile gets. After a run, compare
 `<call>.system-prompt.md` with the list above. Anything extra came with a Hermes upgrade and needs a setting or an

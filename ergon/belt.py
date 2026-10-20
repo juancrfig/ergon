@@ -19,6 +19,9 @@ PENDING = ("waiting", "review")  # states that wait for the human
 class Belt:
     def __init__(self, root: Path):
         self.root = Path(root)
+
+    def create(self) -> None:
+        """Make the belt's folders. Reading a belt that does not exist yet finds no requests."""
         for state in (*STATES, "runs", ".tmp"):
             (self.root / state).mkdir(parents=True, exist_ok=True)
 
@@ -45,6 +48,7 @@ class Belt:
     def put(self, request: dict) -> str:
         sender = re.sub(r"[^a-z0-9-]", "-", str(request.get("from", "unknown")).lower())[:40]
         rid = f"{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-{sender}-{secrets.token_hex(2)}"
+        self.create()
         tmp = self.root / ".tmp" / f"{rid}.json"
         tmp.write_text(json.dumps(request, indent=2) + "\n")
         os.rename(tmp, self.file("inbox", rid))

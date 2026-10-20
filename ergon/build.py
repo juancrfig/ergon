@@ -4,17 +4,18 @@ every repo the task changes (ADR 0023, 0024).
 The builder is a cheap model with the terminal and file tools. It carries out one task at a time, in Split's
 order, and makes no design decision: a task that leaves one open is a stop, the architect's failure. Code checks
 what changed against the task, then commits; the builder never runs git. Gate and Inspect are not built yet.
+A stop is a rejection; sending it back to Split is not built.
 """
 import json
 import subprocess
 from pathlib import Path
 
-from ergon import agent, gate
-from ergon.node import Node
-from ergon.split import CONVENTION, Split, repos
+from ergon import agent, profiles
+from ergon.node import Node, repos
+from ergon.plan import Plan, criteria, story_text
+from ergon.split import Split
 
-PROFILE = "builder"
-SKILL = gate.SKILLS / "building.md"
+SKILL = profiles.SKILLS / "building.md"
 MAX_TURNS = 60   # ADR 0023
 AUTHOR = ["-c", "user.name=Ergon", "-c", "user.email=ergon@localhost"]
 
@@ -36,13 +37,11 @@ def changed(root: Path) -> list[str]:
 
 
 class Build(Node):
-    name, profile, types = "build", PROFILE, ("build",)
+    name, profile, types = "build", "builder", ("build",)
 
     def handle(self, rid: str, request: dict) -> str:
-        split_dir = Split(self.project).belt.run_dir(request["split"])
-        plan = Split(self.project).belt.read(request["split"])["plan"]
-        tasks = json.loads((split_dir / "tasks.json").read_text())["tasks"]
-        stories = json.loads((self.project / ".ergon" / "plan" / "runs" / plan / "stories.json").read_text())["stories"]
+        plan, tasks = Split(self.project).tasks(request["split"])
+        stories = Plan(self.project).approved(plan)
         found = repos(self.project)
         used = {r: found[r] for t in tasks for r in t["repos"] if r in found}
         branch = f"plan/{plan}"
@@ -54,7 +53,7 @@ class Build(Node):
             git(root, "checkout", "-q", *([branch] if exists else ["-b", branch]))
         run_dir = self.belt.run_dir(rid)
         built_path = run_dir / "built.json"
-        built = self._built_before(rid, request["split"], tasks, used, branch)
+        built = self._built_before(rid, request["split"], tasks)
         built_path.write_text(json.dumps(built, indent=2) + "\n")
         done = {b["task"] for b in built}
         for n, task in enumerate(tasks, 1):
@@ -63,7 +62,7 @@ class Build(Node):
             task_dir = run_dir / f"{n:02d}-{task['id']}"
             agent.scope(task_dir, self.wiki.pages_dir)
             try:
-                answer = agent.ask(PROFILE, self._context(task, tasks[:n - 1], stories, used), self.contracts / "result.json",
+                answer = agent.ask(self.profile, self._context(task, tasks[:n - 1], stories, used), self.contracts / "result.json",
                                    task_dir, "result", lambda a: _problems(a, task, used), tools=("terminal", "file"),
                                    turns=MAX_TURNS, cwd=self.project, yolo=True)
             except agent.AgentError:
@@ -72,8 +71,8 @@ class Build(Node):
             if "stop" in answer:
                 _discard(task_dir, used)
                 stop = answer["stop"]
-                self.belt.reject(rid, "working", f"stopped at task {task['id']}; it goes back to Split: "
-                                                 f"{stop['reason']}\nQuestion: {stop['question']}")
+                self.belt.reject(rid, "working", f"stopped at task {task['id']}: {stop['reason']}\n"
+                                                 f"Question: {stop['question']}")
                 return f"stopped at task {task['id']}: {stop['question']}"
             commits = {}
             for name in task["repos"]:
@@ -88,29 +87,20 @@ class Build(Node):
         self.belt.move(rid, "working", "done")
         return f"{len(tasks)} tasks built on branch {branch}"
 
-    def _built_before(self, rid: str, split: str, tasks: list, used: dict, branch: str) -> list:
-        """Tasks of this split already built, by an earlier build of it or by commits on the plan's branch, so a
-        resubmitted build picks up where the last one stopped."""
+    def _built_before(self, rid: str, split: str, tasks: list) -> list:
+        """Tasks of this split an earlier build of it recorded, so a resubmitted build picks up where the last one
+        stopped. Each build records a task right after committing it."""
         built = {}
         for state in ("done", "rejected"):
             for other in self.belt.ids(state):
                 path = self.belt.run_dir(other) / "built.json"
                 if other != rid and self.belt.read(other).get("split") == split and path.exists():
                     built.update({b["task"]: b for b in json.loads(path.read_text())})
-        subjects = {name: git(root, "log", branch, "--format=%s").splitlines() for name, root in used.items()}
-        for task in tasks:
-            commits = {name: "" for name in task["repos"] if name in subjects
-                       and any(s.startswith(f"{task['id']}: ") for s in subjects[name])}
-            if commits and task["id"] not in built:
-                built[task["id"]] = {"task": task["id"], "outcome": "change", "commits": commits}
         return [built[t["id"]] for t in tasks if t["id"] in built]
 
     def _context(self, task: dict, before: list, stories: list, used: dict) -> str:
-        from ergon.plan import criterion_id
-        texts = {criterion_id(s, n): (s, d) for s in stories for n, d in enumerate(s["done_when"], 1)}
-        rules = [p for p in self.wiki.pages().values() if CONVENTION in (p.meta.get("tags") or [])]
-        parts = [SKILL.read_text().strip(), "# Project conventions",
-                 "\n\n".join(f"## [[{p.slug}]]\n\n{p.text.strip()}" for p in rules) or "None."]
+        texts = criteria(stories)
+        parts = [SKILL.read_text().strip(), "# Project conventions", self.wiki.convention_text()]
         for name in task["repos"]:
             guide = used[name] / "AGENTS.md"
             if guide.exists():
@@ -119,12 +109,9 @@ class Build(Node):
                      f"folder in it: " + ", ".join(task["repos"]) + ". Paths below are <repo>/<path>.")
         if before:
             parts.append("# Already built, in earlier tasks\n" + "\n".join(f"- {t['id']}: {t['title']}" for t in before))
-        story_ids = list(dict.fromkeys(texts[c][0]["id"] for c in task["covers"]))
-        for sid in story_ids:
-            s = next(s for s in stories if s["id"] == sid)
-            parts.append(f"# Story {s['id']}: {s['title']}\nAs {s['as_a']}, I want {s['i_want']}, so that "
-                         f"{s['so_that']}.")
-        parts.append("# Criteria this task makes true\n" + "\n".join(f"- {c}: {texts[c][1]}" for c in task["covers"]))
+        story_ids = list(dict.fromkeys(c.rpartition("#")[0] for c in task["covers"]))
+        parts += ["# Story " + story_text(s, full=False) for s in stories if s["id"] in story_ids]
+        parts.append("# Criteria this task makes true\n" + "\n".join(f"- {c}: {texts[c]}" for c in task["covers"]))
         parts.append(f"# Your task: {task['id']}\n{task['title']}\n\nFiles:\n"
                      + "\n".join(f"- {f['action']} {f['path']}" for f in task["files"]) + f"\n\n{task['change']}")
         return "\n\n".join(parts) + "\n"

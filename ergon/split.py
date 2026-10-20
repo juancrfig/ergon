@@ -2,76 +2,54 @@
 decision of its own (ADR 0024).
 
 Split owns the how. The architect reads the project's repos and wiki, read-only, and returns either the tasks or a
-stop: a product question the stories do not settle, which sends the plan back to Plan. Code checks the tasks
-against the stories and the repos; no human approves them.
+stop: a product question the stories do not settle. A stop is a rejection; the human submits a new plan by hand.
+Code checks the tasks against the stories and the repos; no human approves them.
 """
 import json
-from pathlib import Path
 
-from ergon import agent, gate
-from ergon.node import Node
+from ergon import agent, profiles
+from ergon.node import Node, repos
+from ergon.plan import Plan, criteria, story_text
 from ergon.wikitool import repo_files
 
-PROFILE = "architect"
-SKILL = gate.SKILLS / "splitting.md"
-CONVENTION = "convention"   # the wiki tag of a project rule every design must follow
+SKILL = profiles.SKILLS / "splitting.md"
 MAX_LISTING = 2000          # files listed per repo in the prompt
 
 
-def repos(project: Path) -> dict[str, Path]:
-    """The project's repos: every git clone directly inside the project folder (ADR 0025)."""
-    return {p.name: p for p in sorted(Path(project).iterdir()) if p.is_dir() and (p / ".git").exists()}
-
-
-def criteria(stories: list) -> list[str]:
-    from ergon.plan import criterion_id
-    return [criterion_id(s, n) for s in stories for n in range(1, len(s["done_when"]) + 1)]
-
-
 class Split(Node):
-    name, profile, types = "split", PROFILE, ("split",)
+    name, profile, types = "split", "architect", ("split",)
 
     def handle(self, rid: str, request: dict) -> str:
-        stories = self._stories(request["plan"])
+        stories = Plan(self.project).approved(request["plan"])
         found = repos(self.project)
         if not found:
             raise ValueError(f"the project has no repos: clone them into {self.project}")
         run_dir = self.belt.run_dir(rid)
         agent.scope(run_dir, self.wiki.pages_dir, repos=found)
-        answer = agent.ask(PROFILE, self._context(stories, found), self.contracts / "tasks.json", run_dir, "tasks",
+        answer = agent.ask(self.profile, self._context(stories, found), self.contracts / "tasks.json", run_dir, "tasks",
                            lambda a: _task_problems(a, stories, found))
         if "stop" in answer:
             stop = answer["stop"]
-            self.belt.reject(rid, "working", f"stopped, the plan goes back to Plan: {stop['reason']}\n"
-                                             f"Question: {stop['question']}")
+            self.belt.reject(rid, "working", f"stopped: {stop['reason']}\nQuestion: {stop['question']}")
             return f"stopped: {stop['question']}"
         self.belt.move(rid, "working", "done")
-        from ergon.build import Build   # tasks go straight to Build: no human approves them (ADR 0024)
-        build = Build(self.project).submit({"type": "build", "from": "split", "split": rid})
+        build = self.hand_off("build", {"type": "build", "from": "split", "split": rid})   # no approval (ADR 0024)
         return f"{len(answer['tasks'])} tasks for plan {request['plan']}; build request {build} waits in Build's inbox"
 
-    def _stories(self, plan: str) -> list:
-        path = self.project / ".ergon" / "plan" / "done" / f"{plan}.json"
-        if not path.exists():
-            raise ValueError(f"plan {plan} is not approved")
-        return json.loads((self.project / ".ergon" / "plan" / "runs" / plan / "stories.json").read_text())["stories"]
+    def tasks(self, rid: str) -> tuple[str, list]:
+        """The plan and the tasks of a finished split: what Build reads of Split."""
+        if self.belt.state_of(rid) != "done":
+            raise ValueError(f"split {rid} is not done")
+        return self.belt.read(rid)["plan"], json.loads((self.belt.run_dir(rid) / "tasks.json").read_text())["tasks"]
 
     def _context(self, stories: list, found: dict) -> str:
         """Everything the architect is given. Files and pages it reads through the tool, and the log records them."""
-        from ergon.plan import criterion_id
         pages = self.wiki.pages()
-        rules = [p for p in pages.values() if CONVENTION in (p.meta.get("tags") or [])]
-        parts = [SKILL.read_text().strip(), "# Project conventions",
-                 "\n\n".join(f"## [[{p.slug}]]\n\n{p.text.strip()}" for p in rules) or "None.",
+        parts = [SKILL.read_text().strip(), "# Project conventions", self.wiki.convention_text(pages),
                  "# Wiki index", self.wiki.index_text(pages),
                  "Find pages with search_wiki and read them with read_pages. Find code with search_code and read it "
                  "with read_files; ask for every file you need in one call.", "# Stories, in build order"]
-        for s in stories:
-            lines = [f"## [{s['id']}] {s['title']}", f"As {s['as_a']}, I want {s['i_want']}, so that {s['so_that']}.",
-                     "Done when:"] + [f"- {criterion_id(s, n)}: {d}" for n, d in enumerate(s["done_when"], 1)]
-            if s["out_of_scope"]:
-                lines += ["Out of scope:"] + [f"- {o}" for o in s["out_of_scope"]]
-            parts.append("\n".join(lines))
+        parts += ["## " + story_text(s) for s in stories]
         parts.append("# Repos")
         for name, root in found.items():
             files = repo_files(root)
@@ -96,7 +74,7 @@ def _task_problems(answer: dict, stories: list, found: dict) -> list[str]:
     out, tasks = [], answer["tasks"]
     ids = [t["id"] for t in tasks]
     out += [f"task id {i!r} is repeated" for i in sorted({i for i in ids if ids.count(i) > 1})]
-    known = criteria(stories)
+    known = list(criteria(stories))
     covered = {c for t in tasks for c in t["covers"]}
     out += [f"{t['id']}: covers {c!r}, which is not a criterion of the stories"
             for t in tasks for c in t["covers"] if c not in known]

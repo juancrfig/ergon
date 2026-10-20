@@ -1,5 +1,5 @@
-"""The only tools a node agent has: read-only access to one project's wiki (ADR 0016), and to its repos when the
-node reads code (ADR 0025).
+"""Ergon's own tools for node agents: read-only access to one project's wiki (ADR 0016), and to its repos when the
+node reads code (ADR 0025). Every agent has them; Build's agent also has Hermes' terminal and file tools (ADR 0023).
 
 Hermes starts this as an MCP server over stdio, one process per agent run. The run folder comes as the only argument
 (the profile passes ${ERGON_RUN}, which the runner sets). The scope is fixed by code in <run>/tool-scope.json:

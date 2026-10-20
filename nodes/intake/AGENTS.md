@@ -11,7 +11,7 @@ One JSON request per file on the node's belt (`<project>/.ergon/intake/`). Contr
 
 ## Output
 - `ingest`: a proposal (`contracts/proposal.json`): items with citations and a classification, plus page
-  edits. It waits in `review/` until the human approves; then code writes the pages, the index and the log, and
+  edits. It waits in `review/` until the human approves; then code writes the pages and the index, and
   commits the wiki.
 - `health-check`: a report in `runs/<id>/report.json`: mechanical findings from code, semantic findings
   (`contracts/health-report.json`) from the agent. Writes nothing.
@@ -19,14 +19,14 @@ One JSON request per file on the node's belt (`<project>/.ergon/intake/`). Contr
 
 ## Who does what
 - Code: request checks, reading the source, the agent's prompt and tool scope, proposal checks, applying, index,
-  log, commit.
+  commit.
 - Agent: reads the pages it needs through the wiki tool (ADR 0016); drafts items and edits; finds
   contradictions and weak claims.
 - Human: approves or rejects each proposal.
 
 ## Commands
 ```
-./install <project>                  # once: profiles and folders (repo root)
+python3 -m ergon install              # once: profiles and folders (repo root, --project <project>)
 hermes -p wiki-maintainer model  # once: set its model and credentials by hand
 python3 -m ergon submit request.json
 python3 -m ergon run intake                         # drafts a proposal for every queued request

@@ -1,6 +1,6 @@
 # 0018 · Cut what no run needs yet
 
-Status: accepted (2026-10-19). Supersedes the `correct` request type and URL sources of 0005.
+Status: accepted (2026-10-19). Supersedes the `correct` request type and URL sources of 0005. Its premise that nodes send no requests ended with ADR 0024 (ADR 0026).
 
 ## Context
 Nothing has run with a real model. A housekeeping review found features built for situations that have not

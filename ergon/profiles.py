@@ -1,11 +1,12 @@
-"""The context gate (ADR 0010): an agent's context is fixed by the run, not by its Hermes profile.
+"""The node agents' Hermes profiles. An agent's context is fixed by the run, not by its profile (ADR 0010).
 
-Every run passes --ignore-rules (no SOUL, AGENTS.md, memory or preloaded skills) and one toolset, ergon's read-only
-wiki tool (ADR 0016), so nothing stored in the profile reaches the model. Before each run, code applies
-ergon/hermes.yaml to the profile (ADR 0019); the human sets only the model and credentials. The skills an agent
-reads live in agents/skills/ in this repo (ADR 0020).
+Every run passes --ignore-rules (no SOUL, AGENTS.md, memory or preloaded skills) and only the toolsets its node
+names. Before each run, code applies ergon/hermes.yaml to the profile (ADR 0019); the human sets only the model and
+credentials. The skills an agent reads live in agents/skills/ in this repo (ADR 0020).
 """
 import os
+import shutil
+import subprocess
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -56,20 +57,27 @@ def apply(name: str) -> Path:
     return config
 
 
-def set_placeholder_model(name: str) -> None:
-    """Give a new profile the SET-BY-HAND model, so no run starts on a model the human did not pick."""
+def create(name: str) -> bool:
+    """Create the profile with the SET-BY-HAND model, so no run starts on a model the human did not pick.
+    An existing profile is left as it is: returns False."""
+    if installed(name).exists():
+        return False
+    if not shutil.which("hermes"):
+        raise ValueError("hermes is not installed")
+    subprocess.run(["hermes", "profile", "create", name, "--no-skills", "--no-alias"], check=True,
+                   stdout=subprocess.DEVNULL)
     config = installed(name) / "config.yaml"
     text = config.read_text() if config.exists() else ""
     kept = "".join("".join(lines) for k, lines in _blocks(text) if k not in ("model", None))
     config.write_text(f"model:\n  default: {PLACEHOLDER}\n  provider: {PLACEHOLDER}\n" + kept)
+    return True
 
 
 def require(name: str) -> None:
     """Apply the canonical config, then refuse the run while the model is not set."""
-    home = installed(name)
-    if not home.exists():
-        raise SystemExit(f"Hermes profile {name!r} does not exist. Run ./install, then set its model by hand:"
-                         f" hermes -p {name} model")
+    if not installed(name).exists():
+        raise SystemExit(f"Hermes profile {name!r} does not exist. Run python3 -m ergon install, then set its model"
+                         f" by hand: hermes -p {name} model")
     config = apply(name)
     text = config.read_text()
     if PLACEHOLDER in text or "model:" not in text:

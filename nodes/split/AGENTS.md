@@ -10,7 +10,8 @@ Turns an approved plan's stories into tasks a cheap builder carries out with no 
 - `contracts/tasks.json`, in `runs/<id>/tasks.json`: the tasks in build order, then the request moves to `done/`.
   No human approves them.
 - Or a stop: a product question the stories leave open. The request moves to `rejected/` with the reason and the
-  question; the plan goes back to Plan (ADR 0021, not built yet).
+  question; the human submits a new plan by hand. Sending it back to Plan (ADR 0021) is not
+  built yet.
 
 ## Who does what
 - Code: the request check, the architect's prompt (the skill, every wiki page tagged `convention`, the wiki index,

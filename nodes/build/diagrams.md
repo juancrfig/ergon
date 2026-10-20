@@ -10,7 +10,7 @@ stateDiagram-v2
     inbox --> working: run
     working --> working: next task, one commit each
     working --> done: every task built
-    working --> rejected: stop (back to Split), malformed or failed
+    working --> rejected: stop, malformed or failed
     done --> [*]
     rejected --> [*]
 ```

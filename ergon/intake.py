@@ -3,19 +3,14 @@
 Code does every step with one right answer; the wiki-maintainer only drafts and classifies (ADR 0007).
 """
 import json
-from pathlib import Path
 
-from ergon import agent, gate
+from ergon import agent, profiles
 from ergon.node import Node
 from ergon.wiki import today
 
-CONTRACTS = Path(__file__).resolve().parent.parent / "nodes" / "intake" / "contracts"
-PROFILE = "wiki-maintainer"
-SKILLS = gate.SKILLS
-
 
 class Intake(Node):
-    name, profile, types = "intake", PROFILE, ("ingest", "health-check")
+    name, profile, types = "intake", "wiki-maintainer", ("ingest", "health-check")
 
     def handle(self, rid: str, request: dict) -> str:
         return self._ingest(rid, request) if request["type"] == "ingest" else self._health_check(rid, request)
@@ -27,8 +22,8 @@ class Intake(Node):
         text = path.read_bytes().decode("utf-8", "replace")
         run_dir = self.belt.run_dir(rid)
         agent.scope(run_dir, self.wiki.pages_dir)
-        proposal = agent.ask(PROFILE, self._context("wiki-maintenance.md", request, (request["source"], text)),
-                             CONTRACTS / "proposal.json", run_dir, "proposal", self.wiki.proposal_problems)
+        proposal = agent.ask(self.profile, self._context("wiki-maintenance.md", request, (request["source"], text)),
+                             self.contracts / "proposal.json", run_dir, "proposal", self.wiki.proposal_problems)
         (run_dir / "meta.json").write_text(json.dumps({"wiki_fingerprint": self.wiki.fingerprint()}, indent=2) + "\n")
         self.belt.move(rid, "working", "review")
         return f"proposal waits for approval: {proposal['summary']}"
@@ -43,7 +38,7 @@ class Intake(Node):
             prompt = self._context("health-check.md", request, None)
             check = lambda r: [f"findings[{i}]: unknown page {f['page']!r}" for i, f in enumerate(r["findings"])
                                if f["page"] not in known or f.get("other_page", f["page"]) not in known]
-            semantic = agent.ask(PROFILE, prompt, CONTRACTS / "health-report.json", run_dir, "health-report", check)["findings"]
+            semantic = agent.ask(self.profile, prompt, self.contracts / "health-report.json", run_dir, "health-report", check)["findings"]
         report = {"date": today(), "mechanical": mechanical, "semantic": semantic}
         (run_dir / "report.json").write_text(json.dumps(report, indent=2) + "\n")
         self.belt.move(rid, "working", "done")
@@ -52,7 +47,7 @@ class Intake(Node):
     def _context(self, skill: str, request: dict, source) -> str:
         """Everything the agent is given. The rest it reads through the wiki tool, and the log records it."""
         conv = self.wiki.conventions
-        parts = [(SKILLS / skill).read_text().strip(), "# Wiki conventions",
+        parts = [(profiles.SKILLS / skill).read_text().strip(), "# Wiki conventions",
                  f"Allowed tags: {', '.join(conv['tags']) or 'any'}. Page limit: {conv['max_page_lines']} lines.",
                  conv["notes"] or "", "# Wiki index", self.wiki.index_text(), "# Request", json.dumps(request, indent=2)]
         if source:
