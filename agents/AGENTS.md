@@ -4,8 +4,9 @@ Global configuration for agents is skills only: one file per skill in `skills/`,
 else (scripts, MCP servers) waits for a real need (ADR 0020). Project facts and conventions go in the project wiki,
 not here.
 
-One card per node agent. `skills/prompt-engineering.md` is the exception: it waits for the Learn agent (not built)
-and guides whoever edits the other skills meanwhile; no node loads it. This file is the only place that says what each agent gets: model class, skills, tools,
+One card per node agent. `skills/prompt-engineering.md` and `skills/eval-engineering.md` are the exception: they
+wait for the Learn agent (not built) and guide whoever edits the other skills or the evals meanwhile; no node loads
+them. This file is the only place that says what each agent gets: model class, skills, tools,
 the context code writes, and the context Hermes adds. Anything not listed here does not reach the model. When a
 profile changes, change its card in the same commit.
 
@@ -43,7 +44,9 @@ coding-agent instructions, the workspace git snapshot.
 
 **Evidence per run**, in the run folder: `<call>.system-prompt.md` (what Hermes added, from Hermes' session
 export), `<call>.prompt.md` (what code wrote), `<call>.session.jsonl` (the whole conversation, with any summary compression
-wrote), the tool call log, and `<call>.output.txt` (the answer).
+wrote), the tool call log, `<call>.output.txt` (the answer), and `calls.jsonl`: one line per call, written whatever its
+outcome (accepted, rejected with code's reasons, or failed), with its start, end, seconds, exit code, session and
+tokens.
 
 **How to check a profile**: read `ergon/hermes.yaml`; it is what the profile gets. After a run, compare
 `<call>.system-prompt.md` with the list above. Anything extra came with a Hermes upgrade and needs a setting or an

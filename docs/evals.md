@@ -5,7 +5,7 @@ Status: design. Nothing here is built yet. Decisions marked **open** wait for th
 ## Why
 
 Every node exists, but no goal has gone from raw sources to built code in one run. Skill changes need evidence
-(`agents/skills/prompt-engineering.md`, "Evidence before and after"): an eval produces that evidence on demand,
+(`agents/skills/prompt-engineering.md`; how to build evals: `agents/skills/eval-engineering.md`, "Evidence before and after"): an eval produces that evidence on demand,
 instead of waiting for a real client project to fail.
 
 Two questions, in order:
@@ -144,19 +144,19 @@ Checked against the code on the `ergon` branch.
 - The chain is traceable: a build request names its split, a split request names its plan.
 - Requests and answers are checked against their contracts; rejected answers are retried.
 
-**Gaps to close before the first trial**
-1. **A failed call loses its record.** When Hermes exits with an error, code raises before it saves the session:
-   that call's time and tokens are gone.
-2. **A timed-out call crashes the node.** The call's timeout error is not one the run loop catches: the request
-   stays in `working` with no event, and the trial hangs on it.
-3. **Rejected attempts leave no structured record.** Their reasons exist only inside the next prompt.
-4. **Event times are to the second.** Enough for nodes that take minutes; noted, not a gap.
+**Gaps closed** (`ergon/agent.py`)
+1. A failed call lost its record: Hermes exiting with an error raised before the session was saved. Now its time is
+   logged first, and its session saved when one exists.
+2. A timed-out call crashed the node and left the request in `working`. Now it is a failed call: logged, and the
+   request is rejected with the reason.
+3. Rejected attempts left no structured record. Now every call writes one line to `calls.jsonl` in its run folder:
+   label, profile, start and end (to the millisecond), seconds, exit code, session, model, tokens, API and tool
+   calls, outcome (`accepted`, `rejected`, `failed`) and code's reasons.
 
-One fix covers gaps 1 and 3: code writes one line per agent call to a `calls.jsonl` in the run folder: label,
-attempt, start, end, exit code, session id, accepted or rejected, and the reasons. The session export then adds
-tokens, and is no longer the only source of time.
+`calls.jsonl` is the source of agent time and effort; belt events (to the second) are the source of wall time and
+time waiting for the human.
 
-## The three Layer 1 cases (proposed)
+## The three Layer 1 cases (approved)
 
 Each case stresses a different node, so a failure points somewhere.
 
@@ -216,8 +216,6 @@ What this means for Ergon:
 
 ## Open decisions
 
-1. The three Layer 1 cases above, or others.
-2. The client agent's model: a different vendor from the planner, so it does not share the planner's habits, or
+1. The client agent's model: a different vendor from the planner, so it does not share the planner's habits, or
    the same cheap model as the builder.
-3. Gaps 1–3: close them as the eval's first task.
-4. Whether the hidden tests stay eval-only or become the start of the Inspect node.
+2. Whether the hidden tests stay eval-only or become the start of the Inspect node.
