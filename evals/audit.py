@@ -134,11 +134,16 @@ def _matches(text: str, groups: list) -> bool:
 
 
 def _tool_names(session_file: Path) -> list:
-    """Every tool call in a Hermes session export, in order. The export's shape is Hermes', so search it loosely."""
+    """Every tool call in a Hermes session export or an agy step stream, in order. agy's run_command counts as
+    terminal. The export's shape is Hermes', so search it loosely."""
     names = []
 
     def walk(node):
         if isinstance(node, dict):
+            step = node.get("step_update")   # agy's stream: one DONE step per tool call
+            if isinstance(step, dict) and step.get("step_type") == "tool" and step.get("state") == "DONE":
+                name = step.get("tool_name") or "?"
+                names.append("terminal" if name == "run_command" else name)
             for call in node.get("tool_calls") or []:
                 if isinstance(call, dict):
                     names.append((call.get("function") or {}).get("name") or call.get("name") or "?")

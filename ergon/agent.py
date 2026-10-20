@@ -1,4 +1,5 @@
-"""Runs a node's agent: one Hermes profile, a context assembled by code, a JSON answer checked by code.
+"""Runs a node's agent: one Hermes profile (or agy, ADR 0029), a context assembled by code, a JSON answer checked
+by code.
 
 The agent gets no skills, memory, SOUL or AGENTS.md from Hermes (--ignore-rules) and only the toolsets its node
 names: ergon's read-only tool (ADR 0016), scoped by code per run, plus Hermes' terminal and file tools for Build
@@ -9,7 +10,9 @@ calls.jsonl, one line per agent call, written whatever the call's outcome: its t
 import json
 import os
 import re
+import shutil
 import subprocess
+import tempfile
 import time
 from pathlib import Path
 
@@ -44,6 +47,8 @@ def _call(profile: str, prompt: str, run_dir: Path, label: str, tools: tuple = (
     logged here, before the error, so its time and tokens are never lost."""
     prompt_file = run_dir / f"{label}.prompt.md"
     prompt_file.write_text(prompt)
+    if profiles.backend() == "agy":
+        return _call_agy(profile, prompt, run_dir, label, tools, cwd)
     cmd = ["hermes", "-p", profile, "chat", "-Q", "--oneshot", "--ignore-rules", "-t", ",".join((TOOLSET, *tools)),
            "--source", "tool", "--max-turns", str(turns), "--run-budget", str(MAX_SECONDS),
            "--query-file", str(prompt_file.resolve())] + (["--yolo"] if yolo else [])
@@ -73,6 +78,90 @@ def _call(profile: str, prompt: str, run_dir: Path, label: str, tools: tuple = (
         log_call(run_dir, record, "failed", [error])
         raise AgentError(f"{error}; see {run_dir / (label + '.output.txt')}")
     return stdout, record
+
+
+# agy's names for what Hermes' terminal and file toolsets give Build. Without them an agy agent has only the ergon
+# tool (and agy's task list); agy has no turn limit, so MAX_SECONDS is the only ceiling.
+AGY_TOOLS = ("run_command", "read_file", "view_file", "write_file", "edit_file", "grep_search", "list_dir",
+             "find_by_name")
+AGY_HOME = Path.home() / ".gemini" / "antigravity-cli"
+
+
+def _agy_home(run_dir: Path, workspace: Path, tools: tuple) -> Path:
+    """A throwaway HOME for one agy call: the user's login, the ergon tool scoped to this run, the one agent Ergon
+    defines, and nothing else of the user's agy setup (no other MCP servers, rules or agents)."""
+    home = Path(tempfile.mkdtemp(prefix="ergon-agy-"))
+    cli, config = home / ".gemini" / "antigravity-cli", home / ".gemini" / "config"
+    (config / "agents" / "ergon").mkdir(parents=True)
+    cli.mkdir(parents=True)
+    for name in ("antigravity-oauth-token", "installation_id"):
+        if (AGY_HOME / name).exists():
+            (cli / name).symlink_to(AGY_HOME / name)
+    (cli / "settings.json").write_text(json.dumps({"trustedWorkspaces": [str(workspace)]}))
+    (config / "mcp_config.json").write_text(json.dumps({"mcpServers": {TOOLSET: {
+        "command": "python3", "args": [str(profiles.TOOL), str(run_dir.resolve())],
+        "env": {"ERGON_RUN": str(run_dir.resolve())}}}}))
+    allowed = list(AGY_TOOLS) if tools else []
+    (config / "agents" / "ergon" / "agent.md").write_text(
+        f"---\nname: ergon\ndescription: An Ergon node agent\nmainAgent: true\ninheritMcp: true\n"
+        f"tools: {json.dumps(allowed)}\n---\n# Ergon node agent\nThe prompt is your whole task. Code reads your final "
+        f"answer, not a person.\n")
+    return home
+
+
+def _call_agy(profile: str, prompt: str, run_dir: Path, label: str, tools: tuple, cwd) -> tuple[str, dict]:
+    """The same call through agy. Its stream of steps is the session record; the conversation database is kept
+    too. agy shows no system prompt, so <label>.system-prompt.md holds the agent definition Ergon gave it."""
+    workspace = Path(cwd or run_dir).resolve()
+    home = _agy_home(run_dir, workspace, tools)
+    cmd = ["agy", "--agent", "ergon", "--model", profiles.AGY_MODEL, "--input-format", "stream-json",
+           "--output-format", "stream-json", "--dangerously-skip-permissions", "--print="]
+    env = {**os.environ, "HOME": str(home), "ERGON_RUN": str(run_dir.resolve())}
+    record = {"label": label, "profile": profile, "backend": "agy", "started": _now()}
+    clock = time.monotonic()
+    message = json.dumps({"event": "user", "message": {"content": prompt}}) + "\n"
+    try:
+        result = subprocess.run(cmd, input=message, capture_output=True, text=True, timeout=MAX_SECONDS + 120,
+                                env=env, cwd=workspace)
+        stdout, stderr, code = result.stdout, result.stderr, result.returncode
+    except subprocess.TimeoutExpired as exc:
+        stdout, stderr, code = _text(exc.stdout), _text(exc.stderr), None
+    record.update(ended=_now(), seconds=round(time.monotonic() - clock, 3), exit=code)
+    events = []
+    for line in stdout.splitlines():
+        try:
+            events.append(json.loads(line))
+        except ValueError:
+            pass
+    (run_dir / f"{label}.session.jsonl").write_text("".join(json.dumps(e) + "\n" for e in events))
+    (run_dir / f"{label}.system-prompt.md").write_text(
+        (home / ".gemini" / "config" / "agents" / "ergon" / "agent.md").read_text())
+    final = next((e["result"] for e in reversed(events) if e.get("event") == "result"), {})
+    conversation = final.get("conversation_id")
+    if conversation and (home / ".gemini/antigravity-cli/conversations" / f"{conversation}.db").exists():
+        shutil.copy(home / ".gemini/antigravity-cli/conversations" / f"{conversation}.db",
+                    run_dir / f"{label}.conversation.db")
+    shutil.rmtree(home, ignore_errors=True)
+    response = final.get("response") or ""
+    (run_dir / f"{label}.output.txt").write_text(response + "\n--- stderr ---\n" + stderr if stderr else response)
+    usage = final.get("usage") or {}
+    record.update(session=conversation, model=profiles.AGY_MODEL, input_tokens=usage.get("input_tokens", 0),
+                  output_tokens=usage.get("output_tokens", 0), cache_read_tokens=usage.get("cache_read_tokens", 0),
+                  reasoning_tokens=usage.get("thinking_tokens", 0), api_call_count=final.get("num_turns", 0),
+                  tool_call_count=sum(1 for e in events if e.get("event") == "step_update"
+                                      and e["step_update"].get("step_type") == "tool"
+                                      and e["step_update"].get("state") == "DONE"))
+    error = None
+    if code is None:
+        error = f"agy ran past {MAX_SECONDS + 120} seconds and was stopped"
+    elif not final:
+        error = f"agy exited {code} with no result"
+    elif final.get("status") != "SUCCESS":
+        error = f"agy: {final.get('status')}: {final.get('error')}"
+    if error:
+        log_call(run_dir, record, "failed", [error])
+        raise AgentError(f"{error}; see {run_dir / (label + '.output.txt')}")
+    return response, record
 
 
 def log_call(run_dir: Path, record: dict, outcome: str, reasons: list[str] = ()) -> None:

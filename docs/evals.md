@@ -67,6 +67,8 @@ Rules for a fair case (from the research below):
 
 - A separate Hermes profile, `client`, on the cheap model class (the human's choice). It sees the brief and the
   planner's questions, nothing else.
+- With `--agent agy` (ADR 0029) every role, the client included, runs on one agy model instead, by default
+  Gemini 3.8 Flash; `trial.json` records the backend and model.
 - It answers only from the brief and the sources. For a question neither covers it answers "Not specified; use
   your judgment." Its instructions are `evals/client.md`; its answers are checked against Plan's answers contract.
 - **Not built yet**: answers naming the brief facts they used, so code can count the facts the planner drew out.

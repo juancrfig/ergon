@@ -78,8 +78,24 @@ def create(name: str) -> bool:
     return True
 
 
+def backend() -> str:
+    """Who runs the node agents: hermes (a profile per node, the default) or agy (Antigravity CLI, one model for every
+    role, ERGON_AGY_MODEL; ADR 0029). Chosen per run with ERGON_AGENT."""
+    chosen = os.environ.get("ERGON_AGENT", "hermes")
+    if chosen not in ("hermes", "agy"):
+        raise SystemExit(f"ERGON_AGENT must be hermes or agy, not {chosen!r}")
+    return chosen
+
+
+AGY_MODEL = os.environ.get("ERGON_AGY_MODEL", "gemini-3.8-flash-medium")
+
+
 def require(name: str) -> None:
-    """Apply the canonical config, then refuse the run while the model is not set."""
+    """Apply the canonical config, then refuse the run while the model is not set. agy needs no profile."""
+    if backend() == "agy":
+        if not shutil.which("agy"):
+            raise SystemExit("ERGON_AGENT=agy but agy is not installed")
+        return
     if not installed(name).exists():
         raise SystemExit(f"Hermes profile {name!r} does not exist. Run python3 -m ergon install, then set its model"
                          f" by hand: hermes -p {name} model")

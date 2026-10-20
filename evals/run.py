@@ -15,8 +15,8 @@ import argparse
 import concurrent.futures
 import hashlib
 import json
-import re
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -235,8 +235,13 @@ def identity() -> dict:
     out = {"commit": git(repo, "rev-parse", "--short", "HEAD").strip(),
            "dirty": bool(git(repo, "status", "--porcelain", "--", "ergon", "agents", "nodes").strip()),
            "skills": {p.name: hashlib.sha256(p.read_bytes()).hexdigest()[:12] for p in sorted(profiles.SKILLS.glob("*.md"))},
-           "models": {}}
+           "backend": profiles.backend(), "models": {}}
+    if profiles.backend() == "agy":
+        out["agy"] = subprocess.run(["agy", "--version"], capture_output=True, text=True).stdout.strip()
     for profile in (CLIENT, *(n.profile for n in (Intake, Plan, Split, Build))):
+        if profiles.backend() == "agy":
+            out["models"][profile] = profiles.AGY_MODEL
+            continue
         config = (profiles.installed(profile) / "config.yaml").read_text()
         found = re.search(r"^model:\n  default: (\S+)", config, re.M)
         out["models"][profile] = found.group(1) if found else None
@@ -291,6 +296,9 @@ def main(argv=None) -> int:
     parser.add_argument("--from", dest="start", choices=NODES, default="intake", help="first node to run")
     parser.add_argument("--snapshot", type=Path, help="earlier trial folder to start from (with --from)")
     parser.add_argument("--check", action="store_true", help="check the cases without running any agent")
+    parser.add_argument("--agent", choices=("hermes", "agy"), help="who runs every agent (default: ERGON_AGENT, "
+                        "else hermes); agy runs every role on one model")
+    parser.add_argument("--model", help="the agy model (default: ERGON_AGY_MODEL, else gemini-3.8-flash-medium)")
     args = parser.parse_args(argv)
 
     names = args.cases or sorted(p.name for p in CASES.iterdir() if (p / "case.json").exists())
@@ -305,6 +313,10 @@ def main(argv=None) -> int:
         print("--from needs --snapshot of an earlier trial of the one case named, and --snapshot needs --from",
               file=sys.stderr)
         return 1
+    if args.agent:
+        os.environ["ERGON_AGENT"] = args.agent
+    if args.model:
+        os.environ["ERGON_AGY_MODEL"] = profiles.AGY_MODEL = args.model
     if not check(cases):
         return 1
     for profile in (CLIENT, *(n.profile for n in (Intake, Plan, Split, Build))):
