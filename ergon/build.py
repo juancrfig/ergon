@@ -29,11 +29,8 @@ def git(root: Path, *args: str) -> str:
 
 def changed(root: Path) -> list[str]:
     """The paths git sees as changed, added or deleted, untracked files included and ignored ones not."""
-    out = []
-    for line in git(root, "status", "--porcelain", "--untracked-files=all").splitlines():
-        path = line[3:].split(" -> ")[-1].strip('"')
-        out.append(path)
-    return sorted(out)
+    lines = git(root, "status", "--porcelain", "--untracked-files=all").splitlines()
+    return sorted(line[3:].split(" -> ")[-1].strip('"') for line in lines)
 
 
 class Build(Node):

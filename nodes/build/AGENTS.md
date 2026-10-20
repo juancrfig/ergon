@@ -14,7 +14,7 @@ Carries out Split's tasks, one at a time in order, and commits each on the plan'
 - Or a stop at a task: a design question for the architect. The request moves to `rejected/`; earlier tasks stay
   committed. Sending it back to Split is not built yet.
 - Resubmitting a stopped or failed build (`python3 -m ergon submit` with the same `split`) skips the tasks an earlier
-  build of it recorded or committed on the plan's branch.
+  build of it recorded in its `built.json`.
 
 ## Who does what
 - Code: refuses to start on a repo with uncommitted changes; creates or checks out `plan/<plan id>` in every repo

@@ -2,7 +2,6 @@
 # Ergon applies it before each run: every key here, down to the second level, replaces the profile's own, so this
 # file wins over hand edits; keys it does not set stay. Same shape as ~/.hermes/profiles/<name>/config.yaml. Keep to plain YAML.
 #
-# It applies to every agent in Ergon: each node runs it on its own profile before its first agent call.
 # Not here on purpose: model, provider and credentials. The human sets them by hand (ADR 0011).
 # Everything else a profile holds is left alone.
 
@@ -41,7 +40,7 @@ tool_loop_guardrails:
   hard_stop_enabled: true
 
 # Context compression, the same as theSystem's main agent, except protect_first_n: the first message is the
-# prompt with the whole source, so it is never summarized.
+# prompt code wrote (for Intake, the whole source), so it is never summarized.
 # Each run folder saves the whole conversation, summaries included (<call>.session.jsonl).
 compression:
   enabled: true

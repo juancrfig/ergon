@@ -34,8 +34,7 @@ python3 -m ergon show <id>
 python3 -m ergon approve <id>   |   python3 -m ergon reject <id> "reason"
 ```
 
-What the agent was given is in `runs/<id>/*.prompt.md`; what it read, in `tool-calls.jsonl`; what it answered, in
-`*.output.txt`.
+What the agent was given, read and answered is in `runs/<id>/` (list: agents/AGENTS.md, "Evidence per run").
 
 The belt as a diagram, for humans: `diagrams.md`. Update it when a state or a move changes. This file is the
 only text description of the node.

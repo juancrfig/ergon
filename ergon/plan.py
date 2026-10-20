@@ -35,9 +35,7 @@ class Plan(Node):
 
     def _context(self, request, rounds, number, final) -> str:
         """Everything the planner is given. Pages it reads through the wiki tool, and the log records them."""
-        parts = [SKILL.read_text().strip(), "# Wiki index", self.wiki.index_text(),
-                 "Find pages with search_wiki; read the ones you need with one read_pages call. Cite only pages you "
-                 "read.", "# Goal", request["goal"]]
+        parts = [SKILL.read_text().strip(), "# Wiki index", self.wiki.index_text(), "# Goal", request["goal"]]
         for i, (questions, answers) in enumerate(rounds, 1):
             parts.append(f"# Round {i}: your questions and the human's answers")
             given = {a["question"]: a["answer"] for a in answers}

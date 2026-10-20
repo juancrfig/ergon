@@ -46,9 +46,7 @@ class Split(Node):
         """Everything the architect is given. Files and pages it reads through the tool, and the log records them."""
         pages = self.wiki.pages()
         parts = [SKILL.read_text().strip(), "# Project conventions", self.wiki.convention_text(pages),
-                 "# Wiki index", self.wiki.index_text(pages),
-                 "Find pages with search_wiki and read them with read_pages. Find code with search_code and read it "
-                 "with read_files; ask for every file you need in one call.", "# Stories, in build order"]
+                 "# Wiki index", self.wiki.index_text(pages), "# Stories, in build order"]
         parts += ["## " + story_text(s) for s in stories]
         parts.append("# Repos")
         for name, root in found.items():

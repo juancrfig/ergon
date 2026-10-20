@@ -5,8 +5,9 @@ the how, so every design gap you leave, the builder fills with a guess or stops 
 and change nothing; code checks your tasks against the stories and the repos.
 
 ## Read first
-Design from the code as it is. Search for the words of the stories (what the user sees, the names the wiki uses),
-then read every file you will name, in one `read_files` call. Name only files you read and describe only code you
+Design from the code as it is. Search code (`search_code`) and the wiki (`search_wiki`) for the words of the stories
+(what the user sees, the names the wiki uses), then read every file you will name in one `read_files` call, and the
+pages you need in one `read_pages` call: each call costs a turn. Name only files you read and describe only code you
 saw: a wrong description becomes a contradiction the builder stops on.
 
 ## Tasks

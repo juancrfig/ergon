@@ -2,9 +2,8 @@
 
 The agent gets no skills, memory, SOUL or AGENTS.md from Hermes (--ignore-rules) and only the toolsets its node
 names: ergon's read-only tool (ADR 0016), scoped by code per run, plus Hermes' terminal and file tools for Build
-(ADR 0023). What it is given is in the run folder: the prompt file code wrote and the system prompt Hermes added
-and the whole conversation, compression summaries included (both from Hermes' session export); every page or file
-it reads through ergon's tool is also in the tool's call log.
+(ADR 0023). The run folder keeps the evidence: the prompt code wrote; from Hermes' session export, the system prompt Hermes
+added and the whole conversation, compression summaries included; and the tool's call log of every page or file read.
 """
 import json
 import os

@@ -4,12 +4,12 @@ Global configuration for agents is skills only: one file per skill in `skills/`,
 else (scripts, MCP servers) waits for a real need (ADR 0020). Project facts and conventions go in the project wiki,
 not here.
 
-One card per node agent. This file is the only place that says what each agent gets: model class, skills, tools,
+One card per node agent. `skills/prompt-engineering.md` is the exception: it waits for the Learn agent (not built)
+and guides whoever edits the other skills meanwhile; no node loads it. This file is the only place that says what each agent gets: model class, skills, tools,
 the context code writes, and the context Hermes adds. Anything not listed here does not reach the model. When a
 profile changes, change its card in the same commit.
 
-A change to a skill reaches the agent only through a commit the human
-approves (ADR 0002). The Hermes profile of the same name (`~/.hermes/profiles/<name>/config.yaml`) holds only what
+A change to a skill reaches the agent only through a commit the human approves (ADR 0002). The Hermes profile of the same name (`~/.hermes/profiles/<name>/config.yaml`) holds only what
 "Hermes profile" below lists.
 
 ## The same for every profile
