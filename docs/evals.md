@@ -64,7 +64,8 @@ Rules for a fair case (from the research below):
 
 ## The client agent
 
-- A separate Hermes profile, `client`. It sees the brief and the planner's questions, nothing else.
+- A separate Hermes profile, `client`, on the cheap model class (the human's choice). It sees the brief and the
+  planner's questions, nothing else.
 - It answers only from the brief. For a question the brief does not cover it answers "not specified: your call".
 - Each answer names the brief facts it used. Code then counts, without a judge, how many facts the planner drew
   out, and how many questions needed none.
@@ -216,6 +217,4 @@ What this means for Ergon:
 
 ## Open decisions
 
-1. The client agent's model: a different vendor from the planner, so it does not share the planner's habits, or
-   the same cheap model as the builder.
-2. Whether the hidden tests stay eval-only or become the start of the Inspect node.
+1. Whether the hidden tests stay eval-only or become the start of the Inspect node.
