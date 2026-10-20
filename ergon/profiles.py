@@ -7,6 +7,7 @@ credentials. The skills an agent reads live in agents/skills/ in this repo (ADR 
 import os
 import shutil
 import subprocess
+import threading
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -53,7 +54,11 @@ def apply(name: str) -> Path:
         extra = [l for sk, ls in _subkeys(profile.pop(k, [])) if sk not in ours for l in ls]
         out.append("".join(lines).rstrip("\n") + "\n" + "".join(extra))
     kept = "".join("".join(l) for l in profile.values())
-    config.write_text(kept.rstrip("\n") + "\n" + "".join(out))
+    text = kept.rstrip("\n") + "\n" + "".join(out)
+    if not config.exists() or config.read_text() != text:   # unchanged: no write, so parallel runs never race
+        tmp = config.with_name(f".config.yaml.{os.getpid()}.{threading.get_ident()}")
+        tmp.write_text(text)
+        os.replace(tmp, config)   # atomic: a Hermes process starting now reads the old file or the new one
     return config
 
 

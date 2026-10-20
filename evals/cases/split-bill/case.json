@@ -1,0 +1,7 @@
+{
+  "layer": 1,
+  "stress": "Plan: the rounding and validation rules are only in the brief, so the planner must ask for them",
+  "goal": "Build the bill-splitting program Marta described.",
+  "repos": {"splitbill": null},
+  "contradictions": []
+}

@@ -1,6 +1,6 @@
 # Evals: measuring Ergon on dummy projects
 
-Status: design. Nothing here is built yet. Decisions marked **open** wait for the human.
+Status: built for Layer 1 (`evals/`), no real trial run yet. Sections say what is **not built yet**.
 
 ## Why
 
@@ -43,7 +43,8 @@ Ergon already uses *task* (Split's output) and *run* (one request's folder). The
 
 ```text
 evals/cases/<case>/
-  case.yaml        layer, goal, approval policy, which graders run
+  case.json        layer, the node it stresses, the goal Plan gets, the repos (empty or from seed/), the planted
+                   contradictions with the words that recognize them
   sources/         what Intake ingests: client email, meeting notes (with planted traps)
   seed/            optional: the repo as it is before the change (brownfield cases)
   brief.md         hidden: what the client wants, as numbered facts (F1, F2, …)
@@ -66,46 +67,50 @@ Rules for a fair case (from the research below):
 
 - A separate Hermes profile, `client`, on the cheap model class (the human's choice). It sees the brief and the
   planner's questions, nothing else.
-- It answers only from the brief. For a question the brief does not cover it answers "not specified: your call".
-- Each answer names the brief facts it used. Code then counts, without a judge, how many facts the planner drew
-  out, and how many questions needed none.
+- It answers only from the brief and the sources. For a question neither covers it answers "Not specified; use
+  your judgment." Its instructions are `evals/client.md`; its answers are checked against Plan's answers contract.
+- **Not built yet**: answers naming the brief facts they used, so code can count the facts the planner drew out.
 - **Approvals are automatic in Layer 1**: Intake proposals and Plan stories are approved as they come. Rejection
   policies ("reject a story that adds accounts") come later, as cases of their own.
 
 ## The command
 
 ```text
-python3 -m evals run                      every case, 1 trial each
-python3 -m evals run todo-cli --trials 3  one case, 3 trials
-python3 -m evals run --layer 1
-python3 -m evals run todo-cli --from split --snapshot <id>   repeat Split and Build only
-python3 -m evals report                   table of the latest trials
+python3 evals/run.py                         every case, 1 trial each
+python3 evals/run.py todo-cli -k 3           one case, 3 trials (-j: trials at once, default 3)
+python3 evals/run.py --check                 no agent: every case is sound
+python3 evals/run.py todo-cli --from split --snapshot evals/trials/<trial>   repeat Split and Build only
 ```
 
-- Every trial runs in a fresh folder under the scratch directory: a new git repo, no history from earlier trials.
-- Cases run in parallel; the number at once is a setting (rate limits of the model subscription).
-- The harness drives the nodes through their classes, the way the command line does (ADR 0026); it does not
-  reach into belts.
-- **Starting from a node**: after each node, the trial saves a snapshot. `--from split` copies a snapshot and runs
-  Split and Build only. Five Split trials from one approved plan cost five Split calls, not five full trials.
+- Every trial runs in a fresh folder, `evals/trials/<time>-<case>-<n>/` (not committed): a new git repo for the
+  project and for each of its repos, no history from earlier trials.
+- Trials run in parallel, one thread each. Each run first checks the cases, then writes a report beside the trials.
+- **A sound case**: its reference passes every hidden test, an empty program passes none, and its seed passes every
+  `kept` test. `--check` runs only this, in seconds.
+- The harness drives the nodes through their classes, the way the command line does (ADR 0026).
+- **Starting from a node**: `--from split --snapshot` copies an earlier trial's project, drops the belts from Split
+  on, resets the repos, and submits a new split of the approved plan. Five Split trials from one approved plan
+  cost five Split calls, not five full trials.
 - **Runs happen when the human starts them**, not on every commit: a full trial calls frontier models.
 
 ## What each trial records
 
-One `trial.json` per trial, beside a copy of every node's run folder.
+One `trial.json` per trial, beside the trial's project (every node's run folder), `hidden-tests.json`,
+`trial.log`, and the client's run folder.
 
-**Identity**: case, trial number, Ergon commit, a hash of each skill, the model of each profile.
+**Identity**: case, trial, Ergon commit (and whether the tree had changes), a hash of each skill, the model of
+each profile.
 
 **Outcome**
 - Finished (reached Build done) or the node and reason it stopped.
 - Hidden tests passed, per tag: `stated`, `ask`, `kept`.
 
 **Time** (three clocks, per node and in total)
-- *Wall*: from the trial's first request to its last belt event.
-- *Agent*: the sum of every agent call's duration (from the session export: `started_at`, `ended_at`).
-- *Waiting for the human*: the time requests spent in `waiting` and `review` (belt events). With the client agent
-  this is its answer time; it is reported apart so agent speed is not mixed with human speed.
-- *Code*: wall minus the other two. Large values point at slow code, not slow models.
+- *Wall*: the whole trial, measured by the harness.
+- *Agent*: the sum of every agent call's duration (`calls.jsonl`).
+- *Working* and *waiting for the human*: the time requests spent in `working`, and in `waiting` and `review` (belt
+  events). The client agent's time is reported as its own row, so agent speed is not mixed with human speed.
+- **Not built yet**: *code* time (working minus agent) in the report.
 
 **Effort**: per agent call: input, output, cached and reasoning tokens, API calls, tool calls. Cost reads 0 on a
 subscription, so tokens are the cost measure.
@@ -114,10 +119,8 @@ subscription, so tokens are the cost measure.
 
 **Node quality** (counts, no judge)
 - Intake: planted contradictions caught (named in the proposal) out of those planted.
-- Plan: rounds, questions asked, brief facts drawn out, questions that drew no fact.
-- Split: tasks, files named that do not exist or were never read.
-- Build: stops, tasks with no change, files changed outside the task's list (code rejects these; the eval counts
-  the rejections).
+- Plan: client rounds. **Not built yet**: questions asked, brief facts drawn out.
+- Split and Build: rejected attempts with code's reasons, from `calls.jsonl`.
 
 **Reliability across trials**: pass@1 (share of trials that pass) and pass^k (the chance that all k trials pass).
 Ergon is meant to be dependable, so pass^3 is the headline number.
@@ -131,9 +134,11 @@ Code already checks each answer against its contract, and retries a rejected one
 2. **Every artifact is checked again after the trial**: each request on each belt, and each saved answer, against
    its contract. This catches code that writes something the contract does not allow.
 3. **Claims are compared with the tool-call log.** Each of these is a contract the schema cannot see:
-   - Plan: every page in a story's `sources` was read in that run.
-   - Split: every file a task names exists, or the task says it creates it; every existing file named was read.
-   - Build: every check the task lists was run (a matching command in the session), or the answer says why not.
+   - Plan: every page in a story's `sources` was read in that run (built).
+   - Build: a task whose session ran no terminal command checked nothing (built).
+   - The tools each call used, from its session export (built; the export's shape is Hermes', so it is read
+     loosely: check it on the first real run).
+   - **Not built yet**: Split: every existing file a task names was read.
 
 ## Is Ergon ready to measure?
 

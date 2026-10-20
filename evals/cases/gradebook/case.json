@@ -1,0 +1,7 @@
+{
+  "layer": 1,
+  "stress": "Split designing from existing code, and Build keeping its conventions and behavior",
+  "goal": "Add the weighted categories and the CSV export Ms. Okafor asked for to her grade book program.",
+  "repos": {"gradebook": "seed/gradebook"},
+  "contradictions": []
+}

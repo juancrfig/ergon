@@ -1,0 +1,10 @@
+{
+  "layer": 1,
+  "stress": "the whole chain, and Intake catching a contradiction between two people",
+  "goal": "Build the to-do list program Dana asked for in her email and in the meeting with Sam.",
+  "repos": {"todo": null},
+  "contradictions": [
+    {"id": "C1", "about": "remove: gone for good (Dana's email) or recoverable (Sam, meeting notes)",
+     "match": [["remov", "delet"], ["recover", "restor", "for good", "permanent", "undo", "back"]]}
+  ]
+}
