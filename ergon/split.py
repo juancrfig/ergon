@@ -46,7 +46,9 @@ class Split(Node):
                                              f"Question: {stop['question']}")
             return f"stopped: {stop['question']}"
         self.belt.move(rid, "working", "done")
-        return f"{len(answer['tasks'])} tasks for plan {request['plan']}"
+        from ergon.build import Build   # tasks go straight to Build: no human approves them (ADR 0024)
+        build = Build(self.project).submit({"type": "build", "from": "split", "split": rid})
+        return f"{len(answer['tasks'])} tasks for plan {request['plan']}; build request {build} waits in Build's inbox"
 
     def _stories(self, plan: str) -> list:
         path = self.project / ".ergon" / "plan" / "done" / f"{plan}.json"

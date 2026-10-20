@@ -10,6 +10,7 @@
 - `node.py`: what every node shares: belt, contracts, request checks, the run loop, rejection.
 - `intake.py`: the Intake node.
 - `split.py`: the Split node; also finds the project's repos.
+- `build.py`: the Build node; owns the plan branches and commits.
 - `plan.py`: the Plan node.
 - `cli.py`: the command line, the first adapter (ADR 0012). A new node is added to its `NODES`.
 - `hermes.yaml`: the canonical Hermes config of every node agent (ADR 0019).

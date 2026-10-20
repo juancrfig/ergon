@@ -79,7 +79,12 @@ ADR.
   ids, the file listing of every repo, and the answer contract.
 - **Answer contract**: `nodes/split/contracts/tasks.json`.
 
-## builder (Build) · designed, not built
+## builder (Build)
 
 - **Model class**: cheap-smart-enough (ADR 0024). It carries out a task and makes no design decision.
-- **Tools**: the wiki tools and the terminal, with no isolation (ADR 0023).
+- **Tools**: the wiki tools, and Hermes' terminal and file tools with no isolation (ADR 0023). 60 turns.
+- **Skills**, picked in `ergon/build.py` `_context`:
+  - `building`: every task.
+- **Context code writes**: the skill, every wiki page tagged `convention`, the AGENTS.md of the task's repos, the
+  story, the criteria the task covers, the task, and the answer contract.
+- **Answer contract**: `nodes/build/contracts/result.json`.

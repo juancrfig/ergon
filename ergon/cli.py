@@ -12,8 +12,9 @@ from ergon.belt import PENDING
 from ergon.intake import Intake
 from ergon.plan import Plan
 from ergon.split import Split
+from ergon.build import Build
 
-NODES = (Intake, Plan, Split)
+NODES = (Intake, Plan, Split, Build)
 
 
 def main(argv=None) -> int:

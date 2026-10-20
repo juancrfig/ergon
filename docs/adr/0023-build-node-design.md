@@ -1,6 +1,6 @@
 # 0023 · Build node design
 
-Status: accepted (2026-10-20); superseded in part by 0024. Designed, not built.
+Status: accepted (2026-10-20); superseded in part by 0024. Built 2026-10-20; retries and the way back to Split are not.
 
 ## Context
 Build is the only node whose agent writes code. It runs without the human (ADR 0022), so it must work on any
@@ -29,3 +29,6 @@ project's repos without being prepared per stack, and stop rather than guess.
 ## Consequences
 - A wrong place for a change passes unless a criterion or convention says where it belongs.
 - Each convention Inspect checks costs one more judgment per story.
+- Built details: code refuses a repo with uncommitted changes, commits as author Ergon, and on a stop or failure
+  saves the unfinished diff and resets the repos to their last commit. Hermes' approval of dangerous commands stays
+  on: with no one to approve, such a command does not run.
