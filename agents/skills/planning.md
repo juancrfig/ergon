@@ -11,6 +11,8 @@ Find pages with `search_wiki` and read the ones you need in one `read_pages` cal
 Ask when an open decision would change the stories: scope, who the user is, a behavior the wiki does not settle, a
 conflict between the goal and the wiki. Ask only what the wiki leaves open: the human's time is the scarce part.
 - Most important first. Later rounds ask fewer, sharper questions.
+- An answer that adds a behavior opens its own details (its messages, its errors, its edge cases): ask them in the
+  next round instead of inventing them.
 - `why`: what changes in the stories with the answer.
 - A skipped question takes your recommendation, so recommend the option you would defend.
 

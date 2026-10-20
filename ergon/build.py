@@ -33,6 +33,21 @@ def changed(root: Path) -> list[str]:
     return sorted(line[3:].split(" -> ")[-1].strip('"') for line in lines)
 
 
+# Files tools write when the builder runs code or tests. Never the builder's change: git ignores them in this clone
+# only (.git/info/exclude), so they are neither checked against the task nor committed.
+CACHES = ("__pycache__/", "*.pyc", ".pytest_cache/", ".mypy_cache/", ".ruff_cache/", "node_modules/.cache/")
+
+
+def _ignore_caches(root: Path) -> None:
+    exclude = root / ".git" / "info" / "exclude"
+    exclude.parent.mkdir(parents=True, exist_ok=True)
+    have = exclude.read_text().splitlines() if exclude.exists() else []
+    missing = [c for c in CACHES if c not in have]
+    if missing:
+        with exclude.open("a") as f:
+            f.write("".join(f"{c}\n" for c in missing))
+
+
 class Build(Node):
     name, profile, types = "build", "builder", ("build",)
 
@@ -46,6 +61,7 @@ class Build(Node):
             if changed(root):
                 raise ValueError(f"repo {root.name} has uncommitted changes; commit or stash them first")
         for root in used.values():
+            _ignore_caches(root)
             exists = git(root, "branch", "--list", branch).strip()
             git(root, "checkout", "-q", *([branch] if exists else ["-b", branch]))
         run_dir = self.belt.run_dir(rid)
