@@ -90,9 +90,15 @@ def _task_problems(answer: dict, stories: list, found: dict) -> list[str]:
                 if f["action"] == "create" and exists:
                     out.append(f"{t['id']}: {f['path']} already exists; its action is change, not create")
                 if f["action"] != "create" and not exists:
-                    out.append(f"{t['id']}: {f['path']} does not exist; only a create may name a new file")
+                    out.append(f"{t['id']}: {f['path']} does not exist and no earlier task creates it; "
+                               "only a create may name a new file")
             elif ".." in rel.split("/"):
                 out.append(f"{t['id']}: {f['path']} leaves its repo")
+        for f in t["files"]:   # tasks run in list order: a later task sees what the earlier ones created or deleted
+            repo, _, rel = f["path"].partition("/")
+            if repo in listed:
+                (listed[repo].add if f["action"] == "create" else listed[repo].discard if f["action"] == "delete"
+                 else (lambda _: None))(rel)
         out += [f"{t['id']}: repo {r!r} has no file in this task" for r in t["repos"]
                 if r in found and not any(f["path"].startswith(r + "/") for f in t["files"])]
     return out

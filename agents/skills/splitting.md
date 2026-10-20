@@ -15,7 +15,7 @@ saw: a wrong description becomes a contradiction the builder stops on.
   when one behavior needs both, for example an API and the screen that reads it.
 - The list order is the build order: a task depends only on the tasks before it.
 - `files`: every file the task creates, changes or deletes, as `<repo>/<path>`. Code checks that `change` and
-  `delete` name existing files and `create` a new one.
+  `delete` name files that exist or that an earlier task creates, and `create` a new one.
 - `change`: for each file, what to add or alter: the pieces (functions, components, endpoints, fields), their
   names, inputs and outputs, data shapes and formats, where they go, and the behavior, including the edge cases the
   criteria name. Where two tasks or two repos meet, write the interface once, exactly, and repeat it in both.
