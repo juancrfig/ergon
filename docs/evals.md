@@ -215,6 +215,22 @@ What this means for Ergon:
 - The first trials are read by hand. The numbers come after the failure types are known.
 - One case per layer stays held out: never used while tuning skills, only to confirm a change helped.
 
+## Hidden tests and Inspect
+
+Decided: the hidden tests stay eval-only; they never become Inspect.
+
+- **Inspect** checks the built code against the approved stories' `done_when`: what Ergon understood.
+- **Hidden tests** check it against the brief: what the client wanted. Real projects have no brief, so Inspect must
+  never see the hidden tests: it would score with an answer key production never has.
+- **Their disagreement is the signal**, once Inspect exists:
+  - Inspect passes, `ask` tests fail: Plan or Intake missed a requirement.
+  - Inspect passes, `stated` tests fail: Inspect is too lenient.
+  - Inspect fails, hidden tests pass: Inspect is too strict or invents a requirement.
+- **The eval grades Inspect too**: its verdicts against the hidden tests, counted as false passes and false fails.
+- **Shared**: the machinery only (running checks on a fresh copy of the code, one verdict per criterion), not the
+  tests.
+- Until Inspect is built, the hidden tests are the only check on what is built.
+
 ## Open decisions
 
-1. Whether the hidden tests stay eval-only or become the start of the Inspect node.
+None.
