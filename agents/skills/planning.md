@@ -15,6 +15,7 @@ implementation details the builder can decide.
 ## Stories
 Return stories when no open decision would change them.
 - One story is one capability a user can see or use. Small enough to build and review in one sitting.
+- The list order is the build order: a story may depend only on the stories before it.
 - `as_a`, `i_want`, `so_that`: a real user, an action, and the outcome they care about.
 - `done_when`: observable criteria only: what a person or a test can see happen. No "works well", no "is fast"
   without a number. Every criterion is checked later, so each must be true or false.

@@ -1,6 +1,6 @@
 # 0021: Plans are replaced, never edited
 
-Status: accepted (2026-10-19). Not built yet: the first real change to an approved plan, or Split's design, builds it.
+Status: accepted (2026-10-19); superseded in part by 0022. Not built yet: the first real change to an approved plan, or Build, builds it.
 
 ## Context
 

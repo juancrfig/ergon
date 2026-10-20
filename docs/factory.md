@@ -11,8 +11,7 @@ flowchart LR
     intake[Intake<br/>wiki-maintainer] --> wiki[(Project wiki)]
     wiki --> plan
     human((Human)) -- answers, approval --> plan
-    plan[Plan<br/>planner] -. user stories .-> split[Split]
-    split -. tasks .-> build[Build]
+    plan[Plan<br/>planner] -. one story at a time .-> build[Build]
     build -. change .-> gate[Gate]
     gate -. pass .-> inspect[Inspect]
     inspect -. PASS .-> merge[Merge]
@@ -24,7 +23,7 @@ flowchart LR
     classDef built fill:#d4edda,stroke:#2e7d32,stroke-width:2px;
     classDef todo fill:#f5f5f5,stroke:#9e9e9e,stroke-dasharray:5 5;
     class intake,wiki,plan built;
-    class split,build,gate,inspect,merge,learn todo;
+    class build,gate,inspect,merge,learn todo;
 ```
 
 ## Nodes

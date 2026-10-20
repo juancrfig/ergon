@@ -1,6 +1,6 @@
 # 0001 · Ergon is built from nodes with contracts
 
-Status: accepted (2026-10-18)
+Status: accepted (2026-10-18); superseded in part by 0022
 
 ## Context
 theSystem grew into a spaghetti of context: nobody can say what each agent has loaded at a given time, or which exact
