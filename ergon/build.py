@@ -54,7 +54,8 @@ class Build(Node):
             git(root, "checkout", "-q", *([branch] if exists else ["-b", branch]))
         run_dir = self.belt.run_dir(rid)
         built_path = run_dir / "built.json"
-        built = json.loads(built_path.read_text()) if built_path.exists() else []
+        built = self._built_before(rid, request["split"], tasks, used, branch)
+        built_path.write_text(json.dumps(built, indent=2) + "\n")
         done = {b["task"] for b in built}
         for n, task in enumerate(tasks, 1):
             if task["id"] in done:
@@ -86,6 +87,23 @@ class Build(Node):
             built_path.write_text(json.dumps(built, indent=2) + "\n")
         self.belt.move(rid, "working", "done")
         return f"{len(tasks)} tasks built on branch {branch}"
+
+    def _built_before(self, rid: str, split: str, tasks: list, used: dict, branch: str) -> list:
+        """Tasks of this split already built, by an earlier build of it or by commits on the plan's branch, so a
+        resubmitted build picks up where the last one stopped."""
+        built = {}
+        for state in ("done", "rejected"):
+            for other in self.belt.ids(state):
+                path = self.belt.run_dir(other) / "built.json"
+                if other != rid and self.belt.read(other).get("split") == split and path.exists():
+                    built.update({b["task"]: b for b in json.loads(path.read_text())})
+        subjects = {name: git(root, "log", branch, "--format=%s").splitlines() for name, root in used.items()}
+        for task in tasks:
+            commits = {name: "" for name in task["repos"] if name in subjects
+                       and any(s.startswith(f"{task['id']}: ") for s in subjects[name])}
+            if commits and task["id"] not in built:
+                built[task["id"]] = {"task": task["id"], "outcome": "change", "commits": commits}
+        return [built[t["id"]] for t in tasks if t["id"] in built]
 
     def _context(self, task: dict, before: list, stories: list, used: dict) -> str:
         from ergon.plan import criterion_id
