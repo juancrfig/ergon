@@ -11,8 +11,8 @@
 - `intake.py`: the Intake node.
 - `plan.py`: the Plan node.
 - `cli.py`: the command line, the first adapter (ADR 0012). A new node is added to its `NODES`.
+- `hermes.yaml`: the canonical Hermes config of every node agent (ADR 0019).
 
 Code does every step with one right answer; the model gets only judgment work (ADR 0007). The agent's prompt is
 built in the node module (ADR 0008); it reads the rest only through the wiki tool (ADR 0016). Never let Hermes add
 skills, memory or project files.
-- `hermes.yaml`: the canonical Hermes config of every node agent (ADR 0019).

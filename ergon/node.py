@@ -1,8 +1,8 @@
-"""What every node shares: its belt, its contracts, request checks, replies and rejection."""
+"""What every node shares: its belt, its contracts, request checks, the run loop and rejection."""
 from pathlib import Path
 
 from ergon import agent, gate, schema
-from ergon.belt import Belt
+from ergon.belt import STATES, Belt
 from ergon.wiki import Wiki
 
 NODES = Path(__file__).resolve().parent.parent / "nodes"
@@ -58,7 +58,6 @@ class Node:
         self.belt.reject(rid, state, f"rejected by the human: {reason}")
 
     def status(self) -> str:
-        from ergon.belt import STATES
         return f"{self.name}: " + " · ".join(f"{s} {len(self.belt.ids(s))}" for s in STATES)
 
     def header(self, rid: str) -> str:
