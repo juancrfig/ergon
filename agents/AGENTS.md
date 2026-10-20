@@ -66,3 +66,14 @@ ADR.
 - **Context code writes**: the skill, the index, the goal, earlier rounds with the human's answers, the round
   number, and the answer contract.
 - **Answer contract**: `nodes/plan/contracts/round.json`.
+
+## architect (Split) · designed, not built
+
+- **Model class**: frontier-reasoning, with reasoning on (ADR 0024). Split owns the how: its mistakes are built
+  faithfully by a cheap Build, so it never runs on a cheap model.
+- **Tools**: the wiki tools, and read-only access to every repo of the project.
+
+## builder (Build) · designed, not built
+
+- **Model class**: cheap-smart-enough (ADR 0024). It carries out a task and makes no design decision.
+- **Tools**: the wiki tools and the terminal, with no isolation (ADR 0023).
