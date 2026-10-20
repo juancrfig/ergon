@@ -36,12 +36,12 @@ def scope(run_dir: Path, pages_dir: Path, log: str = "tool-calls.jsonl", repos: 
 
 
 def _call(profile: str, prompt: str, run_dir: Path, label: str, tools: tuple = (), turns: int = MAX_TURNS,
-          cwd: Path | None = None) -> str:
+          cwd: Path | None = None, yolo: bool = False) -> str:
     prompt_file = run_dir / f"{label}.prompt.md"
     prompt_file.write_text(prompt)
     cmd = ["hermes", "-p", profile, "chat", "-Q", "--oneshot", "--ignore-rules", "-t", ",".join((TOOLSET, *tools)),
            "--source", "tool", "--max-turns", str(turns), "--run-budget", str(MAX_SECONDS),
-           "--query-file", str(prompt_file.resolve())]
+           "--query-file", str(prompt_file.resolve())] + (["--yolo"] if yolo else [])
     env = {**os.environ, "ERGON_RUN": str(run_dir.resolve()),  # the wiki tool finds its scope through this
            "ERGON_TOOL": str(gate.TOOL)}
     if cwd:

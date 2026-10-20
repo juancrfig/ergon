@@ -30,5 +30,5 @@ project's repos without being prepared per stack, and stop rather than guess.
 - A wrong place for a change passes unless a criterion or convention says where it belongs.
 - Each convention Inspect checks costs one more judgment per story.
 - Built details: code refuses a repo with uncommitted changes, commits as author Ergon, and on a stop or failure
-  saves the unfinished diff and resets the repos to their last commit. Hermes' approval of dangerous commands stays
-  on: with no one to approve, such a command is expected not to run (not tested yet).
+  saves the unfinished diff and resets the repos to their last commit. The builder runs in Hermes' yolo mode: no
+  dangerous-command approval, since no one is there to give it (the human's choice).

@@ -20,7 +20,8 @@ Carries out Split's tasks, one at a time in order, and commits each on the plan'
   story, the criteria, the task); checks what changed: only the task's files, a change changed something, no change
   changed nothing, every criterion reported; commits each task, author Ergon. On a stop or failure it saves the
   unfinished diff in the task folder and resets the repos to their last commit.
-- Agent: works in the project folder with the terminal and file tools, and the read-only wiki tool. Never runs git.
+- Agent: works in the project folder with the terminal and file tools, in yolo mode (no command approvals), and
+  the read-only wiki tool. Never runs git.
 - Human: nothing. Merges the plan's branch into main when the plan is done.
 
 ## Commands

@@ -64,7 +64,7 @@ class Build(Node):
             try:
                 answer = agent.ask(PROFILE, self._context(task, tasks[:n - 1], stories, used), self.contracts / "result.json",
                                    task_dir, "result", lambda a: _problems(a, task, used), tools=("terminal", "file"),
-                                   turns=MAX_TURNS, cwd=self.project)
+                                   turns=MAX_TURNS, cwd=self.project, yolo=True)
             except agent.AgentError:
                 _discard(task_dir, used)
                 raise
