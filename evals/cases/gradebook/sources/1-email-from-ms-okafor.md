@@ -13,7 +13,7 @@ rules this term, and I need two changes.
        python3 gradebook.py add Ana exam1 90 --category exam
 
    The message stays as it is today (`Added 90 for Ana on exam1`). Only `homework` and `exam` are allowed; for
-   anything else print `Category must be homework or exam.` as an error and exit with code 1.
+   anything else print `Category must be homework or exam.` to the error output (stderr) and exit with code 1.
 
    `python3 gradebook.py report` shows each student's final grade, in the same format as today
    (`Ana: 86.2`).

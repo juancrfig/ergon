@@ -9,7 +9,7 @@ partner Sam met the developers without you. You decide for both of you. You are 
   `restore <n>` brings item n back with the same number and the same done or open state, and prints
   `Restored <n>: <text>`. Removed items do not show in the list.
 - F2: `list` shows open items first, then done items; inside each group, by number.
-- F3: `restore <n>` on a number that is not a removed item prints `No removed item <n>.` as an error and exits
+- F3: `restore <n>` on a number that is not a removed item prints `No removed item <n>.` to the error output (stderr) and exits
   with code 1.
 - F4: Keep it simple: no due dates, priorities, tags, colors or several lists.
 - F5: Everything in your email other than "removing deletes it for good" still stands.

@@ -27,7 +27,7 @@ How I'd like to use it:
   the number of people. Nobody should both pay and receive.
 - Money must add up to the cent: when it's all settled, nobody is a cent up or down. Sometimes an amount does not
   divide evenly, like 10.00 between three of us; every cent still has to go to someone.
-- If an expense names someone who is not in "people", print `Unknown person: <name>` as an error and exit with
+- If an expense names someone who is not in "people", print `Unknown person: <name>` to the error output (stderr) and exit with
   code 1. Typos happen.
 
 Two examples from last summer:

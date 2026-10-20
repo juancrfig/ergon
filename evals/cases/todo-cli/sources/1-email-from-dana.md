@@ -24,7 +24,7 @@ How I picture it:
 - `python3 todo.py done 1` marks item 1 as finished and prints `Done 1: buy more flour`.
 - `python3 todo.py remove 1` removes item 1 and prints `Removed 1: buy more flour`. Removing deletes it for good:
   I don't want clutter.
-- If we type a number that doesn't exist, it should print `No item 7.` (with the number we typed) as an error
+- If we type a number that doesn't exist, it should print `No item 7.` (with the number we typed) to the error output (stderr)
   and exit with code 1, so we notice.
 
 Thanks,
