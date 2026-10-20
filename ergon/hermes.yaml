@@ -42,6 +42,7 @@ tool_loop_guardrails:
 
 # Context compression, the same as theSystem's main agent, except protect_first_n: the first message is the
 # prompt with the whole source, so it is never summarized.
+# Each run folder saves the whole conversation, summaries included (<call>.session.jsonl).
 compression:
   enabled: true
   progress_notices: false

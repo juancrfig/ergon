@@ -42,7 +42,8 @@ one. Hermes loads none of its own (`--no-skills`, `--ignore-rules`).
 coding-agent instructions, the workspace git snapshot.
 
 **Evidence per run**, in the run folder: `<call>.system-prompt.md` (what Hermes added, from Hermes' session
-export), `<call>.prompt.md` (what code wrote), the tool call log, and `<call>.output.txt` (the answer).
+export), `<call>.prompt.md` (what code wrote), `<call>.session.jsonl` (the whole conversation, with any summary compression
+wrote), the tool call log, and `<call>.output.txt` (the answer).
 
 **How to check a profile**: read `ergon/hermes.yaml`; it is what the profile gets. After a run, compare
 `<call>.system-prompt.md` with the list above. Anything extra came with a Hermes upgrade and needs a setting or an

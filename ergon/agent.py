@@ -3,7 +3,8 @@
 The agent gets no skills, memory, SOUL or AGENTS.md from Hermes (--ignore-rules) and only the toolsets its node
 names: ergon's read-only tool (ADR 0016), scoped by code per run, plus Hermes' terminal and file tools for Build
 (ADR 0023). What it is given is in the run folder: the prompt file code wrote and the system prompt Hermes added
-(from Hermes' session export); every page or file it reads through ergon's tool is in the tool's call log.
+and the whole conversation, compression summaries included (both from Hermes' session export); every page or file
+it reads through ergon's tool is also in the tool's call log.
 """
 import json
 import os
@@ -49,24 +50,33 @@ def _call(profile: str, prompt: str, run_dir: Path, label: str, tools: tuple = (
     (run_dir / f"{label}.output.txt").write_text(result.stdout + ("\n--- stderr ---\n" + result.stderr if result.stderr else ""))
     if result.returncode != 0:
         raise AgentError(f"hermes exited {result.returncode}; see {run_dir / (label + '.output.txt')}")
-    _save_system_prompt(profile, result.stdout + result.stderr, run_dir / f"{label}.system-prompt.md")
+    _save_session(profile, result.stdout + result.stderr, run_dir, label)
     return result.stdout
 
 
-def _save_system_prompt(profile: str, output: str, path: Path) -> None:
-    """Copy the system prompt Hermes sent in this session, so the run folder shows everything the model saw."""
+def _export(profile: str, sid: str) -> dict:
+    result = subprocess.run(["hermes", "-p", profile, "sessions", "export", "--session-id", sid, "--format", "jsonl",
+                             "-"], capture_output=True, text=True)
+    try:
+        return json.loads(result.stdout.splitlines()[0])
+    except (IndexError, ValueError):
+        raise AgentError(f"hermes exported no session {sid}: {result.stderr.strip()}") from None
+
+
+def _save_session(profile: str, output: str, run_dir: Path, label: str) -> None:
+    """Save what the model saw: the system prompt Hermes sent, and the whole conversation, including any summary
+    compression wrote. A compressed session continues in a child session, so the export follows the parents back
+    to the first one; <label>.session.jsonl holds one session per line, oldest first."""
     found = re.findall(r"session_id:\s*(\S+)", output)
     if not found:
-        raise AgentError("hermes printed no session_id; cannot record its system prompt")
-    result = subprocess.run(["hermes", "-p", profile, "sessions", "export", "--session-id", found[-1], "--format",
-                             "jsonl", "-"], capture_output=True, text=True)
-    try:
-        prompt = json.loads(result.stdout.splitlines()[0])["system_prompt"]
-    except (IndexError, KeyError, ValueError):
-        prompt = None
-    if not prompt:
-        raise AgentError(f"hermes exported no system prompt for session {found[-1]}: {result.stderr.strip()}")
-    path.write_text(prompt)
+        raise AgentError("hermes printed no session_id; cannot record the session")
+    sessions = [_export(profile, found[-1])]
+    while sessions[0].get("parent_session_id"):
+        sessions.insert(0, _export(profile, sessions[0]["parent_session_id"]))
+    if not sessions[-1].get("system_prompt"):
+        raise AgentError(f"hermes exported no system prompt for session {found[-1]}")
+    (run_dir / f"{label}.system-prompt.md").write_text(sessions[-1]["system_prompt"])
+    (run_dir / f"{label}.session.jsonl").write_text("".join(json.dumps(s) + "\n" for s in sessions))
 
 
 def _extract(text: str):
