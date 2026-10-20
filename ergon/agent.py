@@ -109,9 +109,15 @@ def _agy_home(run_dir: Path, workspace: Path, tools: tuple) -> Path:
     return home
 
 
-def _call_agy(profile: str, prompt: str, run_dir: Path, label: str, tools: tuple, cwd) -> tuple[str, dict]:
+# agy errors that come from the connection, not the model's work: the call is run once more (ADR 0029).
+AGY_TRANSIENT = ("API error", "stream idle timeout", "Eligibility check failed", "EOF", "connection reset",
+                 "no result")
+
+
+def _call_agy(profile: str, prompt: str, run_dir: Path, label: str, tools: tuple, cwd,
+              retry: bool = True) -> tuple[str, dict]:
     """The same call through agy. Its stream of steps is the session record; the conversation database is kept
-    too. agy shows no system prompt, so <label>.system-prompt.md holds the agent definition Ergon gave it."""
+    too. A connection error is logged as a failed call and the call runs once more, as <label>-retry. agy shows no system prompt, so <label>.system-prompt.md holds the agent definition Ergon gave it."""
     workspace = Path(cwd or run_dir).resolve()
     home = _agy_home(run_dir, workspace, tools)
     cmd = ["agy", "--agent", "ergon", "--model", profiles.AGY_MODEL, "--input-format", "stream-json",
@@ -160,6 +166,8 @@ def _call_agy(profile: str, prompt: str, run_dir: Path, label: str, tools: tuple
         error = f"agy: {final.get('status')}: {final.get('error')}"
     if error:
         log_call(run_dir, record, "failed", [error])
+        if retry and any(sign in error for sign in AGY_TRANSIENT):
+            return _call_agy(profile, prompt, run_dir, label + "-retry", tools, cwd, retry=False)
         raise AgentError(f"{error}; see {run_dir / (label + '.output.txt')}")
     return response, record
 

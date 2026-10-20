@@ -21,6 +21,9 @@ and reports tokens.
 - The run folder keeps agy's step stream as `<label>.session.jsonl` and its conversation database. agy does not show
   its system prompt; `<label>.system-prompt.md` holds the agent definition Ergon wrote.
 
+- A call that fails on an agy connection error (API error, idle stream, login check) is logged as failed and run
+  once more as `<label>-retry`. Without it, a network blip stopped a whole trial and counted as an Ergon failure.
+
 ## Consequences
 - agy has no turn limit; the 30-minute call timeout is the only ceiling.
 - agy's own system prompt is unseen and changes with agy releases; record the agy version with a trial.
