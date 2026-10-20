@@ -155,8 +155,10 @@ class Wiki:
     # --- writes (only after human approval) ------------------------------------------------------------------
 
     def apply(self, proposal: dict, rid: str) -> str | None:
-        """Write the edits and the index. Commit the wiki if the project is a git repo; return the commit, which is
-        the wiki's history."""
+        """Write the edits and the index, then commit the wiki in the project's repo; return the commit. The commits
+        are the wiki's history, so a project folder that is not a git repo is refused before anything is written."""
+        if subprocess.run(["git", "-C", str(self.project), "rev-parse", "--git-dir"], capture_output=True).returncode:
+            raise ValueError(f"{self.project} is not a git repo; the wiki's history is its commits (git init it)")
         self.pages_dir.mkdir(parents=True, exist_ok=True)
         for edit in proposal["edits"]:
             path = self.pages_dir / f"{edit['page']}.md"
@@ -169,8 +171,6 @@ class Wiki:
 
     def _commit(self, message: str) -> str | None:
         git = ["git", "-C", str(self.project)]
-        if subprocess.run(git + ["rev-parse", "--git-dir"], capture_output=True).returncode != 0:
-            return None
         subprocess.run(git + ["add", "--", "wiki"], check=True, capture_output=True)
         if subprocess.run(git + ["diff", "--cached", "--quiet", "--", "wiki"]).returncode == 0:
             return None
