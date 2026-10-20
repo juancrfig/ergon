@@ -25,3 +25,5 @@ Return stories when no open decision would change them.
 - `sources`: the wiki pages you read that the story rests on; empty when it rests only on the human's answers.
 - Use the wiki's words for things, and state only facts the wiki or the answers give: later nodes treat every
   statement as a requirement.
+- A story never contradicts the wiki unless the human's answer decided it: when a story would, ask first. Code adds
+  the answers to the wiki when the plan is approved, so the wiki and the stories agree for every node after you.

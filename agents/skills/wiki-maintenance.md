@@ -10,6 +10,9 @@ JSON, the human approves it, then code applies it.
   its index line loses what the page says.
 - If the request's `note` reports a wrong claim on a page, read that page first. The source is the evidence: change
   the claim only if the source settles the question; otherwise record a `contradiction`.
+- A source of decisions made while planning settles what it answers: update the pages, remove the open questions
+  and contradictions it resolves, and mark those items `update` or `obsolete`, not `contradiction`. An answer of
+  "not specified" settles nothing.
 
 ## Items: what the source says
 Extract every item that matters to the project. Each item has one `kind`:

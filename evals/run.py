@@ -176,6 +176,8 @@ class Trial:
             if state == "waiting":
                 self.log(plan.answer(rid, self._client(plan, rid)))
             elif state == "review":
+                intake = Intake(self.project)   # the plan's decisions go into the wiki before approval (ADR 0028)
+                intake.run(log=self.log)
                 self.log(plan.approve(rid))
                 return True
             else:

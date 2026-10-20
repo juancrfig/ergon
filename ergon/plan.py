@@ -2,12 +2,18 @@
 
 The planner works in rounds (ADR 0013). Each round returns either questions, which wait for the human's answers,
 or the final stories, which wait for approval. Documents reach Plan only through Intake: the planner reads the wiki.
+
+The human's answers are decisions about the project, so they go into the wiki (ADR 0028): with the stories, code
+saves every answered round as a source and hands it to Intake. Approving the plan applies that wiki change too, so
+the wiki never contradicts approved stories and later nodes never stop on the difference.
 """
 import json
 from pathlib import Path
 
 from ergon import agent, profiles, schema
+from ergon.intake import Intake
 from ergon.node import Node
+from ergon.wiki import today
 
 SKILL = profiles.SKILLS / "planning.md"
 MAX_ROUNDS = 5     # the last round must return stories
@@ -30,8 +36,39 @@ class Plan(Node):
             self.belt.move(rid, "working", "waiting")
             return f"round {number}: {len(answer['questions'])} questions wait for your answers"
         (run_dir / "stories.json").write_text(json.dumps(answer, indent=2) + "\n")
+        note = self._record_decisions(rid, request, rounds)
         self.belt.move(rid, "working", "review")
-        return f"round {number}: {len(answer['stories'])} stories wait for approval"
+        return f"round {number}: {len(answer['stories'])} stories wait for approval" + note
+
+    def _record_decisions(self, rid: str, request: dict, rounds: list) -> str:
+        """Save the answered rounds as a source in the wiki's raw folder and ask Intake to ingest it."""
+        if not rounds:
+            return ""
+        lines = [f"# Decisions made while planning", "",
+                 f"The human answered the planner's questions on {today()} (plan {rid}), planning this goal:", "",
+                 request["goal"], "",
+                 "Each answer is the human's decision. It settles the open question or contradiction it answers and "
+                 "replaces any older statement it disagrees with. \"Not specified\" means the human left it open.", ""]
+        for i, (questions, answers) in enumerate(rounds, 1):
+            given = {a["question"]: a for a in answers}
+            for q in questions:
+                a = given[q["id"]]
+                how = " (left unanswered: the planner's recommendation)" if a.get("skipped") else ""
+                lines += [f"## Round {i}, {q['id']}: {q['question']}", "", f"Answer{how}: {a['answer']}", ""]
+        source = Path("wiki") / "raw" / f"plan-{rid}-decisions.md"
+        (self.project / source).parent.mkdir(parents=True, exist_ok=True)
+        (self.project / source).write_text("\n".join(lines))
+        intake = self.hand_off("intake", {"type": "ingest", "from": "plan", "source": str(source),
+                                          "note": "Decisions the human made while planning. They settle the questions "
+                                                  "they answer: update the pages, do not record them as contradictions."})
+        (self.belt.run_dir(rid) / "decisions.json").write_text(
+            json.dumps({"source": str(source), "intake": intake}, indent=2) + "\n")
+        return f"; the wiki update for its decisions, {intake}, waits in Intake's inbox"
+
+    def _decisions(self, rid: str) -> tuple[Intake, str] | None:
+        """Intake and the request that puts this plan's decisions in the wiki; None when no round was answered."""
+        path = self.belt.run_dir(rid) / "decisions.json"
+        return (Intake(self.project), json.loads(path.read_text())["intake"]) if path.exists() else None
 
     def _context(self, request, rounds, number, final) -> str:
         """Everything the planner is given. Pages it reads through the wiki tool, and the log records them."""
@@ -84,12 +121,31 @@ class Plan(Node):
             raise ValueError(f"{rid} has no stories waiting for approval")
         run_dir = self.belt.run_dir(rid)
         stories = json.loads((run_dir / "stories.json").read_text())["stories"]
+        applied = ""
+        decisions = self._decisions(rid)
+        if decisions:   # the wiki takes the decisions first: no node after Plan may see stories the wiki contradicts
+            intake, irid = decisions
+            state = intake.belt.state_of(irid)
+            if state == "rejected":
+                reason = (intake.belt.run_dir(irid) / "rejected.txt").read_text().strip()
+                raise ValueError(f"the wiki update for this plan's decisions ({irid}) was rejected: {reason}\n"
+                                 "Reject the plan and plan again.")
+            if state != "review":
+                raise ValueError(f"the wiki update for this plan's decisions ({irid}) is not drafted yet: run Intake")
+            applied = "; wiki " + intake.approve(irid)
         gone = sorted({s for story in stories for s in story["sources"]} - set(self.wiki.pages()))
         if gone:
             raise ValueError(f"wiki pages the stories cite no longer exist: {', '.join(gone)}; reject and plan again")
         self.belt.move(rid, "review", "done")
         split = self.hand_off("split", {"type": "split", "from": "plan", "plan": rid})   # ADR 0024
-        return f"approved: {len(stories)} stories; split request {split} waits in Split's inbox"
+        return f"approved: {len(stories)} stories{applied}; split request {split} waits in Split's inbox"
+
+    def reject(self, rid: str, reason: str) -> None:
+        """A rejected plan takes its pending wiki update with it: the decisions were never approved."""
+        super().reject(rid, reason)
+        decisions = self._decisions(rid)
+        if decisions and decisions[0].belt.state_of(decisions[1]) in ("inbox", "review"):
+            decisions[0].reject(decisions[1], f"its plan {rid} was rejected")
 
     def approved(self, rid: str) -> list:
         """The stories of an approved plan: what Split and Build read of Plan."""
@@ -109,6 +165,9 @@ class Plan(Node):
         if (run_dir / "stories.json").exists():
             for s in json.loads((run_dir / "stories.json").read_text())["stories"]:
                 lines += ["", story_text(s), "Sources: " + ", ".join(f"[[{p}]]" for p in s["sources"])]
+        decisions = self._decisions(rid)
+        if decisions:
+            lines += ["", "Wiki update for the decisions, applied with the approval:", decisions[0].show(decisions[1])]
         return "\n".join(lines)
 
 
