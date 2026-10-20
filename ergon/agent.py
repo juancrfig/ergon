@@ -23,11 +23,14 @@ class AgentError(Exception):
     pass
 
 
-def scope(run_dir: Path, pages_dir: Path, log: str = "tool-calls.jsonl") -> None:
-    """Fix what the wiki tool may read in this run: one wiki's pages. The call log starts empty."""
+def scope(run_dir: Path, pages_dir: Path, log: str = "tool-calls.jsonl", repos: dict | None = None) -> None:
+    """Fix what the tool may read in this run: one wiki's pages, and the given repos if any. The call log starts
+    empty."""
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / log).write_text("")
     doc = {"pages": str(pages_dir.resolve()), "log": log}
+    if repos:
+        doc["repos"] = {name: str(path.resolve()) for name, path in repos.items()}
     (run_dir / "tool-scope.json").write_text(json.dumps(doc, indent=2) + "\n")
 
 

@@ -91,8 +91,9 @@ class Plan(Node):
         if gone:
             raise ValueError(f"wiki pages the stories cite no longer exist: {', '.join(gone)}; reject and plan again")
         self.belt.move(rid, "review", "done")
-        path = str((run_dir / "stories.json").relative_to(self.project))
-        return f"approved: {len(stories)} stories in {path}"
+        from ergon.split import Split   # approving a plan puts it on Split's belt (ADR 0024)
+        split = Split(self.project).submit({"type": "split", "from": "plan", "plan": rid})
+        return f"approved: {len(stories)} stories; split request {split} waits in Split's inbox"
 
     def show(self, rid: str) -> str:
         run_dir, lines = self.belt.run_dir(rid), [self.header(rid)]

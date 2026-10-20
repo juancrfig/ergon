@@ -15,6 +15,7 @@ Needs Python 3 and Hermes. From the repo root, once per machine and project:
 ./install <project folder>     # creates the node profiles and the project's folders
 hermes -p wiki-maintainer model  # then set each profile's model and credentials by hand
 hermes -p planner model
+hermes -p architect model
 ```
 
 Running it again is safe: existing profiles are left as they are.

@@ -24,11 +24,12 @@ flowchart LR
 
     classDef built fill:#d4edda,stroke:#2e7d32,stroke-width:2px;
     classDef todo fill:#f5f5f5,stroke:#9e9e9e,stroke-dasharray:5 5;
-    class intake,wiki,plan built;
-    class split,build,gate,inspect,merge,learn todo;
+    class intake,wiki,plan,split built;
+    class build,gate,inspect,merge,learn todo;
 ```
 
 ## Nodes
 
 - [Intake](../nodes/intake/AGENTS.md)
 - [Plan](../nodes/plan/AGENTS.md)
+- [Split](../nodes/split/AGENTS.md)

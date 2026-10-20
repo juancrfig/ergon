@@ -5,10 +5,11 @@
 - `agent.py`: runs a node agent through its Hermes profile and checks its JSON answer against a contract.
 - `gate.py`: applies `hermes.yaml` to the agent's Hermes profile; refuses a run while the profile is
   missing or has no model (ADR 0019).
-- `wikitool.py`: the agents' only tools, read-only, scoped per run (ADR 0016). Standalone: imports nothing from ergon.
+- `wikitool.py`: the agents' only tools, read-only, scoped per run: the wiki (ADR 0016), and repos for Split (ADR 0025). Standalone: imports nothing from ergon.
 - `wiki.py`: the project wiki and every wiki operation with one right answer.
 - `node.py`: what every node shares: belt, contracts, request checks, the run loop, rejection.
 - `intake.py`: the Intake node.
+- `split.py`: the Split node; also finds the project's repos.
 - `plan.py`: the Plan node.
 - `cli.py`: the command line, the first adapter (ADR 0012). A new node is added to its `NODES`.
 - `hermes.yaml`: the canonical Hermes config of every node agent (ADR 0019).

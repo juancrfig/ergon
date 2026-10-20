@@ -11,8 +11,9 @@ from pathlib import Path
 from ergon.belt import PENDING
 from ergon.intake import Intake
 from ergon.plan import Plan
+from ergon.split import Split
 
-NODES = (Intake, Plan)
+NODES = (Intake, Plan, Split)
 
 
 def main(argv=None) -> int:

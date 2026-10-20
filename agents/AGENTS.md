@@ -67,11 +67,17 @@ ADR.
   number, and the answer contract.
 - **Answer contract**: `nodes/plan/contracts/round.json`.
 
-## architect (Split) · designed, not built
+## architect (Split)
 
 - **Model class**: frontier-reasoning, with reasoning on (ADR 0024). Split owns the how: its mistakes are built
   faithfully by a cheap Build, so it never runs on a cheap model.
-- **Tools**: the wiki tools, and read-only access to every repo of the project.
+- **Tools**: the wiki tools, plus `search_code` and `read_files`: read-only, scoped by code to the project's repos
+  (ADR 0025).
+- **Skills**, picked in `ergon/split.py` `_context`:
+  - `splitting`: every split request.
+- **Context code writes**: the skill, every wiki page tagged `convention`, the index, the stories with criterion
+  ids, the file listing of every repo, and the answer contract.
+- **Answer contract**: `nodes/split/contracts/tasks.json`.
 
 ## builder (Build) · designed, not built
 

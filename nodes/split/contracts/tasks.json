@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "The tasks of one plan, in build order, or a stop",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tasks"],
+      "properties": {
+        "tasks": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 50,
+          "description": "Build order: a task may depend only on the tasks before it.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "title", "repos", "files", "change", "covers"],
+            "properties": {
+              "id": {"type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "maxLength": 80},
+              "title": {"type": "string", "minLength": 1, "maxLength": 120},
+              "repos": {"type": "array", "minItems": 1, "maxItems": 10, "items": {"type": "string", "minLength": 1}},
+              "files": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 30,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["path", "action"],
+                  "properties": {
+                    "path": {"type": "string", "pattern": "^[^/]+/.+$", "description": "<repo>/<path inside the repo>"},
+                    "action": {"enum": ["create", "change", "delete"]}
+                  }
+                }
+              },
+              "change": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 6000,
+                "description": "What to create or change in each file: the pieces, their interfaces and data shapes, and the behavior. Enough that the builder makes no design decision. No code."
+              },
+              "covers": {
+                "type": "array",
+                "minItems": 1,
+                "items": {"type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*#[0-9]+$"},
+                "description": "The criterion ids this task makes true."
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stop"],
+      "properties": {
+        "stop": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reason", "question"],
+          "properties": {
+            "reason": {"type": "string", "minLength": 1, "maxLength": 2000, "description": "What the stories leave open, and what in the code or wiki shows it."},
+            "question": {"type": "string", "minLength": 1, "maxLength": 500, "description": "The product question the human must answer in Plan."}
+          }
+        }
+      }
+    }
+  ]
+}

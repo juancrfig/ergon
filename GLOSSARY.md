@@ -32,4 +32,6 @@ _Avoid_: message, ticket.
 
 **Story**: a user story, Plan's output: one capability a user can see or use, with observable `done_when` criteria.
 
+**Task**: Split's output: one change the builder makes with no design decision, naming its files, the pieces to create or change with their interfaces and data shapes, and the criteria it covers.
+
 **Round**: one planner answer: questions for the human, or the final stories.
