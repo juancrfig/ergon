@@ -127,6 +127,16 @@ subscription, so tokens are the cost measure.
 **Reliability across trials**: pass@1 (share of trials that pass) and pass^k (the chance that all k trials pass).
 Ergon is meant to be dependable, so pass^3 is the headline number.
 
+## The trial index
+
+Trial folders are the source of truth and keep the whole traces. `evals/trials/trials.sqlite` indexes them for
+comparisons across models, skills, harnesses and Ergon versions; `evals/index.py` rebuilds it from the folders, and
+`evals/run.py` rebuilds it after each batch. Tables: experiment (commit, harness and its version, models, skill
+hashes), trial (case and its version, outcome, time), node_run (belt working and waiting time), agent_call
+(outcome, reasons, time, tokens, tools used), hidden_test and finding. Trials that started from a snapshot are kept
+with `full = 0`, and calls copied in from the snapshot are marked `inherited`. Not yet indexed: which hidden facts
+the planner drew out of the client.
+
 ## Contracts against behavior
 
 Code already checks each answer against its contract, and retries a rejected one. The eval adds three checks:

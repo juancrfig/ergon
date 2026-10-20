@@ -33,7 +33,7 @@ from ergon.build import Build  # noqa: E402
 from ergon.intake import Intake  # noqa: E402
 from ergon.plan import Plan  # noqa: E402
 from ergon.split import Split  # noqa: E402
-from evals import audit  # noqa: E402
+from evals import audit, index  # noqa: E402
 
 CASES, TRIALS = ROOT / "cases", ROOT / "trials"
 NODES = ("intake", "plan", "split", "build")
@@ -52,6 +52,14 @@ def hidden_tests(case: Path, app: Path) -> list:
     if result.returncode:
         raise RuntimeError(f"hidden tests did not run: {result.stderr[-2000:]}")
     return json.loads(result.stdout)
+
+
+def case_version(case: Path) -> str:
+    """A hash of every file of the case: a changed brief or hidden test makes older scores incomparable."""
+    digest = hashlib.sha256()
+    for f in sorted(p for p in case.rglob("*") if p.is_file() and "__pycache__" not in p.parts):
+        digest.update(str(f.relative_to(case)).encode() + b"\0" + f.read_bytes() + b"\0")
+    return digest.hexdigest()[:12]
 
 
 def scores(rows: list) -> dict:
@@ -73,7 +81,8 @@ class Trial:
         self.dir = TRIALS / f"{stamp}-{case.name}-{number}"
         self.project = self.dir / "project"
         self.start, self.snapshot = start, snapshot
-        self.record = {"case": case.name, "trial": self.dir.name, "start": start, "snapshot": str(snapshot or ""),
+        self.record = {"case": case.name, "case_version": case_version(case), "trial": self.dir.name, "start": start,
+                       "snapshot": str(snapshot or ""),
                        "reached": None, "stopped_at": None, "reason": None, "client_rounds": 0}
 
     def log(self, text: str) -> None:
@@ -333,6 +342,7 @@ def main(argv=None) -> int:
     for record in records:   # what ran: the same case on another commit, skill or model is another experiment
         record["identity"] = who
         (TRIALS / record["trial"] / "trial.json").write_text(json.dumps(record, indent=2) + "\n")
+    index.build(TRIALS, TRIALS / index.DB)
     report = audit.report(records)
     out = TRIALS / f"{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}-report.md"
     out.write_text(report)
