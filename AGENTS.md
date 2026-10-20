@@ -11,7 +11,7 @@ docs/factory.md  the map of nodes (Mermaid); update it when a node or a link bet
 install          once per machine and project: the node profiles and the project folders
 ergon/           the code: run it as `python3 -m ergon` from the repo root
 nodes/<node>/    a node: AGENTS.md (what it does), contracts (JSON Schemas), diagrams.md (its belt)
-profiles/<name>/ a node agent's skills; profiles/AGENTS.md: each agent's skills, tools and Hermes context
+agents/skills/   every agent's skills, one file each; agents/AGENTS.md: what each agent gets (ADR 0020)
 ```
 
 Rules for maintainers:

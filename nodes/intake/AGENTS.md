@@ -1,6 +1,6 @@
 # Intake node
 
-Keeps the project wiki true. Agent: `wiki-maintainer` (profiles/wiki-maintainer). Decisions: ADR 0003, 0005,
+Keeps the project wiki true. Agent: `wiki-maintainer` (agents/AGENTS.md). Decisions: ADR 0003, 0005,
 0007, 0008, 0010, 0015-0019.
 
 ## Input

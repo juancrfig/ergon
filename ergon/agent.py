@@ -15,7 +15,7 @@ from pathlib import Path
 from ergon import gate, schema
 
 
-TOOLSET = "ergon"   # the MCP server name profiles/hermes.yaml gives ergon/wikitool.py
+TOOLSET = "ergon"   # the MCP server name ergon/hermes.yaml gives ergon/wikitool.py
 MAX_TURNS = 10      # a ceiling, not a target: a search and one read_pages call are the normal case
 
 

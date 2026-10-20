@@ -11,7 +11,7 @@ from ergon.wiki import today
 
 CONTRACTS = Path(__file__).resolve().parent.parent / "nodes" / "intake" / "contracts"
 PROFILE = "wiki-maintainer"
-SKILLS = gate.REPO / "profiles" / PROFILE / "skills"
+SKILLS = gate.SKILLS
 
 
 class Intake(Node):

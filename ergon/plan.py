@@ -10,7 +10,7 @@ from ergon import agent, gate, schema
 from ergon.node import Node
 
 PROFILE = "planner"
-SKILL = gate.REPO / "profiles" / PROFILE / "skills" / "planning.md"
+SKILL = gate.SKILLS / "planning.md"
 MAX_ROUNDS = 5     # the last round must return stories
 
 

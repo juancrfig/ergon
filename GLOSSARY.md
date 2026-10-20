@@ -17,7 +17,7 @@ must earn its place.
 **Agent**: the model that does a node's judgment work, run through one Hermes profile.
 
 **Profile**: the Hermes profile an agent runs through. The human sets only its model and credentials; code applies
-the rest from `profiles/hermes.yaml` before each run. `profiles/AGENTS.md` has one card per profile.
+the rest from `ergon/hermes.yaml` before each run. `agents/AGENTS.md` has one card per profile.
 
 **Wiki tool**: the agents' only tools: search the wiki and read pages. Read-only, scoped by code to one wiki per
 run.

@@ -1,6 +1,6 @@
 # Plan node
 
-Turns a goal into user stories. Agent: `planner` (profiles/planner), frontier-reasoning. Decisions: ADR 0011, 0013,
+Turns a goal into user stories. Agent: `planner` (agents/AGENTS.md), frontier-reasoning. Decisions: ADR 0011, 0013,
 0015-0017, 0019.
 
 ## Input
