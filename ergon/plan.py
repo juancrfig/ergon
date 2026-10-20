@@ -106,11 +106,17 @@ class Plan(Node):
         if (run_dir / "stories.json").exists():
             for s in json.loads((run_dir / "stories.json").read_text())["stories"]:
                 lines.append(f"\n[{s['id']}] {s['title']}\n  As {s['as_a']}, I want {s['i_want']}, so that {s['so_that']}.")
-                lines += ["  Done when:"] + [f"    - {d}" for d in s["done_when"]]
+                lines += ["  Done when:"] + [f"    {criterion_id(s, n)}  {d}" for n, d in enumerate(s["done_when"], 1)]
                 if s["out_of_scope"]:
                     lines += ["  Out of scope:"] + [f"    - {o}" for o in s["out_of_scope"]]
                 lines.append("  Sources: " + ", ".join(f"[[{p}]]" for p in s["sources"]))
         return "\n".join(lines)
+
+
+def criterion_id(story: dict, n: int) -> str:
+    """A done_when criterion's id: the story id and its 1-based position. Approved stories never change, so it is
+    fixed; later nodes cite criteria by it."""
+    return f"{story['id']}#{n}"
 
 
 def _round_problems(answer: dict, known: set, final: bool) -> list[str]:
