@@ -1,6 +1,8 @@
 # Evals: measuring Ergon on dummy projects
 
-Status: built for Layer 1 (`evals/`), no real trial run yet. Sections say what is **not built yet**.
+Status: built for Layer 1 (`evals/`). First real rounds ran: one full trial on Hermes, nine on agy (Gemini 3.8
+Flash), 5/9 passed every hidden test before the briefs were made explicit about stderr. Sections say what is **not
+built yet**.
 
 ## Why
 
