@@ -2,9 +2,10 @@
 
 - `schema.py`: the JSON Schema subset contracts use. Extend it here before using a new keyword in a contract.
 - `belt.py`: a node's request folders and atomic moves between them.
-- `agent.py`: runs a node agent through its Hermes profile and checks its JSON answer against a contract.
-- `profiles.py`: creates the node agents' Hermes profiles, applies `hermes.yaml` to them, and refuses a run while
-  a profile is missing or has no model (ADR 0019).
+- `agent.py`: runs a node agent through its Hermes profile, or through agy when `ERGON_AGENT=agy` (ADR 0029), logs
+  every call, and checks its JSON answer against a contract.
+- `profiles.py`: picks the backend (Hermes or agy); creates the node agents' Hermes profiles, applies
+  `hermes.yaml` to them, and refuses a run while a profile is missing or has no model (ADR 0019).
 - `wikitool.py`: ergon's read-only tool, scoped per run: the wiki (ADR 0016), and repos for Split (ADR 0025).
   Standalone: imports nothing from ergon.
 - `wiki.py`: the project wiki and every wiki operation with one right answer.

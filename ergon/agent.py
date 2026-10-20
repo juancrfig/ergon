@@ -3,9 +3,10 @@ by code.
 
 The agent gets no skills, memory, SOUL or AGENTS.md from Hermes (--ignore-rules) and only the toolsets its node
 names: ergon's read-only tool (ADR 0016), scoped by code per run, plus Hermes' terminal and file tools for Build
-(ADR 0023). The run folder keeps the evidence: the prompt code wrote; from Hermes' session export, the system prompt Hermes
-added and the whole conversation, compression summaries included; the tool's call log of every page or file read; and
-calls.jsonl, one line per agent call, written whatever the call's outcome: its time, tokens, and why code rejected it.
+(ADR 0023). The run folder keeps the evidence: the prompt code wrote; from Hermes' session export, the system prompt
+Hermes added and the whole conversation, compression summaries included; the tool's call log of every page or file
+read; and calls.jsonl, one line per agent call, written whatever the call's outcome: its time, tokens, and why code
+rejected it.
 """
 import json
 import os
@@ -117,7 +118,8 @@ AGY_TRANSIENT = ("API error", "stream idle timeout", "Eligibility check failed",
 def _call_agy(profile: str, prompt: str, run_dir: Path, label: str, tools: tuple, cwd,
               retry: bool = True) -> tuple[str, dict]:
     """The same call through agy. Its stream of steps is the session record; the conversation database is kept
-    too. A connection error is logged as a failed call and the call runs once more, as <label>-retry. agy shows no system prompt, so <label>.system-prompt.md holds the agent definition Ergon gave it."""
+    too. A connection error is logged as a failed call and the call runs once more, as <label>-retry. agy shows no
+    system prompt, so <label>.system-prompt.md holds the agent definition Ergon gave it."""
     workspace = Path(cwd or run_dir).resolve()
     home = _agy_home(run_dir, workspace, tools)
     cmd = ["agy", "--agent", "ergon", "--model", profiles.AGY_MODEL, "--input-format", "stream-json",

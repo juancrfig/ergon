@@ -10,7 +10,10 @@ them. This file is the only place that says what each agent gets: model class, s
 the context code writes, and the context Hermes adds. Anything not listed here does not reach the model. When a
 profile changes, change its card in the same commit.
 
-A change to a skill reaches the agent only through a commit the human approves (ADR 0002). The Hermes profile of the same name (`~/.hermes/profiles/<name>/config.yaml`) holds only what
+A change to a skill reaches the agent only through a commit the human approves (ADR 0002). The cards describe the
+Hermes backend, the default. With `ERGON_AGENT=agy` (ADR 0029, used by the evals) every agent runs on one agy model
+instead: the same skills, prompts and contracts; the wiki tools only, plus agy's command and file tools for Build;
+agy's own system prompt in place of Hermes' (not visible; the run folder keeps the agent definition Ergon wrote). The Hermes profile of the same name (`~/.hermes/profiles/<name>/config.yaml`) holds only what
 "Hermes profile" below lists.
 
 ## The same for every profile

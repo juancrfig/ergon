@@ -82,6 +82,8 @@ python3 evals/run.py                         every case, 1 trial each
 python3 evals/run.py todo-cli -k 3           one case, 3 trials (-j: trials at once, default 3)
 python3 evals/run.py --check                 no agent: every case is sound
 python3 evals/run.py todo-cli --from split --snapshot evals/trials/<trial>   repeat Split and Build only
+python3 evals/run.py --agent agy -k 3        every role on agy, Gemini 3.8 Flash (--model: another agy model)
+python3 evals/index.py                       rebuild the trial index from the trial folders
 ```
 
 - Every trial runs in a fresh folder, `evals/trials/<time>-<case>-<n>/` (not committed): a new git repo for the
@@ -93,15 +95,19 @@ python3 evals/run.py todo-cli --from split --snapshot evals/trials/<trial>   rep
 - **Starting from a node**: `--from split --snapshot` copies an earlier trial's project, drops the belts from Split
   on, resets the repos, and submits a new split of the approved plan. Five Split trials from one approved plan
   cost five Split calls, not five full trials.
-- **Runs happen when the human starts them**, not on every commit: a full trial calls frontier models.
+- **Runs happen when the human starts them**, not on every commit. Rounds run on agy (ADR 0029), which is cheap;
+  a trial on the Hermes profiles calls frontier models and needs the human's go for that run.
+- **agy connection errors** (an idle stream, a failed login check) are logged as a failed call and the call runs
+  once more; an infrastructure stop is reported apart from Ergon's failures.
 
 ## What each trial records
 
 One `trial.json` per trial, beside the trial's project (every node's run folder), `hidden-tests.json`,
 `trial.log`, and the client's run folder.
 
-**Identity**: case, trial, Ergon commit (and whether the tree had changes), a hash of each skill, the model of
-each profile.
+**Identity**: case and a hash of its files (a changed brief or hidden test is another case version), trial, Ergon
+commit (and whether the tree had changes), a hash of each skill, the backend (Hermes, or agy and its version) and
+the model of each role.
 
 **Outcome**
 - Finished (reached Build done) or the node and reason it stopped.
@@ -148,8 +154,8 @@ Code already checks each answer against its contract, and retries a rejected one
 3. **Claims are compared with the tool-call log.** Each of these is a contract the schema cannot see:
    - Plan: every page in a story's `sources` was read in that run (built).
    - Build: a task whose session ran no terminal command checked nothing (built).
-   - The tools each call used, from its session export (built; the export's shape is Hermes', so it is read
-     loosely: check it on the first real run).
+   - The tools each call used, from its session record (built): Hermes' session export or agy's step stream. On
+     agy every wiki-tool call shows as `call_mcp_tool`; the wiki tool's own log says which pages were read.
    - **Not built yet**: Split: every existing file a task names was read.
 
 ## Is Ergon ready to measure?
@@ -158,7 +164,8 @@ Checked against the code on the `ergon` branch.
 
 **Ready**
 - Belt events log every move with a timestamp: wall time and time waiting for the human, per request.
-- The session export holds each call's start and end, tokens, API calls and tool calls (ADR 0027).
+- The session record holds each call's start and end, tokens, API calls and tool calls (ADR 0027; on agy, its
+  step stream and conversation database, ADR 0029).
 - The chain is traceable: a build request names its split, a split request names its plan.
 - Requests and answers are checked against their contracts; rejected answers are retried.
 
