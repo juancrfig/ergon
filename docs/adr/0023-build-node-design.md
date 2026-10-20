@@ -1,6 +1,6 @@
 # 0023 · Build node design
 
-Status: accepted (2026-10-20). Designed, not built.
+Status: accepted (2026-10-20); superseded in part by 0024. Designed, not built.
 
 ## Context
 Build is the only node whose agent writes code. It runs without the human (ADR 0022), so it must work on any

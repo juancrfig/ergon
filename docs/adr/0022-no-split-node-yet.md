@@ -1,6 +1,6 @@
 # 0022 · No Split node until evidence asks for it
 
-Status: accepted (2026-10-20)
+Status: superseded by 0024
 
 ## Context
 ADR 0001 listed Split between Plan and Build: it would turn stories into tasks, say where in the code each change
