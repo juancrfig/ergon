@@ -11,6 +11,7 @@ import ast
 import calendar
 import subprocess
 import json
+import os
 import re
 import statistics
 import time
@@ -53,9 +54,10 @@ def _calls(folder: Path) -> dict:
 
 
 def _belt_time(events: Path) -> dict:
-    """Seconds requests spent working (code and agents) and waiting for the human (here the client and the automatic
-    approvals), from the belt's moves. Events are to the second."""
-    out = {"working_seconds": 0, "waiting_seconds": 0}
+    """Seconds requests spent working (code and agents), waiting for the human's answers (here the client agent) and
+    in review until approved, from the belt's moves. Events are to the second. A plan's review time is mostly Intake
+    writing its decisions into the wiki before approval (ADR 0028), which is Intake's agent time too."""
+    out = {"working_seconds": 0, "waiting_seconds": 0, "review_seconds": 0}
     if not events.exists():
         return out
     since = {}
@@ -63,7 +65,7 @@ def _belt_time(events: Path) -> dict:
         e = json.loads(line)
         t = _seconds(e["time"])
         if e["id"] in since and e["from"] in ("working", "waiting", "review"):
-            key = "working_seconds" if e["from"] == "working" else "waiting_seconds"
+            key = e["from"] + "_seconds"
             out[key] += t - since[e["id"]]
         since[e["id"]] = t
     return out
@@ -137,11 +139,16 @@ def _behavior(ergon: Path, spec: dict) -> dict:
 def _files(ergon: Path) -> list:
     """Per build task: the files Split named (to change and to read), the project files the task's new Python code
     uses but does not change (needed), what Split missed and named for nothing, and the project files the builder
-    opened that it was not given. Python only: other languages show no needed files."""
+    opened that it was not given. Python, JavaScript and TypeScript; other languages show no needed files."""
     project, out = ergon.parent, []
-    tasks = {}
+    tasks, earlier = {}, {}
     for f in (ergon / "split" / "runs").rglob("tasks.json"):
-        tasks[f.parent.name] = {t["id"]: t for t in json.loads(f.read_text()).get("tasks", [])}   # or a stop
+        listed = json.loads(f.read_text()).get("tasks", [])   # none on a stop
+        tasks[f.parent.name] = {t["id"]: t for t in listed}
+        made = set()   # files the tasks before each one create
+        for t in listed:
+            earlier[(f.parent.name, t["id"])] = set(made)
+            made |= {x["path"] for x in t["files"] if x["action"] == "create"}
     for built_file in sorted((ergon / "build" / "runs").rglob("built.json")):
         request = next((ergon / "build").glob(f"*/{built_file.parent.name}.json"), None)
         split = json.loads(request.read_text()).get("split") if request else None
@@ -157,8 +164,11 @@ def _files(ergon: Path) -> list:
                 needed |= _used(project, repo, sha)
             needed -= changed | _touched(project, b.get("commits", {}))
             opened = _opened(project, dirs.get(b["task"]))
+            # A file an earlier task creates did not exist when Split read the code: missing it is a smaller miss.
+            later = needed - given & earlier.get((split, b["task"]), set())
             out.append({"task": b["task"], "change": sorted(changed), "read": sorted(task.get("read", [])),
-                        "needed": sorted(needed), "missing": sorted(needed - given),
+                        "needed": sorted(needed), "missing": sorted(needed - given - later),
+                        "missing_from_earlier_task": sorted(later),
                         "extra": sorted(set(task.get("read", [])) - needed),
                         "found_by_builder": sorted(opened - given)})
     return out
@@ -179,13 +189,16 @@ def _used(project: Path, repo: str, sha: str) -> set:
     tree_now = set(_git(root, "ls-tree", "-r", "--name-only", sha).split())
     tree_before = set(_git(root, "ls-tree", "-r", "--name-only", f"{sha}^").split())
     for path in _git(root, "show", "--name-only", "--format=", sha).split():
-        if not path.endswith(".py"):
+        if not path.endswith(".py") and not path.endswith(JS):
             continue
         added = set()
         for hunk in re.finditer(r"^@@ -\S+ \+(\d+)(?:,(\d+))? @@", _git(root, "show", "--format=", "-U0", sha, "--", path),
                                 re.M):
             start, count = int(hunk[1]), int(hunk[2] or 1)
             added.update(range(start, start + count))
+        if path.endswith(JS):
+            used |= _used_js(root, sha, path, added, tree_now, tree_before)
+            continue
         try:
             tree = ast.parse(_git(root, "show", f"{sha}:{path}"))
         except SyntaxError:
@@ -200,6 +213,46 @@ def _used(project: Path, repo: str, sha: str) -> set:
             if isinstance(node, ast.Name) and node.id in names and node.lineno in added:
                 used.add(names[node.id])
     return {f"{repo}/{p}" for p in used}
+
+
+JS = (".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx")
+# import a, {b, c as d} from './m' · import * as ns from './m' · import './m' · export ... from './m' ·
+# const x = require('./m') · const {a, b} = require('./m'). Only relative paths are project files.
+JS_IMPORT = re.compile(r"""(?:import\s+(?P<what>[^'"]*?)\s+from\s+|import\s+|export\s+[^'"]*?\s+from\s+|"""
+                       r"""(?:const|let|var)\s+(?P<bound>[\w${}\s,:]+?)\s*=\s*require\(\s*)['"](?P<spec>\.{1,2}/[^'"]+)['"]""")
+
+
+def _used_js(root: Path, sha: str, path: str, added: set, tree_now: set, tree_before: set) -> set:
+    """The JavaScript and TypeScript version of _used for one file: modules it newly imports, and modules whose
+    imported names appear on the lines the commit added. Read with patterns, not a parser: a close count."""
+    def imports(text: str, files: set) -> dict:
+        names = {}
+        for m in JS_IMPORT.finditer(text):
+            target = _js_module(files, path, m["spec"])
+            if not target:
+                continue
+            what = m["what"] or m["bound"] or ""
+            local = re.findall(r"(?:\w+\s+as\s+|\w+\s*:\s*)?([A-Za-z_$][\w$]*)", what.replace("* as", ""))
+            for name in local or [f"<{target}>"]:   # a bare import still uses the module
+                names[name] = target
+        return names
+    now = imports(_git(root, "show", f"{sha}:{path}"), tree_now)
+    before = imports(_git(root, "show", f"{sha}^:{path}"), tree_before)
+    used = {target for name, target in now.items() if name not in before}
+    lines = _git(root, "show", f"{sha}:{path}").splitlines()
+    text = "\n".join(lines[n - 1] for n in sorted(added) if 0 < n <= len(lines))
+    used |= {target for name, target in now.items() if re.search(rf"(?<![\w$]){re.escape(name)}(?![\w$])", text)}
+    return used
+
+
+def _js_module(files: set, path: str, spec: str) -> str | None:
+    """The repo file a relative import points at: as written, with an extension, or its folder's index file."""
+    target = os.path.normpath(str(Path(path).parent / spec))
+    stem = re.sub(r"\.(js|jsx|mjs|cjs)$", "", target)   # TypeScript imports name the .js the build will emit
+    for candidate in [target] + [stem + ext for ext in JS] + [f"{target}/index{ext}" for ext in JS]:
+        if candidate in files:
+            return candidate
+    return None
 
 
 def _imports(files: set, path: str, tree: ast.AST) -> dict:
@@ -313,7 +366,8 @@ def report(records: list) -> str:
             tokens = sum(x["tokens"]["input_tokens"] + x["tokens"]["output_tokens"] for x in n)
             lines.append(f"- **{node}:** {sum(x['calls'] for x in n)} calls ({sum(x['rejected'] for x in n)} rejected, "
                          f"{sum(x['failed'] for x in n)} failed) · agent {sum(x['agent_seconds'] for x in n):.0f}s"
-                         + (f" · waiting {sum(x['waiting_seconds'] for x in n)}s" if node != "client" else "")
+                         + (f" · waiting {sum(x['waiting_seconds'] for x in n)}s"
+                            f" · in review {sum(x.get('review_seconds') or 0 for x in n)}s" if node != "client" else "")
                          + f" · {tokens} tokens")
         planted = [ok for r in mine for ok in r["behavior"]["contradictions"]["planted"].values()]
         if planted:
@@ -333,12 +387,16 @@ def report(records: list) -> str:
         if files:
             lines.append(f"- **Files per build task ({len(files)} tasks):** "
                          f"needed {sum(len(f['needed']) for f in files)} · missing {sum(len(f['missing']) for f in files)}"
+                         f" · missing, made by an earlier task "
+                         f"{sum(len(f.get('missing_from_earlier_task', [])) for f in files)}"
                          f" · named to read for nothing {sum(len(f['extra']) for f in files)}"
                          f" · opened by the builder, not given {sum(len(f['found_by_builder']) for f in files)}")
             for f in files:
-                if f["missing"] or f["extra"]:
+                later = f.get("missing_from_earlier_task", [])
+                if f["missing"] or later or f["extra"]:
                     lines.append(f"  - {f['task']}: missing {', '.join(f['missing']) or '-'}; "
-                                 f"extra {', '.join(f['extra']) or '-'}")
+                                 + (f"made by an earlier task {', '.join(later)}; " if later else "")
+                                 + f"extra {', '.join(f['extra']) or '-'}")
         lines.append("- **Trials:** " + ", ".join(r["trial"] for r in mine))
         lines.append("")
     return "\n".join(lines)

@@ -41,7 +41,8 @@ create table trial (          -- one run of one case under one experiment
 );
 create table node_run (       -- what only the belt knows; time and tokens per node add up from agent_call
     trial_id text references trial, node text,
-    working_seconds integer, waiting_seconds integer,
+    working_seconds integer, waiting_seconds integer,   -- waiting held review time too before review_seconds
+    review_seconds integer,
     primary key (trial_id, node)
 );
 create table agent_call (     -- one attempt by one agent
@@ -131,8 +132,8 @@ def build(trials: Path, db: Path) -> int:
             r.get("client_rounds"), r.get("started"), r.get("ended"), r.get("seconds"), int(bool(r.get("passed")))))
         for node, n in r.get("nodes", {}).items():
             if "working_seconds" in n:
-                con.execute("insert into node_run values (?,?,?,?)",
-                            (tid, node, n["working_seconds"], n.get("waiting_seconds")))
+                con.execute("insert into node_run values (?,?,?,?,?)",
+                            (tid, node, n["working_seconds"], n.get("waiting_seconds"), n.get("review_seconds")))
         con.executemany("insert into agent_call values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                         _calls(tid, folder, r.get("behavior", {}).get("tools", {}), r.get("started", "")))
         tests = folder / "hidden-tests.json"

@@ -122,8 +122,9 @@ the model of each role.
 **Time** (three clocks, per node and in total)
 - *Wall*: the whole trial, measured by the harness.
 - *Agent*: the sum of every agent call's duration (`calls.jsonl`).
-- *Working* and *waiting for the human*: the time requests spent in `working`, and in `waiting` and `review` (belt
-  events). The client agent's time is reported as its own row, so agent speed is not mixed with human speed.
+- *Working*, *waiting* and *in review*: the time requests spent in `working`, in `waiting` (for the human's answers;
+  here the client agent) and in `review` (until approved; for a plan, mostly Intake writing its decisions into the
+  wiki), from belt events. The client agent's time is also its own row, so agent speed is not mixed with human speed.
 - **Not built yet**: *code* time (working minus agent) in the report.
 
 **Effort**: per agent call: input, output, cached and reasoning tokens, API calls, tool calls. Cost reads 0 on a
@@ -231,8 +232,11 @@ Each case stresses a different node, so a failure points somewhere.
 - **Stresses**: Split naming every file the builder needs (ADR 0030), and naming no more.
 - **Evidence, per build task, recorded in `trial.json` and the report, not a pass/fail grade**:
   - needed: the project modules the task's new code uses that the task does not change, from the task's commit
-    (imports and module attributes used after the task and not before). This works on any case.
+    (imports and module attributes used after the task and not before). This works on any case in Python,
+    JavaScript or TypeScript; the last two are read with patterns, not a parser, and no case exercises them yet.
   - missing: needed files Split did not name; extra: files Split named to read that the code does not use.
+    A needed file an earlier task of the same Split creates is counted apart: it did not exist when Split read the
+    code.
   - found by the builder: project files it opened that it was not given.
   - The hidden tests on the four rules show what a missing file costs.
 - **Runs**: one full trial for an approved plan, then five trials from it with `--from split --snapshot`, so every
