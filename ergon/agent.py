@@ -99,6 +99,13 @@ def _agy_home(run_dir: Path, workspace: Path, tools: tuple) -> Path:
         if (AGY_HOME / name).exists():
             (cli / name).symlink_to(AGY_HOME / name)
     (cli / "settings.json").write_text(json.dumps({"trustedWorkspaces": [str(workspace)]}))
+    rg = shutil.which("rg")
+    if rg:   # agy's own ripgrep needs a loader only Google machines have, so its search fell back to grep. A file
+        # where agy unpacks it stops the unpacking; agy then takes the rg in ~/.local/bin.
+        (home / ".cache" / "antigravity").mkdir(parents=True)
+        (home / ".cache" / "antigravity" / "bin").write_text("")
+        (home / ".local" / "bin").mkdir(parents=True)
+        (home / ".local" / "bin" / "rg").symlink_to(rg)
     (config / "mcp_config.json").write_text(json.dumps({"mcpServers": {TOOLSET: {
         "command": "python3", "args": [str(profiles.TOOL), str(run_dir.resolve())],
         "env": {"ERGON_RUN": str(run_dir.resolve())}}}}))
