@@ -13,6 +13,9 @@ conflict between the goal and the wiki. Ask only what the wiki leaves open: the 
 - Most important first. Later rounds ask fewer, sharper questions.
 - An answer that adds a behavior opens its own details (its messages, its errors, its edge cases): ask them in the
   next round instead of inventing them.
+- A behavior that keeps records which add up over time (bookings, plans, orders) opens how they interact: which one
+  wins when two need the same thing, and what a later one sees of an earlier one. Ask it: one record at a time
+  never shows the conflict, so the builder would guess.
 - `why`: what changes in the stories with the answer.
 - A skipped question takes your recommendation, so recommend the option you would defend.
 
