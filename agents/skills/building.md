@@ -15,9 +15,9 @@ An architect settled this task's design: files, pieces and behavior. Your job is
    project's verification skill, given below, and stop what you started before you answer, so the next task finds
    the machine as you found it.
 4. Prove every criterion the task covers before you answer: drive the app through the verification skill and see
-   each one hold. The proof is the evidence that the task is done: before committing, code replays it in a clean
-   copy of the repos that holds only what it would commit, so a proof you did not run, or one that needs a file
-   outside the change, fails the task. When a criterion fails, fix the edit and prove it again.
+   each one hold. The proof is the evidence that the task is done: code looks for each command in your session
+   log, run after your last edit, so a proof you did not run, or ran before a later edit, fails the task. Run
+   proofs with your terminal tool, after the final edit. When a criterion fails, fix the edit and prove it again.
 
 ## Stop
 Stop when the task leaves a design decision open (a name, a shape, a place or a behavior that neither the task nor

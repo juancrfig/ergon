@@ -39,39 +39,29 @@
                   "type": "object",
                   "additionalProperties": false,
                   "required": [
-                    "repo",
                     "run",
-                    "exit",
                     "contains"
                   ],
                   "properties": {
-                    "repo": {
-                      "type": "string",
-                      "minLength": 1,
-                      "description": "The repo the command runs in, from its root."
-                    },
                     "run": {
                       "type": "string",
                       "minLength": 1,
                       "maxLength": 2000,
-                      "description": "The shell command, as you ran it."
-                    },
-                    "exit": {
-                      "type": "integer",
-                      "description": "The exit code it must return."
+                      "description": "The shell command exactly as you ran it with your terminal tool."
                     },
                     "contains": {
                       "type": "array",
+                      "minItems": 1,
                       "items": {
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 500
                       },
-                      "description": "Lines its output (stdout and stderr) must contain to show the criterion holds; leave out what changes between runs, such as dates and ids."
+                      "description": "Lines its output showed that prove the criterion; leave out what changes between runs, such as dates and ids. To prove an exit code, end the command with `; echo \"exit $?\"` and name `exit 1`."
                     }
                   }
                 },
-                "description": "The steps you ran through the verification skill that show this criterion holds, in order. Code replays them in a clean copy of the task's repos holding what it would commit; each step must exit as stated and print every line in contains."
+                "description": "The commands you ran through the verification skill that show this criterion holds, in order. Code finds each in your session log: the same command, run after your last file edit, whose output holds every line in contains."
               }
             }
           }
@@ -115,39 +105,29 @@
                   "type": "object",
                   "additionalProperties": false,
                   "required": [
-                    "repo",
                     "run",
-                    "exit",
                     "contains"
                   ],
                   "properties": {
-                    "repo": {
-                      "type": "string",
-                      "minLength": 1,
-                      "description": "The repo the command runs in, from its root."
-                    },
                     "run": {
                       "type": "string",
                       "minLength": 1,
                       "maxLength": 2000,
-                      "description": "The shell command, as you ran it."
-                    },
-                    "exit": {
-                      "type": "integer",
-                      "description": "The exit code it must return."
+                      "description": "The shell command exactly as you ran it with your terminal tool."
                     },
                     "contains": {
                       "type": "array",
+                      "minItems": 1,
                       "items": {
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 500
                       },
-                      "description": "Lines its output (stdout and stderr) must contain to show the criterion holds; leave out what changes between runs, such as dates and ids."
+                      "description": "Lines its output showed that prove the criterion; leave out what changes between runs, such as dates and ids. To prove an exit code, end the command with `; echo \"exit $?\"` and name `exit 1`."
                     }
                   }
                 },
-                "description": "The steps you ran through the verification skill that show this criterion holds, in order. Code replays them in a clean copy of the task's repos holding what it would commit; each step must exit as stated and print every line in contains."
+                "description": "The commands you ran through the verification skill that show this criterion holds, in order. Code finds each in your session log: the same command, run after your last file edit, whose output holds every line in contains."
               }
             }
           }

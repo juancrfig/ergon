@@ -26,13 +26,16 @@ owns, and attaches proof.
   checks create; stay inside the project, no installs; stop on an open design decision. Added for
   verification: prove each covered criterion through the verification skill before answering; start and stop the
   app only through it and stop what you started; stop when it cannot drive what a criterion needs.
-- Proof: per covered criterion, the steps the builder ran; a step is a command, the repo it runs in, the exit code
-  it expects and the lines its output must contain. Before committing, inside the check that sends other problems
-  back to the builder, code replays each criterion's steps in its own clean copy of the task's repos holding exactly
-  what it would commit (tracked and new files, not ignored ones). A step passes when the exit code matches and every
-  named line appears, so dates, ids and timings elsewhere in the output do not break it; a step still running after
-  two minutes is killed with what it started. A failed replay goes back to the builder like any other problem. The
-  accepted answer keeps the proof; every replay is recorded in the task folder's `proof.jsonl`.
+- Proof: per covered criterion, the commands the builder ran and the lines their output showed. Code checks each
+  against the session logs of the task's calls, which already record every command and its output: the same
+  command, run after the builder's last file edit, whose output holds every named line. Dates, ids and timings
+  elsewhere do not matter. Nothing is run again, so the check adds no time. agy's log has no exit code, so an exit
+  code is proved by printing it (`; echo "exit $?"`). A failed check goes back to the builder like any other
+  problem; every check is recorded in the task folder's `proof.jsonl`.
+- Rejected: replaying each proof in a clean copy of the repos. It also catches a proof that held only because of a
+  file outside the change, but runs every proof twice, which costs minutes per task once proofs start servers.
+  It comes back if evals show proofs passing on leftover files. Not caught either: an edit made through a shell
+  command after the proof, since only file tools count as edits.
 - No Inspect agent; a light judge only if a project gets criteria that cannot be re-run.
 - Gate (compile, type check, lint) stays as the deterministic floor.
 

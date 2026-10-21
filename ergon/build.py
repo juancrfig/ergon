@@ -3,7 +3,8 @@ every repo the task changes (ADR 0023, 0024).
 
 The builder is a cheap model with the terminal and file tools. It carries out one task at a time, in Split's
 order, and makes no design decision: a task that leaves one open is a stop, the architect's failure. Code checks
-what changed against the task and replays the builder's proof of every criterion (ADR 0033), then commits; the
+what changed against the task and checks the builder's proof of every criterion in its session log (ADR 0033),
+then commits; the
 builder never runs git. Gate is not built yet.
 A stop is a rejection; sending it back to Split is not built.
 """
@@ -153,7 +154,7 @@ class Build(Node):
 
 
 def _problems(answer: dict, task: dict, used: dict, task_dir: Path) -> list[str]:
-    """Everything about the builder's work that code can decide; the proof is replayed last, once the rest holds."""
+    """Everything about the builder's work that code can decide; the proof is checked last, once the rest holds."""
     if "stop" in answer:
         return []
     out, allowed = [], {f["path"] for f in task["files"]}
@@ -173,8 +174,8 @@ def _problems(answer: dict, task: dict, used: dict, task_dir: Path) -> list[str]
     out += [f"{c} is not a criterion of this task" for c in reported if c not in task["covers"]]
     if out:
         return out
-    out, record = proof.replay(answer[kind], {r: used[r] for r in task["repos"]})
-    with (task_dir / "proof.jsonl").open("a") as f:   # every replay, rejected ones too
+    out, record = proof.check(answer[kind], task_dir)
+    with (task_dir / "proof.jsonl").open("a") as f:   # every check, rejected ones too
         f.write(json.dumps({"problems": out, "steps": record}) + "\n")
     return out
 

@@ -22,9 +22,10 @@ Carries out Split's tasks, one at a time in order, and commits each on the plan'
   the tasks name; writes the builder's prompt (the skill, every `convention` page, the verification skill and
   feature map of the task's repos, the story, the criteria, the task, and the current text of every file the task changes or names to read, ADR 0030);
   checks what changed: only the task's files, a change changed something, no change
-  changed nothing, every criterion reported (the feature map may change with any task); then replays each
-  criterion's proof in a clean copy of the task's repos holding what it would commit, recording every replay in
-  the task folder's `proof.jsonl`, and sends a failed one back like any other problem; commits each task, author Ergon. On a stop or failure it saves the
+  changed nothing, every criterion reported (the feature map may change with any task); then checks each
+  criterion's proof against the builder's session logs (each command run after its last file edit, its output
+  holding the named lines), recording every check in the task folder's `proof.jsonl`, and sends a failed one back
+  like any other problem; commits each task, author Ergon. On a stop or failure it saves the
   unfinished diff in the task folder and resets the repos to their last commit.
 - Agent: works in the project folder with the terminal and file tools, in yolo mode (no command approvals), and
   the read-only wiki tool. Never runs git.
