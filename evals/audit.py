@@ -292,7 +292,9 @@ def report(records: list) -> str:
         mine = [r for r in records if r["case"] == case]
         passed = sum(r["passed"] for r in mine)
         lines += [f"## {case}", f"- **Trials:** {len(mine)} · passed {passed} · pass^{len(mine)} "
-                                f"{'yes' if passed == len(mine) else 'no'}"]
+                                f"{'yes' if passed == len(mine) else 'no'}"
+                  + ("" if all(r.get("start", "intake") == "intake" for r in mine)
+                     else " · ask tests not counted: the saved plan already asked or missed them")]
         tags = {}
         for r in mine:
             for tag, s in r.get("tests", {}).items():

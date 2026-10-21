@@ -116,7 +116,8 @@ the model of each role.
 
 **Outcome**
 - Finished (reached Build done) or the node and reason it stopped.
-- Hidden tests passed, per tag: `stated`, `ask`, `kept`, `rule`.
+- Hidden tests passed, per tag: `stated`, `ask`, `kept`, `rule`. A trial started after Intake (`--from split` or
+  later) passes without its `ask` tests: its saved plan already asked or missed them.
 
 **Time** (three clocks, per node and in total)
 - *Wall*: the whole trial, measured by the harness.

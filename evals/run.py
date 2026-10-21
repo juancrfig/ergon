@@ -242,7 +242,9 @@ class Trial:
         rows = hidden_tests(self.case, app) if app.is_dir() else []
         (self.dir / "hidden-tests.json").write_text(json.dumps(rows, indent=2) + "\n")
         self.record["tests"] = scores(rows)
-        self.record["passed"] = bool(rows) and all(r["outcome"] == "pass" for r in rows)
+        # From a saved plan, the questions are already asked or missed: an ask test grades that plan, not this run.
+        graded = [r for r in rows if self.start == "intake" or r["tag"] != "ask"]
+        self.record["passed"] = bool(graded) and all(r["outcome"] == "pass" for r in graded)
 
 
 def identity() -> dict:
