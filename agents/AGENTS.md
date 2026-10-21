@@ -93,5 +93,6 @@ ADR.
 - **Skills**, picked in `ergon/build.py` `_context`:
   - `building`: every task.
 - **Context code writes**: the skill, every wiki page tagged `convention`, the AGENTS.md of the task's repos, the
-  story, the criteria the task covers, the task, and the answer contract.
+  story, the criteria the task covers, the task, the current text of every file the task changes or names to read
+  (ADR 0030), and the answer contract.
 - **Answer contract**: `nodes/build/contracts/result.json`.

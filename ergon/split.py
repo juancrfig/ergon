@@ -61,6 +61,7 @@ class Split(Node):
             for n, t in enumerate(doc["tasks"], 1):
                 lines.append(f"\n{n}. [{t['id']}] {t['title']}\n  Covers: {', '.join(t['covers'])}")
                 lines += [f"  {f['action']:6} {f['path']}" for f in t["files"]]
+                lines += [f"  read   {p}" for p in t.get("read", [])]
                 lines.append("  " + t["change"].replace("\n", "\n  "))
         return "\n".join(lines)
 
@@ -94,6 +95,15 @@ def _task_problems(answer: dict, stories: list, found: dict) -> list[str]:
                                "only a create may name a new file")
             elif ".." in rel.split("/"):
                 out.append(f"{t['id']}: {f['path']} leaves its repo")
+        named = {f["path"] for f in t["files"]}
+        for path in t["read"]:
+            repo, _, rel = path.partition("/")
+            if repo not in found:
+                out.append(f"{t['id']}: read {path} is not in one of the project's repos ({', '.join(found)})")
+            elif ".." in rel.split("/") or rel not in listed[repo]:
+                out.append(f"{t['id']}: read {path} does not exist and no earlier task creates it")
+            elif path in named:
+                out.append(f"{t['id']}: read {path} is already in files; the builder gets its text either way")
         for f in t["files"]:   # tasks run in list order: a later task sees what the earlier ones created or deleted
             repo, _, rel = f["path"].partition("/")
             if repo in listed:

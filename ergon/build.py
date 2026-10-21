@@ -75,8 +75,8 @@ class Build(Node):
             task_dir = run_dir / f"{n:02d}-{task['id']}"
             agent.scope(task_dir, self.wiki.pages_dir)
             try:
-                answer = agent.ask(self.profile, self._context(task, tasks[:n - 1], stories, used), self.contracts / "result.json",
-                                   task_dir, "result", lambda a: _problems(a, task, used), tools=("terminal", "file"),
+                answer = agent.ask(self.profile, self._context(task, tasks[:n - 1], stories, found),
+                                   self.contracts / "result.json", task_dir, "result", lambda a: _problems(a, task, used), tools=("terminal", "file"),
                                    turns=MAX_TURNS, cwd=self.project, yolo=True)
             except agent.AgentError:
                 _discard(task_dir, used)
@@ -111,11 +111,11 @@ class Build(Node):
                     built.update({b["task"]: b for b in json.loads(path.read_text())})
         return [built[t["id"]] for t in tasks if t["id"] in built]
 
-    def _context(self, task: dict, before: list, stories: list, used: dict) -> str:
+    def _context(self, task: dict, before: list, stories: list, found: dict) -> str:
         texts = criteria(stories)
         parts = [SKILL.read_text().strip(), "# Project conventions", self.wiki.convention_text()]
         for name in task["repos"]:
-            guide = used[name] / "AGENTS.md"
+            guide = found[name] / "AGENTS.md"
             if guide.exists():
                 parts.append(f"# {name}/AGENTS.md\n\n{guide.read_text().strip()}")
         parts.append(f"# Where you are\nThe terminal starts in the project folder, {self.project}. Each repo is a "
@@ -127,6 +127,13 @@ class Build(Node):
         parts.append("# Criteria this task makes true\n" + "\n".join(f"- {c}: {texts[c]}" for c in task["covers"]))
         parts.append(f"# Your task: {task['id']}\n{task['title']}\n\nFiles:\n"
                      + "\n".join(f"- {f['action']} {f['path']}" for f in task["files"]) + f"\n\n{task['change']}")
+        given = [f["path"] for f in task["files"] if f["action"] != "create"] + task.get("read", [])   # ADR 0030
+        if given:
+            parts.append("# Files as they are now")
+            for path in given:
+                repo, _, rel = path.partition("/")
+                text = (found[repo] / rel).read_text(errors="replace")
+                parts.append(f"## {path}\n\n````\n{text.rstrip()}\n````")
         return "\n\n".join(parts) + "\n"
 
     def show(self, rid: str) -> str:

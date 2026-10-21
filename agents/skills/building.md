@@ -5,7 +5,8 @@ behavior are settled. Your job is the edit. When you answer, code checks which f
 the next task starts in a new run.
 
 ## Work
-1. Read every file the task lists before you change it, so the edit fits the code around it.
+1. Start from the files below, given as they are now: every file the task changes and every file it names to read.
+   Open another file only when the task or that code points at it.
 2. Change only the files the task lists, as its change describes. Code compares every changed file with the list
    and sends back any other one to undo, which costs a whole retry; remove scratch files you create.
 3. Follow the project conventions and each repo's AGENTS.md, given below.

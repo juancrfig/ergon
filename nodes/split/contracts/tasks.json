@@ -15,7 +15,7 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["id", "title", "repos", "files", "change", "covers"],
+            "required": ["id", "title", "repos", "files", "read", "change", "covers"],
             "properties": {
               "id": {"type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "maxLength": 80},
               "title": {"type": "string", "minLength": 1, "maxLength": 120},
@@ -33,6 +33,11 @@
                     "action": {"enum": ["create", "change", "delete"]}
                   }
                 }
+              },
+              "read": {
+                "type": "array",
+                "items": {"type": "string", "pattern": "^[^/]+/.+$"},
+                "description": "Every other existing file the builder needs to read so its edit fits: a function it calls, a module it imports, a test it must keep passing. <repo>/<path inside the repo>. Code puts the current text of these and of the changed files in the builder's prompt."
               },
               "change": {
                 "type": "string",
