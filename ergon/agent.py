@@ -25,6 +25,13 @@ MAX_TURNS = 10      # a ceiling, not a target: a search and one read_pages call 
 MAX_SECONDS = 1800  # 30 minutes per agent call (ADR 0018)
 CALLS = "calls.jsonl"
 USAGE = ("input_tokens", "output_tokens", "cache_read_tokens", "reasoning_tokens", "api_call_count", "tool_call_count")
+# A call the connection dropped resumes its own conversation once, as <label>-resume, so the work done before the
+# drop is kept (ADR 0031). Each backend implements it: Hermes with --resume, agy with --conversation. A new backend
+# must implement it too, or a dropped call starts over.
+RESUME_PROMPT = ("The connection to the model dropped before you finished. Continue the same task from where you "
+                 "stopped: your earlier steps and their results are above. End with the answer the task asks for.")
+# Hermes' last words when its own retries ran out on a provider error (agent/turn_failure_copy.py).
+HERMES_TRANSIENT = ("temporarily unavailable",)
 
 
 class AgentError(Exception):
@@ -43,16 +50,18 @@ def scope(run_dir: Path, pages_dir: Path, log: str = "tool-calls.jsonl", repos: 
 
 
 def _call(profile: str, prompt: str, run_dir: Path, label: str, tools: tuple = (), turns: int = MAX_TURNS,
-          cwd: Path | None = None, yolo: bool = False) -> tuple[str, dict]:
+          cwd: Path | None = None, yolo: bool = False, resume: tuple | None = None) -> tuple[str, dict]:
     """Run one agent call. Returns its output and its record for calls.jsonl; a call that fails or times out is
-    logged here, before the error, so its time and tokens are never lost."""
+    logged here, before the error, so its time and tokens are never lost. resume: (session id, the dropped call's
+    record), to continue that session; its record then holds only what the resumed part used."""
     prompt_file = run_dir / f"{label}.prompt.md"
-    prompt_file.write_text(prompt)
+    prompt_file.write_text(RESUME_PROMPT if resume else prompt)
     if profiles.backend() == "agy":
         return _call_agy(profile, prompt, run_dir, label, tools, cwd)
     cmd = ["hermes", "-p", profile, "chat", "-Q", "--oneshot", "--ignore-rules", "-t", ",".join((TOOLSET, *tools)),
            "--source", "tool", "--max-turns", str(turns), "--run-budget", str(MAX_SECONDS),
-           "--query-file", str(prompt_file.resolve())] + (["--yolo"] if yolo else [])
+           "--query-file", str(prompt_file.resolve())] + (["--yolo"] if yolo else []) + \
+          (["--resume", resume[0]] if resume else [])
     env = {**os.environ, "ERGON_RUN": str(run_dir.resolve()),  # the wiki tool finds its scope through this
            "ERGON_TOOL": str(profiles.TOOL)}
     if cwd:
@@ -73,12 +82,22 @@ def _call(profile: str, prompt: str, run_dir: Path, label: str, tools: tuple = (
         error = f"hermes exited {code}"
     try:
         record.update(_save_session(profile, stdout + stderr, run_dir, label))
+        if resume:   # the export counts the whole session
+            record.update(_minus(record, resume[1]))
     except AgentError as exc:   # a failed call often has no session; its time is still logged
         error = error or str(exc)
     if error:
         log_call(run_dir, record, "failed", [error])
+        if not resume and record.get("session") and any(sign in stdout for sign in HERMES_TRANSIENT):
+            return _call(profile, prompt, run_dir, label + "-resume", tools, turns, cwd, yolo,
+                         resume=(record["session"], record))
         raise AgentError(f"{error}; see {run_dir / (label + '.output.txt')}")
     return stdout, record
+
+
+def _minus(record: dict, earlier: dict, keys: tuple = USAGE) -> dict:
+    """The usage of a resumed call alone: its backend reports the whole conversation's."""
+    return {key: max((record.get(key) or 0) - (earlier.get(key) or 0), 0) for key in keys if key in record}
 
 
 # agy's names for what Hermes' terminal and file toolsets give Build. Without them an agy agent has only the ergon
@@ -117,24 +136,29 @@ def _agy_home(run_dir: Path, workspace: Path, tools: tuple) -> Path:
     return home
 
 
-# agy errors that come from the connection, not the model's work: the call is run once more (ADR 0029).
+# agy errors that come from the connection, not the model's work: the call resumes or runs once more (ADR 0029, 0031).
 AGY_TRANSIENT = ("API error", "stream idle timeout", "Eligibility check failed", "EOF", "connection reset",
                  "no result", "invalid model selection")
 
 
 def _call_agy(profile: str, prompt: str, run_dir: Path, label: str, tools: tuple, cwd,
-              retry: bool = True) -> tuple[str, dict]:
+              retry: bool = True, resume: tuple | None = None) -> tuple[str, dict]:
     """The same call through agy. Its stream of steps is the session record; the conversation database is kept
-    too. A connection error is logged as a failed call and the call runs once more, as <label>-retry. agy shows no
-    system prompt, so <label>.system-prompt.md holds the agent definition Ergon gave it."""
+    too. A connection error is logged as a failed call; the call then resumes its conversation once, as
+    <label>-resume, in the same throwaway HOME, or, when agy never started one, runs once more as <label>-retry.
+    agy shows no system prompt, so <label>.system-prompt.md holds the agent definition Ergon gave it.
+    resume: (HOME, conversation id, the dropped call's record)."""
     workspace = Path(cwd or run_dir).resolve()
-    home = _agy_home(run_dir, workspace, tools)
+    home = resume[0] if resume else _agy_home(run_dir, workspace, tools)
+    if resume:
+        (run_dir / f"{label}.prompt.md").write_text(RESUME_PROMPT)
     cmd = ["agy", "--agent", "ergon", "--model", profiles.AGY_MODEL, "--input-format", "stream-json",
-           "--output-format", "stream-json", "--dangerously-skip-permissions", "--print="]
+           "--output-format", "stream-json", "--dangerously-skip-permissions", "--print="] + \
+          (["--conversation", resume[1]] if resume else [])
     env = {**os.environ, "HOME": str(home), "ERGON_RUN": str(run_dir.resolve())}
     record = {"label": label, "profile": profile, "backend": "agy", "started": _now()}
     clock = time.monotonic()
-    message = json.dumps({"event": "user", "message": {"content": prompt}}) + "\n"
+    message = json.dumps({"event": "user", "message": {"content": RESUME_PROMPT if resume else prompt}}) + "\n"
     try:
         result = subprocess.run(cmd, input=message, capture_output=True, text=True, timeout=MAX_SECONDS + 120,
                                 env=env, cwd=workspace)
@@ -159,7 +183,6 @@ def _call_agy(profile: str, prompt: str, run_dir: Path, label: str, tools: tuple
     logs = sorted((home / ".gemini/antigravity-cli/log").glob("cli-*.log"))
     if logs:   # agy's own log: its model requests and errors, for slow or failed calls
         shutil.copy(logs[-1], run_dir / f"{label}.agy.log")
-    shutil.rmtree(home, ignore_errors=True)
     response = final.get("response") or ""
     (run_dir / f"{label}.output.txt").write_text(response + "\n--- stderr ---\n" + stderr if stderr else response)
     usage = final.get("usage") or {}
@@ -169,6 +192,8 @@ def _call_agy(profile: str, prompt: str, run_dir: Path, label: str, tools: tuple
                   tool_call_count=sum(1 for e in events if e.get("event") == "step_update"
                                       and e["step_update"].get("step_type") == "tool"
                                       and e["step_update"].get("state") == "DONE"))
+    if resume:   # agy's totals cover the whole conversation; its stream of steps, only this part
+        record.update(_minus(record, resume[2], tuple(k for k in USAGE if k != "tool_call_count")))
     error = None
     if code is None:
         error = f"agy ran past {MAX_SECONDS + 120} seconds and was stopped"
@@ -178,9 +203,15 @@ def _call_agy(profile: str, prompt: str, run_dir: Path, label: str, tools: tuple
         error = f"agy: {final.get('status')}: {final.get('error')}"
     if error:
         log_call(run_dir, record, "failed", [error])
-        if retry and any(sign in error for sign in AGY_TRANSIENT):
+        if retry and not resume and any(sign in error for sign in AGY_TRANSIENT):
+            if conversation:
+                return _call_agy(profile, prompt, run_dir, label + "-resume", tools, cwd, retry=False,
+                                 resume=(home, conversation, record))
+            shutil.rmtree(home, ignore_errors=True)
             return _call_agy(profile, prompt, run_dir, label + "-retry", tools, cwd, retry=False)
+        shutil.rmtree(home, ignore_errors=True)
         raise AgentError(f"{error}; see {run_dir / (label + '.output.txt')}")
+    shutil.rmtree(home, ignore_errors=True)
     return response, record
 
 

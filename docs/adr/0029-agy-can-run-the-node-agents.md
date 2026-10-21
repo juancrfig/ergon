@@ -22,7 +22,7 @@ and reports tokens.
   its system prompt; `<label>.system-prompt.md` holds the agent definition Ergon wrote.
 
 - A call that fails on an agy connection error (API error, idle stream, login check) is logged as failed and run
-  once more as `<label>-retry`. Without it, a network blip stopped a whole trial and counted as an Ergon failure.
+  once more as `<label>-retry` (since ADR 0031, it resumes its conversation as `<label>-resume` when agy started one). Without it, a network blip stopped a whole trial and counted as an Ergon failure.
 
 ## Consequences
 - agy has no turn limit; the 30-minute call timeout is the only ceiling.
