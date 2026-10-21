@@ -64,7 +64,7 @@ def case_version(case: Path) -> str:
 
 def scores(rows: list) -> dict:
     out = {}
-    for tag in ("stated", "ask", "kept", "untagged"):
+    for tag in ("stated", "ask", "kept", "rule", "untagged"):
         mine = [r for r in rows if r["tag"] == tag]
         if mine:
             out[tag] = {"passed": sum(r["outcome"] == "pass" for r in mine), "total": len(mine)}

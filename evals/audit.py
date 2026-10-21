@@ -5,8 +5,11 @@ Everything here reads files a trial left; nothing calls an agent. Sources:
 - events.jsonl on every belt: each request's moves, so time working and time waiting for the human.
 - the saved requests and answers, re-checked against their contracts.
 - the wiki tool's call logs and Hermes' session exports: what each agent really read and ran.
+- each build task's commit: the project files its new code uses, against the files Split named (ADR 0030).
 """
+import ast
 import calendar
+import subprocess
 import json
 import re
 import statistics
@@ -120,11 +123,131 @@ def _behavior(ergon: Path, spec: dict) -> dict:
     for f in sorted(ergon.rglob("*.session.jsonl")):
         tools[str(f.relative_to(ergon)).removesuffix(".session.jsonl")] = _tool_names(f)
     out["tools"] = tools
+    out["files"] = _files(ergon)
     out["build_tasks_without_commands"] = sorted(
         str(f.parent.relative_to(ergon / "build" / "runs")) for f in (ergon / "build" / "runs").rglob("result.json")
         if not any(n == "terminal" for label, names in tools.items()
                    if label.startswith(str(f.parent.relative_to(ergon))) for n in names))
     return out
+
+
+# --- the files Split named against the files the code needed --------------------------------------------------
+
+
+def _files(ergon: Path) -> list:
+    """Per build task: the files Split named (to change and to read), the project files the task's new Python code
+    uses but does not change (needed), what Split missed and named for nothing, and the project files the builder
+    opened that it was not given. Python only: other languages show no needed files."""
+    project, out = ergon.parent, []
+    tasks = {}
+    for f in (ergon / "split" / "runs").rglob("tasks.json"):
+        tasks[f.parent.name] = {t["id"]: t for t in json.loads(f.read_text())["tasks"]}
+    for built_file in sorted((ergon / "build" / "runs").rglob("built.json")):
+        request = next((ergon / "build").glob(f"*/{built_file.parent.name}.json"), None)
+        split = json.loads(request.read_text()).get("split") if request else None
+        dirs = {d.name.split("-", 1)[1]: d for d in built_file.parent.iterdir() if d.is_dir()}
+        for b in json.loads(built_file.read_text()):
+            task = tasks.get(split, {}).get(b["task"])
+            if not task:
+                continue
+            changed = {f["path"] for f in task["files"]}
+            given = changed | set(task.get("read", []))
+            needed = set()
+            for repo, sha in b.get("commits", {}).items():
+                needed |= _used(project, repo, sha)
+            needed -= changed | _touched(project, b.get("commits", {}))
+            opened = _opened(project, dirs.get(b["task"]))
+            out.append({"task": b["task"], "change": sorted(changed), "read": sorted(task.get("read", [])),
+                        "needed": sorted(needed), "missing": sorted(needed - given),
+                        "extra": sorted(set(task.get("read", [])) - needed),
+                        "found_by_builder": sorted(opened - given)})
+    return out
+
+
+def _git(root: Path, *args: str) -> str:
+    return subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True).stdout
+
+
+def _touched(project: Path, commits: dict) -> set:
+    return {f"{repo}/{p}" for repo, sha in commits.items()
+            for p in _git(project / repo, "show", "--name-only", "--format=", sha).split()}
+
+
+def _used(project: Path, repo: str, sha: str) -> set:
+    """Project modules referenced on the lines a commit added to its Python files, as project-relative paths."""
+    root, used = project / repo, set()
+    tree_now = set(_git(root, "ls-tree", "-r", "--name-only", sha).split())
+    tree_before = set(_git(root, "ls-tree", "-r", "--name-only", f"{sha}^").split())
+    for path in _git(root, "show", "--name-only", "--format=", sha).split():
+        if not path.endswith(".py"):
+            continue
+        added = set()
+        for hunk in re.finditer(r"^@@ -\S+ \+(\d+)(?:,(\d+))? @@", _git(root, "show", "--format=", "-U0", sha, "--", path),
+                                re.M):
+            start, count = int(hunk[1]), int(hunk[2] or 1)
+            added.update(range(start, start + count))
+        try:
+            tree = ast.parse(_git(root, "show", f"{sha}:{path}"))
+        except SyntaxError:
+            continue
+        try:
+            before = _imports(tree_before, path, ast.parse(_git(root, "show", f"{sha}^:{path}")))
+        except SyntaxError:
+            before = {}
+        names = _imports(tree_now, path, tree)
+        used |= {target for name, target in names.items() if name not in before}   # a newly imported module
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Name) and node.id in names and node.lineno in added:
+                used.add(names[node.id])
+    return {f"{repo}/{p}" for p in used}
+
+
+def _imports(files: set, path: str, tree: ast.AST) -> dict:
+    """Local name -> the repo file it was imported from, for every import of a file."""
+    names = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            base = _module(files, path, node.module, node.level)
+            for alias in node.names:
+                sub = _module(files, path, f"{node.module}.{alias.name}" if node.module else alias.name, node.level)
+                if sub or base:
+                    names[alias.asname or alias.name] = sub or base
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                target = _module(files, path, alias.name, 0)
+                if target:
+                    names[alias.asname or alias.name.split(".")[0]] = target
+    return names
+
+
+def _module(files: set, path: str, module: str | None, level: int) -> str | None:
+    """The repo file a module name points at, or None when it is not among the commit's files."""
+    base = Path(path).parent
+    for _ in range(max(level - 1, 0)):
+        base = base.parent
+    if not level:
+        base = Path()
+    parts = (module or "").split(".") if module else []
+    target = base.joinpath(*parts)
+    for candidate in (target.with_suffix(".py"), target / "__init__.py"):
+        if parts and str(candidate) in files:
+            return str(candidate)
+    return None
+
+
+def _opened(project: Path, run_dir: Path | None) -> set:
+    """Project files the builder opened with a file tool or named in a command, from its session."""
+    found = set()
+    if not run_dir:
+        return found
+    for f in run_dir.glob("*.session.jsonl"):
+        text = f.read_text()
+        for raw in re.findall(r'"(?:AbsolutePath|path|file_path|CommandLine)"\s*:\s*"((?:[^"\\]|\\.)*)"', text):
+            for word in re.split(r"[\s'\"]+", raw):
+                p = Path(word) if word.startswith("/") else None
+                if p and p.is_relative_to(project) and p.is_file() and ".ergon" not in p.parts:
+                    found.add(str(p.relative_to(project)))
+    return found
 
 
 def _matches(text: str, groups: list) -> bool:
@@ -204,6 +327,16 @@ def report(records: list) -> str:
         blind = [t for r in mine for t in r["behavior"]["build_tasks_without_commands"]]
         if blind:
             lines.append(f"- **Build tasks that ran no command:** {len(blind)}")
+        files = [f for r in mine for f in r["behavior"].get("files", [])]
+        if files:
+            lines.append(f"- **Files per build task ({len(files)} tasks):** "
+                         f"needed {sum(len(f['needed']) for f in files)} · missing {sum(len(f['missing']) for f in files)}"
+                         f" · named to read for nothing {sum(len(f['extra']) for f in files)}"
+                         f" · opened by the builder, not given {sum(len(f['found_by_builder']) for f in files)}")
+            for f in files:
+                if f["missing"] or f["extra"]:
+                    lines.append(f"  - {f['task']}: missing {', '.join(f['missing']) or '-'}; "
+                                 f"extra {', '.join(f['extra']) or '-'}")
         lines.append("- **Trials:** " + ", ".join(r["trial"] for r in mine))
         lines.append("")
     return "\n".join(lines)

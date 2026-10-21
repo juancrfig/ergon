@@ -13,7 +13,7 @@ import sys
 import traceback
 import unittest
 
-TAGS = ("stated", "ask", "kept")
+TAGS = ("stated", "ask", "kept", "rule")
 
 
 class Collect(unittest.TestResult):

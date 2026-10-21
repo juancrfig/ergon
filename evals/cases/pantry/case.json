@@ -1,0 +1,7 @@
+{
+  "layer": 1,
+  "stress": "Split naming every file the builder needs to read, and no more (ADR 0030)",
+  "goal": "Add the order list and production planning Mr. Ruiz asked for to Ruiz Bakery's stock program.",
+  "repos": {"pantry": "seed/pantry"},
+  "contradictions": []
+}

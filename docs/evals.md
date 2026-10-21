@@ -59,8 +59,9 @@ Rules for a fair case (from the research below):
   command names and output format are in the sources; a test that assumes a file path nobody stated is a broken
   test, not a failed agent.
 - **Each hidden test is tagged**: `stated` (in the sources), `ask` (only in the brief: passes only if the planner
-  asked for it), or `kept` (an existing behavior of the seed that must still work). The three pass rates are
-  reported apart: they point at different nodes.
+  asked for it), `kept` (an existing behavior of the seed that must still work), or `rule` (a seed rule that lives only in one
+  helper module, so it fails when no one read that file). The pass rates are reported apart: they point at
+  different nodes.
 - **The reference solution passes every hidden test** before the case is used. A case at 0% across all trials is
   first suspected broken.
 - **Hidden files never enter the trial folder.** The harness copies only `sources/` and `seed/` into it.
@@ -115,7 +116,7 @@ the model of each role.
 
 **Outcome**
 - Finished (reached Build done) or the node and reason it stopped.
-- Hidden tests passed, per tag: `stated`, `ask`, `kept`.
+- Hidden tests passed, per tag: `stated`, `ask`, `kept`, `rule`.
 
 **Time** (three clocks, per node and in total)
 - *Wall*: the whole trial, measured by the harness.
@@ -185,7 +186,7 @@ Checked against the code on the `ergon` branch.
 `calls.jsonl` is the source of agent time and effort; belt events (to the second) are the source of wall time and
 time waiting for the human.
 
-## The three Layer 1 cases (approved)
+## The Layer 1 cases (approved)
 
 Each case stresses a different node, so a failure points somewhere.
 
@@ -215,6 +216,26 @@ Each case stresses a different node, so a failure points somewhere.
 - **Stresses**: Split reading the code before naming files; Build keeping the existing conventions.
 - **Graders**: `stated` tests for the new feature, plus `kept` tests: the seed's own tests must still pass. That
   is how SWE-bench grades: fix what was asked without breaking what worked.
+
+### 4. `pantry`: the context case
+- **Product**: Ruiz Bakery's existing stock program (about 340 lines in ten modules, with tests): lots with use-by
+  dates, unit conversions, a catalog with minimum and target levels, suppliers with pack sizes, recipes, plus sales
+  and shelf labels. The change: a `reorder` list, a `plan` command for production, and `reorder` counting planned
+  bakes.
+- **Seed**: four rules live only in a helper module: expired lots never count (`store`), quantities show as kg or l
+  from 1,000 with two decimals rounded half up (`units`), an order brings stock up to the target once it falls below
+  the minimum (`catalog`), and orders are whole packs, never below the supplier's minimum (`suppliers`). Each is
+  reachable by following the code from the module a story changes. `sales` and `labels` look related and are not
+  needed: decoys.
+- **Stresses**: Split naming every file the builder needs (ADR 0030), and naming no more.
+- **Evidence, per build task, recorded in `trial.json` and the report, not a pass/fail grade**:
+  - needed: the project modules the task's new code uses that the task does not change, from the task's commit
+    (imports and module attributes used after the task and not before). This works on any case.
+  - missing: needed files Split did not name; extra: files Split named to read that the code does not use.
+  - found by the builder: project files it opened that it was not given.
+  - The hidden tests on the four rules show what a missing file costs.
+- **Runs**: one full trial for an approved plan, then five trials from it with `--from split --snapshot`, so every
+  repetition starts from the same stories. Not held out: it is the case Split is tuned on.
 
 ## What the research says
 
