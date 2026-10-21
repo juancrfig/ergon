@@ -20,9 +20,9 @@ owns, and attaches proof.
   the verification skill and the wiki's convention pages. Repo AGENTS.md files are maps for finding files; they go
   to Split, which explores, not to the builder, which is handed its files (done, with this ADR).
 - The Build skill keeps only rules with evidence or a safety purpose: change only the listed files and remove files
-  checks create; stay inside the project, no installs; stop on an open design decision. To add when the
-  verification skill exists: prove each covered criterion through it before answering, and run servers only
-  through it.
+  checks create; stay inside the project, no installs; stop on an open design decision. Added for
+  verification: prove each covered criterion through the verification skill before answering; start and stop the
+  app only through it and stop what you started; stop when it cannot drive what a criterion needs.
 - Proof: per covered criterion, the commands the builder ran and the result it expects. Code re-runs them after the
   commit; all must match. No Inspect agent; a light judge only if a project gets criteria that cannot be re-run.
 - Gate (compile, type check, lint) stays as the deterministic floor.
