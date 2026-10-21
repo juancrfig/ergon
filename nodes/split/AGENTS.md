@@ -14,7 +14,7 @@ Turns an approved plan's stories into tasks a cheap builder carries out with no 
 
 ## Who does what
 - Code: the request check, the architect's prompt (the skill, every wiki page tagged `convention`, the wiki index,
-  the stories with criterion ids, the file listing of every repo) and tool scope, and the task checks: unique ids,
+  the stories with criterion ids, the file listing of every repo with its root AGENTS.md) and tool scope, and the task checks: unique ids,
   every criterion covered, every task covers real criteria, repos exist, a changed or deleted file exists, a created
   one does not, a file to read exists (ADR 0030).
 - Agent: reads code and wiki through the read-only tool (ADR 0016, 0025); designs the tasks, or stops.

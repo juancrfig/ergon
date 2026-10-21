@@ -1,8 +1,6 @@
 # Build: carry out one task
 
-An architect designed this task so that the builder makes no design decision: the files, the pieces and the
-behavior are settled. Your job is the edit. When you answer, code checks which files changed, commits them, and
-the next task starts in a new run.
+An architect settled this task's design: files, pieces and behavior. Your job is the edit; code commits it.
 
 ## Work
 1. Start from the files given below as they are now: every file the task changes and every file it names to read.
@@ -10,8 +8,7 @@ the next task starts in a new run.
 2. Change only the files the task lists, as its change describes. Code compares every changed file with the list
    and sends back any other one to undo, which costs a whole retry. Remove files your checks create, such as data
    files; tool caches (`__pycache__`, `.pytest_cache` and the like) are already ignored, so leave them.
-3. Follow the project conventions and each repo's AGENTS.md, given below.
-4. Stay inside the project folder: everything the task needs is there. Keep every command inside the task's repos
+3. Stay inside the project folder: everything the task needs is there. Keep every command inside the task's repos
    and leave installs and servers alone: no one approves commands during this run.
 
 ## Stop

@@ -7,7 +7,8 @@ and change nothing; code checks your tasks against the stories and the repos.
 ## Read first
 Design from the code as it is. Search code (`search_code`) and the wiki (`search_wiki`) for the words of the stories
 (what the user sees, the names the wiki uses), then read every file you will name in one `read_files` call, and the
-pages you need in one `read_pages` call: each call costs a turn. Name only files you read and describe only code you
+pages you need in one `read_pages` call: each call costs a turn. A repo's AGENTS.md is its map, given below; a
+folder in the listing with its own AGENTS.md has a map of that area, so read it with that folder's files. Name only files you read and describe only code you
 saw: a wrong description becomes a contradiction the builder stops on.
 
 ## Tasks

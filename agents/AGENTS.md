@@ -86,7 +86,7 @@ ADR.
 - **Skills**, picked in `ergon/split.py` `_context`:
   - `splitting`: every split request.
 - **Context code writes**: the skill, every wiki page tagged `convention`, the index, the stories with criterion
-  ids, the file listing of every repo, and the answer contract.
+  ids, the file listing of every repo with its root AGENTS.md (the repo's map), and the answer contract.
 - **Answer contract**: `nodes/split/contracts/tasks.json`.
 
 ## builder (Build)
@@ -95,7 +95,7 @@ ADR.
 - **Tools**: the wiki tools, and Hermes' terminal and file tools with no isolation (ADR 0023). 60 turns.
 - **Skills**, picked in `ergon/build.py` `_context`:
   - `building`: every task.
-- **Context code writes**: the skill, every wiki page tagged `convention`, the AGENTS.md of the task's repos, the
+- **Context code writes**: the skill, every wiki page tagged `convention`, the
   story, the criteria the task covers, the task, the current text of every file the task changes or names to read
   (ADR 0030), and the answer contract.
 - **Answer contract**: `nodes/build/contracts/result.json`.

@@ -18,7 +18,7 @@ Carries out Split's tasks, one at a time in order, and commits each on the plan'
 
 ## Who does what
 - Code: refuses to start on a repo with uncommitted changes; creates or checks out `plan/<plan id>` in every repo
-  the tasks name; writes the builder's prompt (the skill, every `convention` page, the task's repos' AGENTS.md, the
+  the tasks name; writes the builder's prompt (the skill, every `convention` page, the
   story, the criteria, the task, and the current text of every file the task changes or names to read, ADR 0030);
   checks what changed: only the task's files, a change changed something, no change
   changed nothing, every criterion reported; commits each task, author Ergon. On a stop or failure it saves the

@@ -8,7 +8,7 @@ project's repos without being prepared per stack, and stop rather than guess.
 
 ## Decision
 - Input, assembled by code: one story (with criterion ids), every repo of the project checked out on the plan's
-  branch, every wiki page tagged `convention`, each repo's AGENTS.md if it has one, the Build skill. On a retry, the
+  branch, every wiki page tagged `convention`, each repo's AGENTS.md if it has one (moved to Split's prompt by ADR 0033), the Build skill. On a retry, the
   exact Gate error or the failed Inspect criteria.
 - One Build agent for every stack: no frontend or backend variants. Skills are loaded lazily from a list once
   specialised skills exist; until then there are none. Anything enforced (criteria, conventions) never depends on

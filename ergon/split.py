@@ -53,6 +53,9 @@ class Split(Node):
             files = repo_files(root)
             cut = f"\n({len(files) - MAX_LISTING} more files not listed)" if len(files) > MAX_LISTING else ""
             parts.append(f"## {name}\n\n" + "\n".join(f"{name}/{f}" for f in files[:MAX_LISTING]) + cut)
+            guide = root / "AGENTS.md"   # the repo's map, written by its owner; nested ones are in the listing
+            if guide.exists():
+                parts.append(f"### {name}/AGENTS.md\n\n{guide.read_text().strip()}")
         return "\n\n".join(parts) + "\n"
 
     def show(self, rid: str) -> str:

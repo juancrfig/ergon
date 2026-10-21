@@ -119,10 +119,6 @@ class Build(Node):
         conventions = self.wiki.convention_text()
         if conventions != "None.":
             parts += ["# Project conventions", conventions]
-        for name in task["repos"]:
-            guide = found[name] / "AGENTS.md"
-            if guide.exists():
-                parts.append(f"# {name}/AGENTS.md\n\n{guide.read_text().strip()}")
         parts.append(f"# Where you are\nThe terminal starts in the project folder, {self.project}. Each repo is a "
                      f"folder in it: " + ", ".join(task["repos"]) + ". Paths below are <repo>/<path>.")
         if before:
