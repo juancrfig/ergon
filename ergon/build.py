@@ -112,8 +112,12 @@ class Build(Node):
         return [built[t["id"]] for t in tasks if t["id"] in built]
 
     def _context(self, task: dict, before: list, stories: list, found: dict) -> str:
+        """Long material first and the task last; agent.ask appends the answer contract after it."""
         texts = criteria(stories)
-        parts = [SKILL.read_text().strip(), "# Project conventions", self.wiki.convention_text()]
+        parts = [SKILL.read_text().strip()]
+        conventions = self.wiki.convention_text()
+        if conventions != "None.":
+            parts += ["# Project conventions", conventions]
         for name in task["repos"]:
             guide = found[name] / "AGENTS.md"
             if guide.exists():
@@ -122,18 +126,18 @@ class Build(Node):
                      f"folder in it: " + ", ".join(task["repos"]) + ". Paths below are <repo>/<path>.")
         if before:
             parts.append("# Already built, in earlier tasks\n" + "\n".join(f"- {t['id']}: {t['title']}" for t in before))
-        story_ids = list(dict.fromkeys(c.rpartition("#")[0] for c in task["covers"]))
-        parts += ["# Story " + story_text(s, full=False) for s in stories if s["id"] in story_ids]
-        parts.append("# Criteria this task makes true\n" + "\n".join(f"- {c}: {texts[c]}" for c in task["covers"]))
-        parts.append(f"# Your task: {task['id']}\n{task['title']}\n\nFiles:\n"
-                     + "\n".join(f"- {f['action']} {f['path']}" for f in task["files"]) + f"\n\n{task['change']}")
-        given = [f["path"] for f in task["files"] if f["action"] != "create"] + task.get("read", [])   # ADR 0030
+        given = [f["path"] for f in task["files"] if f["action"] != "create"] + task.get("read", [])
         if given:
             parts.append("# Files as they are now")
             for path in given:
                 repo, _, rel = path.partition("/")
                 text = (found[repo] / rel).read_text(errors="replace")
                 parts.append(f"## {path}\n\n````\n{text.rstrip()}\n````")
+        story_ids = list(dict.fromkeys(c.rpartition("#")[0] for c in task["covers"]))
+        parts += ["# Story " + story_text(s, full=False) for s in stories if s["id"] in story_ids]
+        parts.append("# Criteria this task makes true\n" + "\n".join(f"- {c}: {texts[c]}" for c in task["covers"]))
+        parts.append(f"# Your task: {task['id']}\n{task['title']}\n\nFiles:\n"
+                     + "\n".join(f"- {f['action']} {f['path']}" for f in task["files"]) + f"\n\n{task['change']}")
         return "\n\n".join(parts) + "\n"
 
     def show(self, rid: str) -> str:

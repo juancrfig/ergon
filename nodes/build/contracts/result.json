@@ -31,7 +31,7 @@
         "no_change": {
           "type": "array",
           "minItems": 1,
-          "description": "One entry per criterion the task covers: why the code already makes it true.",
+          "description": "One entry per criterion the task covers: where the code already makes it true (file and what).",
           "items": {
             "type": "object",
             "additionalProperties": false,

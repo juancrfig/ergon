@@ -5,7 +5,7 @@ behavior are settled. Your job is the edit. When you answer, code checks which f
 the next task starts in a new run.
 
 ## Work
-1. Start from the files below, given as they are now: every file the task changes and every file it names to read.
+1. Start from the files given below as they are now: every file the task changes and every file it names to read.
    Open another file only when the task or that code points at it.
 2. Change only the files the task lists, as its change describes. Code compares every changed file with the list
    and sends back any other one to undo, which costs a whole retry; remove scratch files you create.
@@ -18,8 +18,3 @@ the next task starts in a new run.
 Stop when the task leaves a design decision open (a name, a shape, a place or a behavior that neither the task nor
 the code settles) or contradicts the code. A guess puts a design no one reviewed into the product; a stop sends the
 question to the architect, who owns design. Code saves your edits as evidence and resets the repos.
-
-## Answer
-Done when every criterion the task covers has one entry:
-- `change`: how your edit makes the criterion true.
-- `no_change`: the code already makes it true; say where (file and what).
