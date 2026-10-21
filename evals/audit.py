@@ -141,7 +141,7 @@ def _files(ergon: Path) -> list:
     project, out = ergon.parent, []
     tasks = {}
     for f in (ergon / "split" / "runs").rglob("tasks.json"):
-        tasks[f.parent.name] = {t["id"]: t for t in json.loads(f.read_text())["tasks"]}
+        tasks[f.parent.name] = {t["id"]: t for t in json.loads(f.read_text()).get("tasks", [])}   # or a stop
     for built_file in sorted((ergon / "build" / "runs").rglob("built.json")):
         request = next((ergon / "build").glob(f"*/{built_file.parent.name}.json"), None)
         split = json.loads(request.read_text()).get("split") if request else None
