@@ -6,7 +6,8 @@ Keeps the project wiki true. Agent: `wiki-maintainer` (agents/AGENTS.md). Decisi
 ## Input
 One JSON request per file on the node's belt (`<project>/.ergon/intake/`). Contracts:
 - `ingest`: a source file inside the project; a `note` can report a wrong claim, with the source as evidence.
-  `contracts/request.ingest.json`
+  `contracts/request.ingest.json`. Plan sends one with the human's answers when its stories are ready (ADR 0028);
+  approving the plan approves it.
 - `health-check`: no payload. `contracts/request.health-check.json`
 
 ## Output

@@ -80,12 +80,14 @@ class Pantry(unittest.TestCase):
             result = self.run_program("plan", "croissant", bad)
             self.assertEqual((result.returncode, result.stderr.strip()), (1, "Batches must be a whole number above 0."))
 
-    def test_stated_plan_takes_nothing_out(self):
+    def test_ask_plan_takes_nothing_out(self):
+        """F2"""
         self.stock_up()
         self.out("plan", "baguette", "3")
         self.assertEqual(self.out("stock").splitlines()[0], "flour: 80 kg")
 
     def test_ask_earlier_plans_first(self):
+        """F3"""
         self.stock_up(butter="4kg")
         self.out("plan", "croissant", "2")
         self.assertEqual(self.out("plan", "croissant", "1"), "Planned croissant x 1.\nShort of butter: 500 g")

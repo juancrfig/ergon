@@ -58,9 +58,8 @@ class Plan(Node):
         source = Path("wiki") / "raw" / f"plan-{rid}-decisions.md"
         (self.project / source).parent.mkdir(parents=True, exist_ok=True)
         (self.project / source).write_text("\n".join(lines))
-        intake = self.hand_off("intake", {"type": "ingest", "from": "plan", "source": str(source),
-                                          "note": "Decisions the human made while planning. They settle the questions "
-                                                  "they answer: update the pages, do not record them as contradictions."})
+        # How to treat these decisions is Intake's skill rule and the source's own header; no note repeats it.
+        intake = self.hand_off("intake", {"type": "ingest", "from": "plan", "source": str(source)})
         (self.belt.run_dir(rid) / "decisions.json").write_text(
             json.dumps({"source": str(source), "intake": intake}, indent=2) + "\n")
         return f"; the wiki update for its decisions, {intake}, waits in Intake's inbox"

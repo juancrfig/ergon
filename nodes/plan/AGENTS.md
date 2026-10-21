@@ -1,7 +1,7 @@
 # Plan node
 
 Turns a goal into user stories. Agent: `planner` (agents/AGENTS.md), frontier-reasoning. Decisions: ADR 0011, 0013,
-0015-0017, 0019.
+0015-0017, 0019, 0028.
 
 ## Input
 - `plan`: the human's goal. `contracts/request.plan.json`. Documents go through Intake first.
@@ -13,6 +13,8 @@ Turns a goal into user stories. Agent: `planner` (agents/AGENTS.md), frontier-re
 - Approved stories: `runs/<id>/stories.json`. Each `done_when` criterion's id is `<story id>#<n>`, its 1-based
   position; approved stories never change, so later nodes cite criteria by it. Approving puts a split request on
   Split's belt (ADR 0024).
+- The answered rounds, when stories come back after at least one: a source in `wiki/raw/` and an ingest request on
+  Intake's belt. Approving the plan applies that wiki change first; rejecting the plan rejects it (ADR 0028).
 
 ## Who does what
 - Code: request and answer checks, the planner's prompt (goal, wiki index, earlier rounds) and tool scope, round

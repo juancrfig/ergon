@@ -13,7 +13,8 @@ profile changes, change its card in the same commit.
 A change to a skill reaches the agent only through a commit the human approves (ADR 0002). The cards describe the
 Hermes backend, the default. With `ERGON_AGENT=agy` (ADR 0029, used by the evals) every agent runs on one agy model
 instead: the same skills, prompts and contracts; the wiki tools only, plus agy's command and file tools for Build;
-agy's own system prompt in place of Hermes' (not visible; the run folder keeps the agent definition Ergon wrote). The Hermes profile of the same name (`~/.hermes/profiles/<name>/config.yaml`) holds only what
+agy's own system prompt in place of Hermes' (not visible; the run folder keeps the agent definition Ergon wrote,
+agy's log and its conversation database). The Hermes profile of the same name (`~/.hermes/profiles/<name>/config.yaml`) holds only what
 "Hermes profile" below lists.
 
 ## The same for every profile
@@ -31,7 +32,7 @@ agy's own system prompt in place of Hermes' (not visible; the run folder keeps t
 lookup tools.
 
 **Skills**: code reads the agent's skill file and puts it first in the prompt, once per call. The agent never picks
-one. Hermes loads none of its own (`--no-skills`, `--ignore-rules`).
+one. Hermes loads none of its own: profiles are created with `--no-skills` and every run passes `--ignore-rules`.
 
 **Context Hermes adds**, about 2,900 characters, accepted in ADR 0017:
 - Identity: "You are Hermes Agent, built by Nous Research. Be direct..."
@@ -44,6 +45,8 @@ one. Hermes loads none of its own (`--no-skills`, `--ignore-rules`).
 
 **Not added**, by `--ignore-rules` and the settings: SOUL, AGENTS.md, memory, Hermes' skill list, plugin sections,
 coding-agent instructions, the workspace git snapshot.
+
+**A dropped connection**: the call resumes its own conversation once, as `<call>-resume` (ADR 0031).
 
 **Evidence per run**, in the run folder: `<call>.system-prompt.md` (what Hermes added, from Hermes' session
 export), `<call>.prompt.md` (what code wrote), `<call>.session.jsonl` (the whole conversation, with any summary compression

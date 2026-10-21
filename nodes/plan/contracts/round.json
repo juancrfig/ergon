@@ -119,7 +119,7 @@
                   "minLength": 1,
                   "maxLength": 400
                 },
-                "description": "Observable acceptance criteria; Inspect checks each one."
+                "description": "Observable acceptance criteria."
               },
               "out_of_scope": {
                 "type": "array",

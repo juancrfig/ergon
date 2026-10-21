@@ -230,15 +230,12 @@ Each case stresses a different node, so a failure points somewhere.
   reachable by following the code from the module a story changes. `sales` and `labels` look related and are not
   needed: decoys.
 - **Stresses**: Split naming every file the builder needs (ADR 0030), and naming no more.
-- **Evidence, per build task, recorded in `trial.json` and the report, not a pass/fail grade**:
-  - needed: the project modules the task's new code uses that the task does not change, from the task's commit
-    (imports and module attributes used after the task and not before). This works on any case in Python,
-    JavaScript or TypeScript; the last two are read with patterns, not a parser, and no case exercises them yet.
-  - missing: needed files Split did not name; extra: files Split named to read that the code does not use.
-    A needed file an earlier task of the same Split creates is counted apart: it did not exist when Split read the
-    code.
-  - found by the builder: project files it opened that it was not given.
-  - The hidden tests on the four rules show what a missing file costs.
+- **Evidence, per build task, recorded in `trial.json` and the report, not a pass/fail grade**, read from outcomes
+  so it works in any language:
+  - files Split named to change and to read, and the project files the builder opened that it was not given (a file
+    it had to find is a file Split missed);
+  - the builder's turns and tokens per task (a missed file brings the search cost back);
+  - the hidden `rule` tests (a missed helper module makes the builder guess the rule).
 - **Runs**: one full trial for an approved plan, then five trials from it with `--from split --snapshot`, so every
   repetition starts from the same stories. Not held out: it is the case Split is tuned on.
 

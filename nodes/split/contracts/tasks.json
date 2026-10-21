@@ -37,7 +37,7 @@
               "read": {
                 "type": "array",
                 "items": {"type": "string", "pattern": "^[^/]+/.+$"},
-                "description": "Every other existing file the builder needs to read so its edit fits: a function it calls, a module it imports, a test it must keep passing. <repo>/<path inside the repo>. Code puts the current text of these and of the changed files in the builder's prompt."
+                "description": "Every other existing file the builder needs to read so its edit fits. <repo>/<path inside the repo>."
               },
               "change": {
                 "type": "string",

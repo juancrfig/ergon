@@ -18,14 +18,14 @@ saw: a wrong description becomes a contradiction the builder stops on.
   `delete` name files that exist or that an earlier task creates, and `create` a new one.
 - `read`: every other existing file the builder needs so its edit fits: a function it calls, a module it imports, a
   test it must keep passing. Code puts the current text of these and of the changed files in the builder's prompt,
-  so a file you leave out is one the builder must go and find. Name only files you read.
+  so a file you leave out is one the builder must go and find.
 - `change`: for each file, what to add or alter: the pieces (functions, components, endpoints, fields), their
   names, inputs and outputs, data shapes and formats, where they go, and the behavior, including the edge cases the
   criteria name. Where two tasks or two repos meet, write the interface once, exactly, and repeat it in both.
   Describe; the builder writes the code.
 - Checks you put in `change` use what the builder has: reading files and running commands in the repos (a syntax
   check, a compile, a build). It has no browser or device.
-- `covers`: the criterion ids the task makes true. Code checks that every criterion of every story is covered.
+- `covers`: code checks that every criterion of every story is covered by some task.
 - Follow the project conventions. Where the code already has a way of doing something, use it.
 
 ## Stop

@@ -7,11 +7,8 @@ Everything here reads files a trial left; nothing calls an agent. Sources:
 - the wiki tool's call logs and Hermes' session exports: what each agent really read and ran.
 - each build task's commit: the project files its new code uses, against the files Split named (ADR 0030).
 """
-import ast
 import calendar
-import subprocess
 import json
-import os
 import re
 import statistics
 import time
@@ -133,22 +130,16 @@ def _behavior(ergon: Path, spec: dict) -> dict:
     return out
 
 
-# --- the files Split named against the files the code needed --------------------------------------------------
+# --- the files Split gave the builder against the files it went looking for -----------------------------------
 
 
 def _files(ergon: Path) -> list:
-    """Per build task: the files Split named (to change and to read), the project files the task's new Python code
-    uses but does not change (needed), what Split missed and named for nothing, and the project files the builder
-    opened that it was not given. Python, JavaScript and TypeScript; other languages show no needed files."""
-    project, out = ergon.parent, []
-    tasks, earlier = {}, {}
+    """Per build task: the files Split named (to change and to read) and the project files the builder opened that
+    it was not given. A file the builder had to find means Split missed it; this reads only the session, so it works
+    for any language."""
+    project, out, tasks = ergon.parent, [], {}
     for f in (ergon / "split" / "runs").rglob("tasks.json"):
-        listed = json.loads(f.read_text()).get("tasks", [])   # none on a stop
-        tasks[f.parent.name] = {t["id"]: t for t in listed}
-        made = set()   # files the tasks before each one create
-        for t in listed:
-            earlier[(f.parent.name, t["id"])] = set(made)
-            made |= {x["path"] for x in t["files"] if x["action"] == "create"}
+        tasks[f.parent.name] = {t["id"]: t for t in json.loads(f.read_text()).get("tasks", [])}   # none on a stop
     for built_file in sorted((ergon / "build" / "runs").rglob("built.json")):
         request = next((ergon / "build").glob(f"*/{built_file.parent.name}.json"), None)
         split = json.loads(request.read_text()).get("split") if request else None
@@ -157,135 +148,11 @@ def _files(ergon: Path) -> list:
             task = tasks.get(split, {}).get(b["task"])
             if not task:
                 continue
-            changed = {f["path"] for f in task["files"]}
-            given = changed | set(task.get("read", []))
-            needed = set()
-            for repo, sha in b.get("commits", {}).items():
-                needed |= _used(project, repo, sha)
-            needed -= changed | _touched(project, b.get("commits", {}))
+            changed, read = {f["path"] for f in task["files"]}, set(task.get("read", []))
             opened = _opened(project, dirs.get(b["task"]))
-            # A file an earlier task creates did not exist when Split read the code: missing it is a smaller miss.
-            later = needed - given & earlier.get((split, b["task"]), set())
-            out.append({"task": b["task"], "change": sorted(changed), "read": sorted(task.get("read", [])),
-                        "needed": sorted(needed), "missing": sorted(needed - given - later),
-                        "missing_from_earlier_task": sorted(later),
-                        "extra": sorted(set(task.get("read", [])) - needed),
-                        "found_by_builder": sorted(opened - given)})
+            out.append({"task": b["task"], "change": sorted(changed), "read": sorted(read),
+                        "found_by_builder": sorted(opened - changed - read)})
     return out
-
-
-def _git(root: Path, *args: str) -> str:
-    return subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True).stdout
-
-
-def _touched(project: Path, commits: dict) -> set:
-    return {f"{repo}/{p}" for repo, sha in commits.items()
-            for p in _git(project / repo, "show", "--name-only", "--format=", sha).split()}
-
-
-def _used(project: Path, repo: str, sha: str) -> set:
-    """Project modules referenced on the lines a commit added to its Python files, as project-relative paths."""
-    root, used = project / repo, set()
-    tree_now = set(_git(root, "ls-tree", "-r", "--name-only", sha).split())
-    tree_before = set(_git(root, "ls-tree", "-r", "--name-only", f"{sha}^").split())
-    for path in _git(root, "show", "--name-only", "--format=", sha).split():
-        if not path.endswith(".py") and not path.endswith(JS):
-            continue
-        added = set()
-        for hunk in re.finditer(r"^@@ -\S+ \+(\d+)(?:,(\d+))? @@", _git(root, "show", "--format=", "-U0", sha, "--", path),
-                                re.M):
-            start, count = int(hunk[1]), int(hunk[2] or 1)
-            added.update(range(start, start + count))
-        if path.endswith(JS):
-            used |= _used_js(root, sha, path, added, tree_now, tree_before)
-            continue
-        try:
-            tree = ast.parse(_git(root, "show", f"{sha}:{path}"))
-        except SyntaxError:
-            continue
-        try:
-            before = _imports(tree_before, path, ast.parse(_git(root, "show", f"{sha}^:{path}")))
-        except SyntaxError:
-            before = {}
-        names = _imports(tree_now, path, tree)
-        used |= {target for name, target in names.items() if name not in before}   # a newly imported module
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Name) and node.id in names and node.lineno in added:
-                used.add(names[node.id])
-    return {f"{repo}/{p}" for p in used}
-
-
-JS = (".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx")
-# import a, {b, c as d} from './m' · import * as ns from './m' · import './m' · export ... from './m' ·
-# const x = require('./m') · const {a, b} = require('./m'). Only relative paths are project files.
-JS_IMPORT = re.compile(r"""(?:import\s+(?P<what>[^'"]*?)\s+from\s+|import\s+|export\s+[^'"]*?\s+from\s+|"""
-                       r"""(?:const|let|var)\s+(?P<bound>[\w${}\s,:]+?)\s*=\s*require\(\s*)['"](?P<spec>\.{1,2}/[^'"]+)['"]""")
-
-
-def _used_js(root: Path, sha: str, path: str, added: set, tree_now: set, tree_before: set) -> set:
-    """The JavaScript and TypeScript version of _used for one file: modules it newly imports, and modules whose
-    imported names appear on the lines the commit added. Read with patterns, not a parser: a close count."""
-    def imports(text: str, files: set) -> dict:
-        names = {}
-        for m in JS_IMPORT.finditer(text):
-            target = _js_module(files, path, m["spec"])
-            if not target:
-                continue
-            what = m["what"] or m["bound"] or ""
-            local = re.findall(r"(?:\w+\s+as\s+|\w+\s*:\s*)?([A-Za-z_$][\w$]*)", what.replace("* as", ""))
-            for name in local or [f"<{target}>"]:   # a bare import still uses the module
-                names[name] = target
-        return names
-    now = imports(_git(root, "show", f"{sha}:{path}"), tree_now)
-    before = imports(_git(root, "show", f"{sha}^:{path}"), tree_before)
-    used = {target for name, target in now.items() if name not in before}
-    lines = _git(root, "show", f"{sha}:{path}").splitlines()
-    text = "\n".join(lines[n - 1] for n in sorted(added) if 0 < n <= len(lines))
-    used |= {target for name, target in now.items() if re.search(rf"(?<![\w$]){re.escape(name)}(?![\w$])", text)}
-    return used
-
-
-def _js_module(files: set, path: str, spec: str) -> str | None:
-    """The repo file a relative import points at: as written, with an extension, or its folder's index file."""
-    target = os.path.normpath(str(Path(path).parent / spec))
-    stem = re.sub(r"\.(js|jsx|mjs|cjs)$", "", target)   # TypeScript imports name the .js the build will emit
-    for candidate in [target] + [stem + ext for ext in JS] + [f"{target}/index{ext}" for ext in JS]:
-        if candidate in files:
-            return candidate
-    return None
-
-
-def _imports(files: set, path: str, tree: ast.AST) -> dict:
-    """Local name -> the repo file it was imported from, for every import of a file."""
-    names = {}
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom):
-            base = _module(files, path, node.module, node.level)
-            for alias in node.names:
-                sub = _module(files, path, f"{node.module}.{alias.name}" if node.module else alias.name, node.level)
-                if sub or base:
-                    names[alias.asname or alias.name] = sub or base
-        elif isinstance(node, ast.Import):
-            for alias in node.names:
-                target = _module(files, path, alias.name, 0)
-                if target:
-                    names[alias.asname or alias.name.split(".")[0]] = target
-    return names
-
-
-def _module(files: set, path: str, module: str | None, level: int) -> str | None:
-    """The repo file a module name points at, or None when it is not among the commit's files."""
-    base = Path(path).parent
-    for _ in range(max(level - 1, 0)):
-        base = base.parent
-    if not level:
-        base = Path()
-    parts = (module or "").split(".") if module else []
-    target = base.joinpath(*parts)
-    for candidate in (target.with_suffix(".py"), target / "__init__.py"):
-        if parts and str(candidate) in files:
-            return str(candidate)
-    return None
 
 
 def _opened(project: Path, run_dir: Path | None) -> set:
@@ -386,17 +253,9 @@ def report(records: list) -> str:
         files = [f for r in mine for f in r["behavior"].get("files", [])]
         if files:
             lines.append(f"- **Files per build task ({len(files)} tasks):** "
-                         f"needed {sum(len(f['needed']) for f in files)} · missing {sum(len(f['missing']) for f in files)}"
-                         f" · missing, made by an earlier task "
-                         f"{sum(len(f.get('missing_from_earlier_task', [])) for f in files)}"
-                         f" · named to read for nothing {sum(len(f['extra']) for f in files)}"
+                         f"to change {sum(len(f['change']) for f in files)} · to read {sum(len(f['read']) for f in files)}"
                          f" · opened by the builder, not given {sum(len(f['found_by_builder']) for f in files)}")
-            for f in files:
-                later = f.get("missing_from_earlier_task", [])
-                if f["missing"] or later or f["extra"]:
-                    lines.append(f"  - {f['task']}: missing {', '.join(f['missing']) or '-'}; "
-                                 + (f"made by an earlier task {', '.join(later)}; " if later else "")
-                                 + f"extra {', '.join(f['extra']) or '-'}")
+            lines += [f"  - {f['task']}: opened {', '.join(f['found_by_builder'])}" for f in files if f["found_by_builder"]]
         lines.append("- **Trials:** " + ", ".join(r["trial"] for r in mine))
         lines.append("")
     return "\n".join(lines)
