@@ -23,12 +23,14 @@ owns, and attaches proof.
   checks create; stay inside the project, no installs; stop on an open design decision. Added for
   verification: prove each covered criterion through the verification skill before answering; start and stop the
   app only through it and stop what you started; stop when it cannot drive what a criterion needs.
-- Proof: per covered criterion, the commands the builder ran and the result it expects. Code re-runs them after the
-  commit; all must match. No Inspect agent; a light judge only if a project gets criteria that cannot be re-run.
+- Proof: per covered criterion, the steps the builder ran; a step is a command, the repo it runs in, the exit code
+  it expects and the lines its output must contain. Code replays every step in a clean copy of the repos at the
+  commit; a step passes when the exit code matches and every named line appears, so dates, ids and timings
+  elsewhere in the output do not break it. No Inspect agent; a light judge only if a project gets criteria that cannot be re-run.
 - Gate (compile, type check, lint) stays as the deterministic floor.
 
 ## Open
-- The proof record's shape, where it is stored, and how replay handles output that varies between runs.
+- Where the proof is stored.
 - The verification tool's interface rules and the wizard's steps.
 - Environment: seed data, ports, cleanup between tasks, who installs dependencies.
 - Where a project declares its Gate checks.
