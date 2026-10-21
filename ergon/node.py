@@ -34,7 +34,12 @@ class Node:
         profiles.require(self.profile)
         for rid in self.belt.ids("inbox"):
             self.belt.move(rid, "inbox", "working")
-            request = self.belt.read(rid)
+            try:
+                request = self.belt.read(rid)
+            except ValueError as exc:   # the file is not JSON
+                self.belt.reject(rid, "working", f"malformed request: not valid JSON ({exc})")
+                log(f"{rid}: rejected (malformed)")
+                continue
             problems = self.request_problems(request)
             if problems:
                 self.belt.reject(rid, "working", "malformed request:\n" + "\n".join(problems))
@@ -42,8 +47,9 @@ class Node:
                 continue
             try:
                 outcome = self.handle(rid, request)
-            except (agent.AgentError, OSError, ValueError) as exc:
-                self.belt.reject(rid, "working", f"failed: {exc}")
+            except Exception as exc:   # whatever fails, the request leaves "working" with its reason
+                if self.belt.state_of(rid) == "working":
+                    self.belt.reject(rid, "working", f"failed: {type(exc).__name__}: {exc}")
                 outcome = f"rejected: {exc}"
             log(f"{rid}: {outcome}")
 
