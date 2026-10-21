@@ -19,6 +19,8 @@ An architect settled this task's design: files, pieces and behavior. Your job is
    each one hold. The proof is the evidence that the task is done: code looks for each command in your session
    log, run after your last edit, so a proof you did not run, or ran before a later edit, fails the task. Run
    proofs with your terminal tool, after the final edit. When a criterion fails, fix the edit and prove it again.
+   The checks list below holds rules every change must keep. For each rule that names something your change touches,
+   drive it through the verification skill as well and run it after your last edit, in the same way as a criterion.
 
 ## Stop
 Stop when the task leaves a design decision open (a name, a shape, a place or a behavior that neither the task nor

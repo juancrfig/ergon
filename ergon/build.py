@@ -18,6 +18,7 @@ from ergon.plan import Plan, criteria, story_text
 from ergon.split import Split
 
 SKILL = profiles.SKILLS / "building.md"
+CHECKS = profiles.REPO / "agents" / "checks.md"   # ADR 0034
 MAX_TURNS = 60   # ADR 0023
 AUTHOR = ["-c", "user.name=Ergon", "-c", "user.email=ergon@localhost"]
 
@@ -120,7 +121,7 @@ class Build(Node):
     def _context(self, task: dict, before: list, stories: list, found: dict) -> str:
         """Long material first and the task last; agent.ask appends the answer contract after it."""
         texts = criteria(stories)
-        parts = [SKILL.read_text().strip()]
+        parts = [SKILL.read_text().strip(), CHECKS.read_text().strip()]
         conventions = self.wiki.convention_text()
         if conventions != "None.":
             parts += ["# Project conventions", conventions]

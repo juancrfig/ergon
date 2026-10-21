@@ -97,6 +97,7 @@ ADR.
 - **Tools**: the wiki tools, and Hermes' terminal and file tools with no isolation (ADR 0023). 60 turns.
 - **Skills**, picked in `ergon/build.py` `_context`:
   - `building`: every task.
+  - `checks.md` (not a skill): general rules every change must keep, ADR 0034. Placed right after the skill.
 - **Context code writes**: the skill, every wiki page tagged `convention`, the verification skill and feature map
   of the task's repos (ADR 0033), the story, the criteria the task covers, the task, the current text of every file the task changes or names to read
   (ADR 0030), and the answer contract.
