@@ -1,7 +1,7 @@
 # Code
 
 - `schema.py`: the JSON Schema subset contracts use. Extend it here before using a new keyword in a contract.
-- `belt.py`: a node's request folders and atomic moves between them.
+- `belt.py`: a node's request folders, atomic moves between them, and every request with its state.
 - `agent.py`: runs a node agent through its Hermes profile, or through agy when `ERGON_AGENT=agy` (ADR 0029), logs
   every call, and checks its JSON answer against a contract.
 - `profiles.py`: picks the backend (Hermes or agy); creates the node agents' Hermes profiles, applies
@@ -15,6 +15,7 @@
 - `plan.py`: the Plan node; also the story text and criterion ids later nodes use.
 - `split.py`: the Split node.
 - `build.py`: the Build node; owns the plan branches and commits.
+- `ticket.py`: a ticket's progress, derived from the belts on every query; nothing stored (ADR 0032).
 - `cli.py`: the command line, the first adapter (ADR 0012), and `install`. A new node is added to its `NODES`.
 - `hermes.yaml`: the canonical Hermes config of every node agent (ADR 0019).
 

@@ -14,6 +14,7 @@ from ergon.intake import Intake
 from ergon.plan import Plan
 from ergon.split import Split
 from ergon.build import Build
+from ergon.ticket import Tickets
 
 NODES = (Intake, Plan, Split, Build)
 
@@ -27,6 +28,8 @@ def main(argv=None) -> int:
     cmd.add_parser("run", help="process a node's inbox").add_argument("node", choices=[n.name for n in NODES])
     cmd.add_parser("status", help="requests per state, per node")
     cmd.add_parser("pending", help="everything that waits for you, oldest first")
+    cmd.add_parser("ticket", help="a ticket's plans and tasks with their progress; every ticket without an id"
+                   ).add_argument("ticket", nargs="?")
     cmd.add_parser("show", help="a request, with its questions, proposal, report or stories").add_argument("id")
     answer = cmd.add_parser("answer", help="answer a plan's questions with a JSON file")
     answer.add_argument("id")
@@ -51,6 +54,12 @@ def main(argv=None) -> int:
             next(n for n in nodes if n.name == args.node).run()
         elif args.cmd == "status":
             print("\n".join(n.status() for n in nodes))
+        elif args.cmd == "ticket":
+            tickets = Tickets(args.project)
+            if args.ticket:
+                print(tickets.show(args.ticket))
+            else:
+                print("\n".join(f"{t}: {tickets.status(t)}" for t in tickets.ids()) or "no tickets")
         elif args.cmd == "pending":
             rows = sorted((n.belt.file(s, rid).stat().st_mtime, n.name, s, rid)
                           for n in nodes for s in PENDING for rid in n.belt.ids(s))

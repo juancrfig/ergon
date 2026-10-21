@@ -185,7 +185,7 @@ class Trial:
 
     def _plan(self) -> bool:
         plan = Plan(self.project)
-        rid = plan.submit({"type": "plan", "from": "eval", "goal": self.spec["goal"]})
+        rid = plan.submit({"type": "plan", "from": "eval", "ticket": self.case.name, "goal": self.spec["goal"]})
         while True:
             plan.run(log=self.log)
             state = plan.belt.state_of(rid)

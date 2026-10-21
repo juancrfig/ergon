@@ -1,10 +1,11 @@
 # Plan node
 
 Turns a goal into user stories. Agent: `planner` (agents/AGENTS.md), frontier-reasoning. Decisions: ADR 0011, 0013,
-0015-0017, 0019, 0028.
+0015-0017, 0019, 0028, 0032.
 
 ## Input
-- `plan`: the human's goal. `contracts/request.plan.json`. Documents go through Intake first.
+- `plan`: the human's goal and the ticket it delivers (ADR 0032). `contracts/request.plan.json`. Documents go
+  through Intake first.
 - Answers to a round of questions. `contracts/answers.json`
 
 ## Output
@@ -28,9 +29,10 @@ Turns a goal into user stories. Agent: `planner` (agents/AGENTS.md), frontier-re
 ```
 python3 -m ergon install              # once: profiles and folders (repo root, --project <project>)
 hermes -p planner model          # once: set its model and credentials by hand
-python3 -m ergon submit goal.json            # {"type": "plan", "from": "juanes", "goal": "..."}
+python3 -m ergon submit goal.json            # {"type": "plan", "from": "juanes", "ticket": "ABC-123", "goal": "..."}
 python3 -m ergon run plan                    # one round per plan in the inbox
 python3 -m ergon pending
+python3 -m ergon ticket [<ticket>]           # a ticket's plans and tasks; without an id, every ticket
 python3 -m ergon show <id>
 python3 -m ergon answer <id> answers.json    # {"answers": [{"question": "q1", "answer": "..."}]}
 python3 -m ergon approve <id>   |   python3 -m ergon reject <id> "reason"

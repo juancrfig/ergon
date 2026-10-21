@@ -36,6 +36,11 @@ class Belt:
     def ids(self, state: str) -> list[str]:
         return sorted(p.stem for p in (self.root / state).glob("*.json"))
 
+    def requests(self):
+        """Every request on the belt as (id, state, request), oldest first: ids start with their time."""
+        found = [(rid, s) for s in STATES for rid in self.ids(s)]
+        return [(rid, s, json.loads(self.file(s, rid).read_text())) for rid, s in sorted(found)]
+
     def state_of(self, rid: str) -> str | None:
         return next((s for s in STATES if self.file(s, rid).exists()), None)
 

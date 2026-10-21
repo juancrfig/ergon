@@ -6,6 +6,7 @@
   "required": [
     "type",
     "from",
+    "ticket",
     "goal"
   ],
   "properties": {
@@ -16,6 +17,12 @@
       "type": "string",
       "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
       "maxLength": 40
+    },
+    "ticket": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+      "maxLength": 64,
+      "description": "The ticket this plan delivers: the tracker's key (ABC-123) or a local one. A replacing plan uses the same ticket; Split and Build requests reach it through their plan."
     },
     "goal": {
       "type": "string",
