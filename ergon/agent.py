@@ -138,7 +138,7 @@ def _agy_home(run_dir: Path, workspace: Path, tools: tuple) -> Path:
 
 # agy errors that come from the connection, not the model's work: the call resumes or runs once more (ADR 0029, 0031).
 AGY_TRANSIENT = ("API error", "stream idle timeout", "Eligibility check failed", "EOF", "connection reset",
-                 "no result", "invalid model selection")
+                 "no result", "invalid model selection", "stream was interrupted")
 
 
 def _call_agy(profile: str, prompt: str, run_dir: Path, label: str, tools: tuple, cwd,
