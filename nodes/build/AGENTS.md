@@ -1,7 +1,7 @@
 # Build node
 
 Carries out Split's tasks, one at a time in order, and commits each on the plan's branch. Agent: `builder`
-(agents/AGENTS.md), cheap-smart-enough. Decisions: ADR 0023, 0024, 0025.
+(agents/AGENTS.md), cheap-smart-enough. Decisions: ADR 0023, 0024, 0025, 0030, 0033.
 
 ## Input
 - `build`: a Split request that is done. `contracts/request.build.json`. Split puts it in the inbox when its tasks
@@ -17,11 +17,14 @@ Carries out Split's tasks, one at a time in order, and commits each on the plan'
   build of it recorded in its `built.json`.
 
 ## Who does what
-- Code: refuses to start on a repo with uncommitted changes; creates or checks out `plan/<plan id>` in every repo
-  the tasks name; writes the builder's prompt (the skill, every `convention` page, the
-  story, the criteria, the task, and the current text of every file the task changes or names to read, ADR 0030);
+- Code: refuses to start on a repo with uncommitted changes, or one without a verification skill
+  (`.agents/skills/verify/SKILL.md` and `FEATURES.md`, ADR 0033); creates or checks out `plan/<plan id>` in every repo
+  the tasks name; writes the builder's prompt (the skill, every `convention` page, the verification skill and
+  feature map of the task's repos, the story, the criteria, the task, and the current text of every file the task changes or names to read, ADR 0030);
   checks what changed: only the task's files, a change changed something, no change
-  changed nothing, every criterion reported; commits each task, author Ergon. On a stop or failure it saves the
+  changed nothing, every criterion reported (the feature map may change with any task); then replays each
+  criterion's proof in a clean copy of the task's repos holding what it would commit, recording every replay in
+  the task folder's `proof.jsonl`, and sends a failed one back like any other problem; commits each task, author Ergon. On a stop or failure it saves the
   unfinished diff in the task folder and resets the repos to their last commit.
 - Agent: works in the project folder with the terminal and file tools, in yolo mode (no command approvals), and
   the read-only wiki tool. Never runs git.

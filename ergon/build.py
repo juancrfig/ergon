@@ -3,14 +3,15 @@ every repo the task changes (ADR 0023, 0024).
 
 The builder is a cheap model with the terminal and file tools. It carries out one task at a time, in Split's
 order, and makes no design decision: a task that leaves one open is a stop, the architect's failure. Code checks
-what changed against the task, then commits; the builder never runs git. Gate and Inspect are not built yet.
+what changed against the task and replays the builder's proof of every criterion (ADR 0033), then commits; the
+builder never runs git. Gate is not built yet.
 A stop is a rejection; sending it back to Split is not built.
 """
 import json
 import subprocess
 from pathlib import Path
 
-from ergon import agent, profiles
+from ergon import agent, profiles, proof
 from ergon.node import Node, repos
 from ergon.plan import Plan, criteria, story_text
 from ergon.split import Split
@@ -60,6 +61,9 @@ class Build(Node):
         for root in used.values():       # code owns the branches (ADR 0023)
             if changed(root):
                 raise ValueError(f"repo {root.name} has uncommitted changes; commit or stash them first")
+        absent = proof.missing(used)   # ADR 0033: no verification skill, no build
+        if absent:
+            raise ValueError("no verification skill: run the wizard in each repo first; missing " + ", ".join(absent))
         for root in used.values():
             _ignore_caches(root)
             exists = git(root, "branch", "--list", branch).strip()
@@ -76,7 +80,7 @@ class Build(Node):
             agent.scope(task_dir, self.wiki.pages_dir)
             try:
                 answer = agent.ask(self.profile, self._context(task, tasks[:n - 1], stories, found),
-                                   self.contracts / "result.json", task_dir, "result", lambda a: _problems(a, task, used),
+                                   self.contracts / "result.json", task_dir, "result", lambda a: _problems(a, task, used, task_dir),
                                    tools=("terminal", "file"),
                                    turns=MAX_TURNS, cwd=self.project, yolo=True)
             except agent.AgentError:
@@ -119,6 +123,8 @@ class Build(Node):
         conventions = self.wiki.convention_text()
         if conventions != "None.":
             parts += ["# Project conventions", conventions]
+        for name in task["repos"]:
+            parts.append(proof.skill_text(name, found[name]))
         parts.append(f"# Where you are\nThe terminal starts in the project folder, {self.project}. Each repo is a "
                      f"folder in it: " + ", ".join(task["repos"]) + ". Paths below are <repo>/<path>.")
         if before:
@@ -146,11 +152,12 @@ class Build(Node):
         return "\n".join(lines)
 
 
-def _problems(answer: dict, task: dict, used: dict) -> list[str]:
-    """Everything about the builder's work that code can decide."""
+def _problems(answer: dict, task: dict, used: dict, task_dir: Path) -> list[str]:
+    """Everything about the builder's work that code can decide; the proof is replayed last, once the rest holds."""
     if "stop" in answer:
         return []
     out, allowed = [], {f["path"] for f in task["files"]}
+    allowed |= {f"{r}/{proof.VERIFY}/FEATURES.md" for r in task["repos"]}   # the feature map follows the code
     touched = [f"{name}/{p}" for name, root in used.items() for p in changed(root)]
     out += [f"{p} changed, but repo {p.split('/')[0]} is not one of this task's repos; undo it"
             for p in touched if p.split("/")[0] not in task["repos"]]
@@ -164,6 +171,11 @@ def _problems(answer: dict, task: dict, used: dict) -> list[str]:
     reported = [r["criterion"] for r in answer[kind]]
     out += [f"criterion {c} has no report" for c in task["covers"] if c not in reported]
     out += [f"{c} is not a criterion of this task" for c in reported if c not in task["covers"]]
+    if out:
+        return out
+    out, record = proof.replay(answer[kind], {r: used[r] for r in task["repos"]})
+    with (task_dir / "proof.jsonl").open("a") as f:   # every replay, rejected ones too
+        f.write(json.dumps({"problems": out, "steps": record}) + "\n")
     return out
 
 

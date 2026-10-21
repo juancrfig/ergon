@@ -5,7 +5,9 @@
     {
       "type": "object",
       "additionalProperties": false,
-      "required": ["change"],
+      "required": [
+        "change"
+      ],
       "properties": {
         "change": {
           "type": "array",
@@ -14,10 +16,63 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["criterion", "how"],
+            "required": [
+              "criterion",
+              "how",
+              "proof"
+            ],
             "properties": {
-              "criterion": {"type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*#[0-9]+$"},
-              "how": {"type": "string", "minLength": 1, "maxLength": 1000}
+              "criterion": {
+                "type": "string",
+                "pattern": "^[a-z0-9]+(-[a-z0-9]+)*#[0-9]+$"
+              },
+              "how": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "proof": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 12,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "repo",
+                    "run",
+                    "exit",
+                    "contains"
+                  ],
+                  "properties": {
+                    "repo": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "The repo the command runs in, from its root."
+                    },
+                    "run": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2000,
+                      "description": "The shell command, as you ran it."
+                    },
+                    "exit": {
+                      "type": "integer",
+                      "description": "The exit code it must return."
+                    },
+                    "contains": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 500
+                      },
+                      "description": "Lines its output (stdout and stderr) must contain to show the criterion holds; leave out what changes between runs, such as dates and ids."
+                    }
+                  }
+                },
+                "description": "The steps you ran through the verification skill that show this criterion holds, in order. Code replays them in a clean copy of the task's repos holding what it would commit; each step must exit as stated and print every line in contains."
+              }
             }
           }
         }
@@ -26,7 +81,9 @@
     {
       "type": "object",
       "additionalProperties": false,
-      "required": ["no_change"],
+      "required": [
+        "no_change"
+      ],
       "properties": {
         "no_change": {
           "type": "array",
@@ -35,10 +92,63 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["criterion", "how"],
+            "required": [
+              "criterion",
+              "how",
+              "proof"
+            ],
             "properties": {
-              "criterion": {"type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*#[0-9]+$"},
-              "how": {"type": "string", "minLength": 1, "maxLength": 1000}
+              "criterion": {
+                "type": "string",
+                "pattern": "^[a-z0-9]+(-[a-z0-9]+)*#[0-9]+$"
+              },
+              "how": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "proof": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 12,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "repo",
+                    "run",
+                    "exit",
+                    "contains"
+                  ],
+                  "properties": {
+                    "repo": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "The repo the command runs in, from its root."
+                    },
+                    "run": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2000,
+                      "description": "The shell command, as you ran it."
+                    },
+                    "exit": {
+                      "type": "integer",
+                      "description": "The exit code it must return."
+                    },
+                    "contains": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 500
+                      },
+                      "description": "Lines its output (stdout and stderr) must contain to show the criterion holds; leave out what changes between runs, such as dates and ids."
+                    }
+                  }
+                },
+                "description": "The steps you ran through the verification skill that show this criterion holds, in order. Code replays them in a clean copy of the task's repos holding what it would commit; each step must exit as stated and print every line in contains."
+              }
             }
           }
         }
@@ -47,15 +157,30 @@
     {
       "type": "object",
       "additionalProperties": false,
-      "required": ["stop"],
+      "required": [
+        "stop"
+      ],
       "properties": {
         "stop": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["reason", "question"],
+          "required": [
+            "reason",
+            "question"
+          ],
           "properties": {
-            "reason": {"type": "string", "minLength": 1, "maxLength": 2000, "description": "The design decision the task leaves open, and what in the code shows it."},
-            "question": {"type": "string", "minLength": 1, "maxLength": 500, "description": "The question the architect must answer."}
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000,
+              "description": "The design decision the task leaves open, and what in the code shows it."
+            },
+            "question": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "description": "The question the architect must answer."
+            }
           }
         }
       }

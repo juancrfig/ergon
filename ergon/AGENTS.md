@@ -15,6 +15,7 @@
 - `plan.py`: the Plan node; also the story text and criterion ids later nodes use.
 - `split.py`: the Split node.
 - `build.py`: the Build node; owns the plan branches and commits.
+- `proof.py`: the verification-skill check and the replay of the builder's proof in a clean copy (ADR 0033).
 - `ticket.py`: a ticket's progress, derived from the belts on every query; nothing stored (ADR 0032).
 - `cli.py`: the command line, the first adapter (ADR 0012), and `install`. A new node is added to its `NODES`.
 - `hermes.yaml`: the canonical Hermes config of every node agent (ADR 0019).
