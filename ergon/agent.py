@@ -149,6 +149,9 @@ def _call_agy(profile: str, prompt: str, run_dir: Path, label: str, tools: tuple
     if conversation and (home / ".gemini/antigravity-cli/conversations" / f"{conversation}.db").exists():
         shutil.copy(home / ".gemini/antigravity-cli/conversations" / f"{conversation}.db",
                     run_dir / f"{label}.conversation.db")
+    logs = sorted((home / ".gemini/antigravity-cli/log").glob("cli-*.log"))
+    if logs:   # agy's own log: its model requests and errors, for slow or failed calls
+        shutil.copy(logs[-1], run_dir / f"{label}.agy.log")
     shutil.rmtree(home, ignore_errors=True)
     response = final.get("response") or ""
     (run_dir / f"{label}.output.txt").write_text(response + "\n--- stderr ---\n" + stderr if stderr else response)
