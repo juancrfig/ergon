@@ -32,3 +32,7 @@ saw: a wrong description becomes a contradiction the builder stops on.
 Stop when the stories leave open a decision about what the user sees or gets: a behavior, a scope, a conflict
 between a story and the code or wiki. Product decisions belong to the human, through Plan. Technical decisions are
 your job: make them.
+
+Before you stop on an open question, the wiki's or your own, read the code it is about. Where the code already
+decides it (a rule, a limit, a format), that is the answer: keep it and write it into `change`. Stop only when
+neither the code nor the stories decide it.
