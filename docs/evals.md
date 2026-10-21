@@ -51,7 +51,7 @@ evals/cases/<case>/
   seed/            optional: the repo as it is before the change (brownfield cases), with its verification skill
                    in .agents/skills/verify/ (ADR 0033)
   verify/          greenfield cases: the verification skill copied into the empty repo, as the human would write
-                   it before the first ticket (SKILL.md, FEATURES.md with no features yet, app)
+                   it before the first ticket (SKILL.md, features/README.md with no features yet, app)
   brief.md         hidden: what the client wants, as numbered facts (F1, F2, …)
   hidden-tests/    hidden: acceptance tests, each tagged with the facts it checks
   reference/       hidden: the reference solution

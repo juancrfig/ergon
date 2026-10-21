@@ -158,12 +158,12 @@ def _problems(answer: dict, task: dict, used: dict, task_dir: Path) -> list[str]
     if "stop" in answer:
         return []
     out, allowed = [], {f["path"] for f in task["files"]}
-    allowed |= {f"{r}/{proof.VERIFY}/FEATURES.md" for r in task["repos"]}   # the feature map follows the code
+    maps = tuple(f"{r}/{proof.VERIFY}/{proof.MAP}" for r in task["repos"])   # the feature map follows the code
     touched = [f"{name}/{p}" for name, root in used.items() for p in changed(root)]
     out += [f"{p} changed, but repo {p.split('/')[0]} is not one of this task's repos; undo it"
             for p in touched if p.split("/")[0] not in task["repos"]]
     out += [f"{p} changed, but the task does not list it; undo it" for p in touched
-            if p.split("/")[0] in task["repos"] and p not in allowed]
+            if p.split("/")[0] in task["repos"] and p not in allowed and not p.startswith(maps)]
     kind = "change" if "change" in answer else "no_change"
     if kind == "change" and not touched:
         out.append("the answer says change, but no file changed")

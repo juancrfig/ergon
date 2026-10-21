@@ -1,7 +1,7 @@
 """The builder's proof that a task is done, checked by code against its own session log (ADR 0033).
 
-Each source clone has a verification skill in VERIFY: SKILL.md (how to start, drive, inspect and stop the app) and
-FEATURES.md (the feature map). For every criterion it covers, the builder answers with the commands it ran and the
+Each source clone has a verification skill in VERIFY: SKILL.md (how to launch, drive, inspect and clean up the app)
+and features/README.md, the feature map's index; one file per feature sits next to it, opened by the builder. For every criterion it covers, the builder answers with the commands it ran and the
 lines their output showed. Code finds each one in the session logs of the task's calls: the same command, run after
 the builder's last file edit, whose recorded output holds every line. So a proof the builder never ran, or ran
 before a later edit, fails like any other check, and nothing is run again. A proof that held only because of a file
@@ -11,7 +11,8 @@ import json
 from pathlib import Path
 
 VERIFY = ".agents/skills/verify"
-FILES = ("SKILL.md", "FEATURES.md")
+FILES = ("SKILL.md", "features/README.md")   # required, and put in the builder's prompt
+MAP = "features/"   # any task may change the map
 # The file tools that change files, in Hermes and agy. An edit made through a shell command is not seen.
 EDITS = {"patch", "write_file", "edit_file", "write_to_file", "replace_file_content", "multi_replace_file_content",
          "sed_file", "notebook_edit"}

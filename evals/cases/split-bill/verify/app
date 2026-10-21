@@ -1,16 +1,22 @@
 #!/bin/sh
-# Runs splitbill in a state folder, so checks never touch the working tree and each starts from a known state.
+# Drives splitbill for verification: each state is its own folder, so checks never touch the working tree.
 #   app <state> <command> [arguments]   run one splitbill command in .verify/<state>; a new state starts empty
 #   app --reset <state>                 empty a state (the folder stays, for input files)
+#   app --doctor                        read-only: is splitbill ready to drive?
 #   app --help                          this text
 # State folders live under .verify/ at the repo root, ignored by git. Works from any folder. The last line printed
 # is the program's exit code, as "exit <n>".
 here=$(cd "$(dirname "$0")/../../.." && pwd)
 case "${1:-}" in
-  ""|--help|-h) sed -n '2,7p' "$0" | cut -c3-; exit 0 ;;
+  ""|--help|-h) sed -n '2,8p' "$0" | cut -c3-; exit 0 ;;
   --reset) [ -n "${2:-}" ] || { echo "app --reset needs a state name, such as: app --reset s1" >&2; exit 2; }
            rm -rf "$here/.verify/$2" && mkdir -p "$here/.verify/$2" && echo "reset $2: empty, at $here/.verify/$2"
            exit 0 ;;
+  --doctor) ok=0
+            command -v python3 >/dev/null && echo "python3: $(python3 --version 2>&1)" || { echo "python3: missing"; ok=1; }
+            [ -f "$here/splitbill.py" ] && echo "program: $here/splitbill.py" || { echo "program: $here/splitbill.py not written yet"; ok=1; }
+            git -C "$here" check-ignore -q .verify/x && echo "state: .verify/ is ignored by git" || { echo "state: .verify/ is NOT ignored; add it to .gitignore"; ok=1; }
+            echo "exit $ok"; exit $ok ;;
 esac
 state=$1; shift
 [ $# -gt 0 ] || { echo "app $state needs a splitbill command after the state, such as: app $state bill.txt" >&2; exit 2; }

@@ -10,14 +10,17 @@ owns, and attaches proof.
 
 ## Decided so far
 - Each source clone has a verification skill in `<clone>/.agents/skills/verify/` (the standard agent-skills
-  place, so the human's own coding agents find it too): `SKILL.md`, `FEATURES.md` and the tool if the app needs one.
+  place, so the human's own coding agents find it too): `SKILL.md`, `features/` (a `README.md` index and one file per feature, poteto's layout) and the tool if the app
+  needs one.
   It holds how to start, drive and inspect its app, with a feature map (what the app
   does and how to reach each feature, navigation only). Both live in the repo next to the tool; the builder that
-  changes a feature updates the map in the same commit; code accepts FEATURES.md with any task's files. Requirements stay in the wiki and Plan's stories.
-- A wizard skill Ergon ships, `agents/skills/create-verification-skill.md`, creates them; the human runs it once per project with a coding agent, interactively,
+  changes a feature updates the map in the same commit; code accepts any change under `features/` with any task's files. The builder's prompt holds `SKILL.md` and the
+  index; it opens the feature files it needs. Requirements stay in the wiki and Plan's stories.
+- A wizard skill Ergon ships, `agents/skills/create-verification-skill/`, adapted from poteto's pstack skill of the same name, creates them, and
+  `maintain-verification-skill` keeps the map honest; the human runs it once per project with a coding agent, interactively,
   reviews and commits the result. Ergon does not run it as a ticket.
 - Build refuses to start a ticket's first task while any source clone its tasks touch lacks `SKILL.md` or
-  `FEATURES.md`:
+  `features/README.md`:
   a deterministic file check, no fallback.
 - The builder's context is minimal: the Build skill, Split's hand-off (task, criteria, files to change and read),
   the verification skill and the wiki's convention pages. Repo AGENTS.md files are maps for finding files; they go
@@ -40,7 +43,6 @@ owns, and attaches proof.
 - Gate (compile, type check, lint) stays as the deterministic floor.
 
 ## Open
-- Splitting FEATURES.md into one file per area (poteto's layout) once a map is too long for every prompt.
 - Environment: seed data, ports, cleanup between tasks, who installs dependencies.
 - Where a project declares its Gate checks.
 - Measuring: do builder proofs agree with hidden tests, and a web case to measure the tool.

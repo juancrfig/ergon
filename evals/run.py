@@ -297,7 +297,7 @@ def check(cases: list) -> bool:
             problems += [f"{r['test']}: the seed fails a kept test" for r in hidden_tests(case, case / seed)
                          if r["tag"] == "kept" and r["outcome"] != "pass"]
         skill = (case / seed / ".agents/skills/verify") if seed else case / "verify"
-        problems += [f"{skill.relative_to(case)}/{f} is missing" for f in ("SKILL.md", "FEATURES.md", "app")
+        problems += [f"{skill.relative_to(case)}/{f} is missing" for f in ("SKILL.md", "features/README.md", "app")
                      if not (skill / f).exists()]
         for name in ("brief.md", "sources"):
             if not (case / name).exists():

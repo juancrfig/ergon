@@ -18,9 +18,9 @@ Carries out Split's tasks, one at a time in order, and commits each on the plan'
 
 ## Who does what
 - Code: refuses to start on a repo with uncommitted changes, or one without a verification skill
-  (`.agents/skills/verify/SKILL.md` and `FEATURES.md`, ADR 0033); creates or checks out `plan/<plan id>` in every repo
+  (`.agents/skills/verify/SKILL.md` and `features/README.md`, ADR 0033); creates or checks out `plan/<plan id>` in every repo
   the tasks name; writes the builder's prompt (the skill, every `convention` page, the verification skill and
-  feature map of the task's repos, the story, the criteria, the task, and the current text of every file the task changes or names to read, ADR 0030);
+  feature-map index of the task's repos, the story, the criteria, the task, and the current text of every file the task changes or names to read, ADR 0030);
   checks what changed: only the task's files, a change changed something, no change
   changed nothing, every criterion reported (the feature map may change with any task); then checks each
   criterion's proof against the builder's session logs (each command run after its last file edit, its output

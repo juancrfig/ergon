@@ -8,8 +8,9 @@ An architect settled this task's design: files, pieces and behavior. Your job is
 2. Change only the files the task lists, as its change describes. Code compares every changed file with the list
    and sends back any other one to undo, which costs a whole retry. Remove files your checks create, such as data
    files; tool caches (`__pycache__`, `.pytest_cache` and the like) are already ignored, so leave them. When the
-   change alters what a feature does or how to reach it, update the repo's feature map (FEATURES.md, given below)
-   too: code accepts it with the task's files, and the next builder finds features through it.
+   change alters what a feature does or how to reach it, update its file in the repo's feature map (the index is
+   given below; feature files sit next to it), adding a file and an index line for a new feature: code accepts
+   any change to the map with the task's files, and the next builder finds features through it.
 3. Stay inside the project folder: everything the task needs is there. Keep every command inside the task's repos
    and leave installs alone: no one approves commands during this run. Start and stop the app only through the
    project's verification skill, given below, and stop what you started before you answer, so the next task finds
