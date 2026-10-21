@@ -13,8 +13,6 @@ the next task starts in a new run.
 4. Check your work with commands that read or compile: a syntax check, a type check, a build. Keep every command
    inside the task's repos and leave installs and servers alone: no one approves commands during this run.
 5. Leave git to code: it owns the branch and the commits, and resets the repos when a task stops.
-6. When a check needs something you cannot run here (a browser, a device), check by reading the code, and say in
-   `how` that it was not run.
 
 ## Stop
 Stop when the task leaves a design decision open (a name, a shape, a place or a behavior that neither the task nor
