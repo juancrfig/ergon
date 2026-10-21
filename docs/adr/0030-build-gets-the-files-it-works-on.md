@@ -25,3 +25,10 @@ module it imports, a test it must keep passing).
 - Split outputs from before this ADR have no `read`; Build treats it as empty, so old snapshots still run.
 - Not addressed here: the git commands the builder runs to see the repo state, and the builder reading outside the
   project folder.
+
+## Result
+First round after this ADR and the prompt cleanup that came with it (gradebook × 3 on agy/Gemini 3.8 Flash,
+2026-10-21): 3/3 trials passed, 9/9 builder calls accepted; per builder call 15.1 turns and about 357,000 tokens,
+against 20.5 turns and about 608,000 tokens in the two gradebook trials of 2026-10-20. Split named no `read` file
+(gradebook has one code file), so this measures the given changed-file text, not `read`; several prompt changes
+shipped together, so no single one owns the drop.
