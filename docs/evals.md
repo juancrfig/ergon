@@ -90,6 +90,8 @@ python3 evals/index.py                       rebuild the trial index from the tr
 
 - Every trial runs in a fresh folder, `evals/trials/<time>-<case>-<n>/` (not committed): a new git repo for the
   project and for each of its repos, no history from earlier trials.
+- While it runs, the project lives in an empty folder under `/tmp`, away from the cases, the hidden tests, the
+  client's brief and other trials, so no agent finds them by looking around; it moves into the trial folder at the end.
 - Trials run in parallel, one thread each. Each run first checks the cases, then writes a report beside the trials.
 - **A sound case**: its reference passes every hidden test, an empty program passes none, and its seed passes every
   `kept` test. `--check` runs only this, in seconds.

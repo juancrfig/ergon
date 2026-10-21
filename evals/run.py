@@ -93,6 +93,9 @@ class Trial:
 
     def run(self) -> dict:
         self.dir.mkdir(parents=True)
+        # The project runs in an empty folder outside the repo, so no agent finds the cases, the hidden tests, the
+        # client's brief or other trials next to it; it moves into the trial folder when the trial ends.
+        self.project = Path(tempfile.mkdtemp(prefix=f"ergon-{self.dir.name}-", dir="/tmp")) / "project"
         clock, started = time.monotonic(), _now()
         try:
             self._prepare()
@@ -106,6 +109,10 @@ class Trial:
             (self.dir / "crash.txt").write_text(traceback.format_exc())
             self.log(f"crashed: {exc}")
         self.record.update(started=started, ended=_now(), seconds=round(time.monotonic() - clock, 1))
+        if self.project.exists():
+            shutil.move(self.project, self.dir / "project")
+            self.project.parent.rmdir()
+        self.project = self.dir / "project"
         self._grade()
         self.record.update(audit.trial(self.project, self.dir / "client", self.spec, self.start))
         (self.dir / "trial.json").write_text(json.dumps(self.record, indent=2) + "\n")
@@ -336,7 +343,6 @@ def main(argv=None) -> int:
     for t in trials:   # same second: make each folder name unique
         while any(o is not t and o.dir == t.dir for o in trials) or t.dir.exists():
             t.dir = t.dir.with_name(t.dir.name + "x")
-            t.project = t.dir / "project"
             t.record["trial"] = t.dir.name
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
         records = list(pool.map(Trial.run, trials))
