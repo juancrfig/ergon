@@ -76,7 +76,8 @@ class Build(Node):
             agent.scope(task_dir, self.wiki.pages_dir)
             try:
                 answer = agent.ask(self.profile, self._context(task, tasks[:n - 1], stories, found),
-                                   self.contracts / "result.json", task_dir, "result", lambda a: _problems(a, task, used), tools=("terminal", "file"),
+                                   self.contracts / "result.json", task_dir, "result", lambda a: _problems(a, task, used),
+                                   tools=("terminal", "file"),
                                    turns=MAX_TURNS, cwd=self.project, yolo=True)
             except agent.AgentError:
                 _discard(task_dir, used)
@@ -125,7 +126,8 @@ class Build(Node):
         parts.append(f"# Where you are\nThe terminal starts in the project folder, {self.project}. Each repo is a "
                      f"folder in it: " + ", ".join(task["repos"]) + ". Paths below are <repo>/<path>.")
         if before:
-            parts.append("# Already built, in earlier tasks\n" + "\n".join(f"- {t['id']}: {t['title']}" for t in before))
+            parts.append("# Already built, in earlier tasks\n"
+                         + "\n".join(f"- {t['id']}: {t['title']}" for t in before))
         given = [f["path"] for f in task["files"] if f["action"] != "create"] + task.get("read", [])
         if given:
             parts.append("# Files as they are now")
