@@ -337,6 +337,7 @@ def main(argv=None) -> int:
         while any(o is not t and o.dir == t.dir for o in trials) or t.dir.exists():
             t.dir = t.dir.with_name(t.dir.name + "x")
             t.project = t.dir / "project"
+            t.record["trial"] = t.dir.name
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
         records = list(pool.map(Trial.run, trials))
     for record in records:   # what ran: the same case on another commit, skill or model is another experiment
