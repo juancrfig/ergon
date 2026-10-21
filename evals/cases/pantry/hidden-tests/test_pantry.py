@@ -85,7 +85,7 @@ class Pantry(unittest.TestCase):
         self.out("plan", "baguette", "3")
         self.assertEqual(self.out("stock").splitlines()[0], "flour: 80 kg")
 
-    def test_stated_earlier_plans_first(self):
+    def test_ask_earlier_plans_first(self):
         self.stock_up(butter="4kg")
         self.out("plan", "croissant", "2")
         self.assertEqual(self.out("plan", "croissant", "1"), "Planned croissant x 1.\nShort of butter: 500 g")
