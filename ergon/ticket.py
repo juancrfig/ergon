@@ -12,21 +12,31 @@ from ergon.plan import Plan
 from ergon.split import Split
 
 
-def _cost(folder: Path) -> tuple[float, int, int]:
-    """Seconds, tokens and attempts of the agent calls in a run folder. A resumed call is the same attempt."""
-    seconds = tokens = attempts = 0
+def _cost(folder: Path) -> str:
+    """Minutes, tokens and attempts of the agent calls in a run folder. Cached input is shown apart: the provider
+    charges it far less. A resumed call is the same attempt."""
+    seconds = tokens = cached = attempts = 0
     log = folder / "calls.jsonl"
     for line in log.read_text().splitlines() if log.exists() else []:
         call = json.loads(line)
         seconds += call.get("seconds") or 0
-        tokens += sum(call.get(k) or 0 for k in ("input_tokens", "cache_read_tokens", "output_tokens"))
+        tokens += (call.get("input_tokens") or 0) + (call.get("output_tokens") or 0)
+        cached += call.get("cache_read_tokens") or 0
         attempts += not str(call.get("label", "")).endswith("-resume")
-    return seconds, tokens, attempts
+    return (f"{seconds / 60:.0f} min, {tokens / 1000:.0f}k tokens ({cached / 1000:.0f}k cached), "
+            f"{attempts} attempt{'s' * (attempts != 1)}")
 
 
 def _reason(belt, rid: str) -> str:
+    """Why a request was rejected, short: a stop's question when there is one, else the first line."""
     path = belt.run_dir(rid) / "rejected.txt"
-    return path.read_text().strip().splitlines()[0] if path.exists() else "no reason recorded"
+    if not path.exists():
+        return "no reason recorded"
+    lines = path.read_text().strip().splitlines()
+    line = next((l for l in lines if l.startswith("Question: ")), lines[0])
+    for prefix in ("Question: ", "stopped: ", "failed: "):
+        line = line.removeprefix(prefix)
+    return line if len(line) <= 200 else line[:199] + "…"
 
 
 class Tickets:
@@ -81,22 +91,20 @@ class Tickets:
             state = "replaced" if n < len(chain) and ps == "rejected" else ps
             lines.append(f"Plan {n} ({pid}): {state}, {rounds} round{'s' * (rounds != 1)}")
             for sid, ss, builds in splits:
-                lines.append(f"  Split ({sid}): {ss}")
+                lines.append(f"  Split ({sid}): {ss}" + (": " + _reason(self.split.belt, sid) if ss == "rejected" else ""))
                 if ss != "done":
                     continue
                 tasks, built = self._tasks(sid, builds)
                 bdir = self.build.belt.run_dir(builds[-1][0]) if builds else None
+                current = next((t["id"] for t in tasks if t["id"] not in built), None)   # tasks run in order
                 for i, task in enumerate(tasks, 1):
                     folder = bdir / f"{i:02d}-{task['id']}" if bdir else None
                     if task["id"] in built:
                         state = built[task["id"]]["outcome"]
-                    elif folder and folder.exists():
-                        state = "failed" if builds[-1][1] == "rejected" else "building"
+                    elif task["id"] == current and folder and folder.exists():
+                        state = {"rejected": "failed", "working": "building"}.get(builds[-1][1], "waiting")
                     else:
                         state = "waiting"
-                    cost = ""
-                    if folder and folder.exists():
-                        seconds, tokens, attempts = _cost(folder)
-                        cost = f", {seconds / 60:.0f} min, {tokens / 1000:.0f}k tokens, {attempts} attempt{'s' * (attempts != 1)}"
+                    cost = ", " + _cost(folder) if folder and folder.exists() else ""
                     lines.append(f"  - Task {i} {task['id']}: {state}{cost}")
         return "\n".join(lines)
