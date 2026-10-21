@@ -123,7 +123,7 @@ class Scope:
             else:
                 out.append(f"# No wiki page [[{slug}]]. Slugs are the names in the index.")
         self.log({"tool": "read_pages", "asked": list(slugs), "found": found})
-        return "\n\n".join(out) or "Ask for at least one slug."
+        return "\n\n".join(out) or 'Ask for at least one slug: {"slugs": ["<slug>", ...]}.'
 
     def search_wiki(self, query: str) -> str:
         needle = (query or "").strip().lower()
@@ -140,7 +140,8 @@ class Scope:
 
     def call(self, name: str, args: dict) -> str:
         if name == "read_pages":
-            return self.read_pages(args.get("slugs") or [])
+            # Models often call the argument pages, after the tool's name; an empty read cost them a turn to retry.
+            return self.read_pages(args.get("slugs") or args.get("pages") or [])
         if name == "search_wiki":
             return self.search_wiki(args.get("query", ""))
         if name == "read_files" and self.repos:
