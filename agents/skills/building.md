@@ -10,9 +10,8 @@ the next task starts in a new run.
 2. Change only the files the task lists, as its change describes. Code compares every changed file with the list
    and sends back any other one to undo, which costs a whole retry; remove scratch files you create.
 3. Follow the project conventions and each repo's AGENTS.md, given below.
-4. Check your work with commands that read or compile: a syntax check, a type check, a build. Keep every command
-   inside the task's repos and leave installs and servers alone: no one approves commands during this run.
-5. Leave git to code: it owns the branch and the commits, and resets the repos when a task stops.
+4. Keep every command inside the task's repos and leave installs and servers alone: no one approves commands
+   during this run.
 
 ## Stop
 Stop when the task leaves a design decision open (a name, a shape, a place or a behavior that neither the task nor
