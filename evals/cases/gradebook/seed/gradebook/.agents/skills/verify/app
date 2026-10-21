@@ -1,7 +1,7 @@
 #!/bin/sh
 # Runs gradebook in a state folder, so checks never touch the working tree and each starts from a known state.
 #   app <state> <command> [arguments]   run one gradebook command in .verify/<state>; a new state starts empty
-#   app --reset <state>                 empty a state
+#   app --reset <state>                 empty a state (the folder stays, for input files)
 #   app --help                          this text
 # State folders live under .verify/ at the repo root, ignored by git. Works from any folder. The last line printed
 # is the program's exit code, as "exit <n>".
@@ -9,7 +9,8 @@ here=$(cd "$(dirname "$0")/../../.." && pwd)
 case "${1:-}" in
   ""|--help|-h) sed -n '2,7p' "$0" | cut -c3-; exit 0 ;;
   --reset) [ -n "${2:-}" ] || { echo "app --reset needs a state name, such as: app --reset s1" >&2; exit 2; }
-           rm -rf "$here/.verify/$2"; echo "reset $2"; exit 0 ;;
+           rm -rf "$here/.verify/$2" && mkdir -p "$here/.verify/$2" && echo "reset $2: empty, at $here/.verify/$2"
+           exit 0 ;;
 esac
 state=$1; shift
 [ $# -gt 0 ] || { echo "app $state needs a gradebook command after the state, such as: app $state report" >&2; exit 2; }

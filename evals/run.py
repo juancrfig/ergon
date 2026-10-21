@@ -141,8 +141,9 @@ class Trial:
             repo = self.project / name
             if seed:
                 shutil.copytree(self.case / seed, repo)
-            else:
-                repo.mkdir()
+            else:   # the verification skill the human writes before the first ticket (ADR 0033)
+                shutil.copytree(self.case / "verify", repo / ".agents" / "skills" / "verify")
+                (repo / ".gitignore").write_text("__pycache__/\n.verify/\n")
             git(repo, "init", "-q", "-b", "main")
             git(repo, "add", "-A")
             git(repo, *AUTHOR, "commit", "-q", "--allow-empty", "-m", "start")
@@ -295,6 +296,9 @@ def check(cases: list) -> bool:
         if seed:
             problems += [f"{r['test']}: the seed fails a kept test" for r in hidden_tests(case, case / seed)
                          if r["tag"] == "kept" and r["outcome"] != "pass"]
+        skill = (case / seed / ".agents/skills/verify") if seed else case / "verify"
+        problems += [f"{skill.relative_to(case)}/{f} is missing" for f in ("SKILL.md", "FEATURES.md", "app")
+                     if not (skill / f).exists()]
         for name in ("brief.md", "sources"):
             if not (case / name).exists():
                 problems.append(f"{name} is missing")

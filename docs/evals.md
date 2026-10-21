@@ -48,7 +48,10 @@ evals/cases/<case>/
   case.json        layer, the node it stresses, the goal Plan gets, the repos (empty or from seed/), the planted
                    contradictions with the words that recognize them
   sources/         what Intake ingests: client email, meeting notes (with planted traps)
-  seed/            optional: the repo as it is before the change (brownfield cases)
+  seed/            optional: the repo as it is before the change (brownfield cases), with its verification skill
+                   in .agents/skills/verify/ (ADR 0033)
+  verify/          greenfield cases: the verification skill copied into the empty repo, as the human would write
+                   it before the first ticket (SKILL.md, FEATURES.md with no features yet, app)
   brief.md         hidden: what the client wants, as numbered facts (F1, F2, …)
   hidden-tests/    hidden: acceptance tests, each tagged with the facts it checks
   reference/       hidden: the reference solution
@@ -64,7 +67,8 @@ Rules for a fair case (from the research below):
   different nodes.
 - **The reference solution passes every hidden test** before the case is used. A case at 0% across all trials is
   first suspected broken.
-- **Hidden files never enter the trial folder.** The harness copies only `sources/` and `seed/` into it.
+- **Hidden files never enter the trial folder.** The harness copies only `sources/`, `seed/`
+  and `verify/` into it.
 
 ## The client agent
 
@@ -94,8 +98,8 @@ python3 evals/index.py                       rebuild the trial index from the tr
 - While it runs, the project lives in an empty folder under `/tmp`, away from the cases, the hidden tests, the
   client's brief and other trials, so no agent finds them by looking around; it moves into the trial folder at the end.
 - Trials run in parallel, one thread each. Each run first checks the cases, then writes a report beside the trials.
-- **A sound case**: its reference passes every hidden test, an empty program passes none, and its seed passes every
-  `kept` test. `--check` runs only this, in seconds.
+- **A sound case**: its reference passes every hidden test, an empty program passes none, its seed passes every
+  `kept` test, and it has a verification skill. `--check` runs only this, in seconds.
 - The harness drives the nodes through their classes, the way the command line does (ADR 0026).
 - **Starting from a node**: `--from split --snapshot` copies an earlier trial's project, drops the belts from Split
   on, resets the repos, and submits a new split of the approved plan. Five Split trials from one approved plan
