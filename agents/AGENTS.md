@@ -6,7 +6,8 @@ not here.
 
 One card per node agent. `skills/prompt-engineering.md` and `skills/eval-engineering.md` are the exception: they
 wait for the Learn agent (not built) and guide whoever edits the other skills or the evals meanwhile; no node loads
-them. This file is the only place that says what each agent gets: model class, skills, tools,
+them. `skills/create-verification-skill.md` is the other: the human runs it with a coding agent, once per repo,
+to make the verification skill Build requires (ADR 0033). This file is the only place that says what each agent gets: model class, skills, tools,
 the context code writes, and the context Hermes adds. Anything not listed here does not reach the model. When a
 profile changes, change its card in the same commit.
 

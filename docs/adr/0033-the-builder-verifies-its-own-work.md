@@ -1,6 +1,6 @@
 # 0033. The builder verifies its own work
 
-Status: accepted, 2026-10-21. The wizard skill is not written yet. Supersedes the Inspect node of the factory design.
+Status: accepted, 2026-10-21. Supersedes the Inspect node of the factory design.
 
 ## Context
 The builder never sees its code run: the Build skill forbids servers, no project gives it a way to drive the app,
@@ -14,7 +14,7 @@ owns, and attaches proof.
   It holds how to start, drive and inspect its app, with a feature map (what the app
   does and how to reach each feature, navigation only). Both live in the repo next to the tool; the builder that
   changes a feature updates the map in the same commit; code accepts FEATURES.md with any task's files. Requirements stay in the wiki and Plan's stories.
-- A wizard skill Ergon ships creates them; the human runs it once per project with a coding agent, interactively,
+- A wizard skill Ergon ships, `agents/skills/create-verification-skill.md`, creates them; the human runs it once per project with a coding agent, interactively,
   reviews and commits the result. Ergon does not run it as a ticket.
 - Build refuses to start a ticket's first task while any source clone its tasks touch lacks `SKILL.md` or
   `FEATURES.md`:
@@ -40,7 +40,7 @@ owns, and attaches proof.
 - Gate (compile, type check, lint) stays as the deterministic floor.
 
 ## Open
-- The verification tool's interface rules and the wizard's steps.
+- Splitting FEATURES.md into one file per area (poteto's layout) once a map is too long for every prompt.
 - Environment: seed data, ports, cleanup between tasks, who installs dependencies.
 - Where a project declares its Gate checks.
 - Measuring: do builder proofs agree with hidden tests, and a web case to measure the tool.
