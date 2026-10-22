@@ -84,7 +84,10 @@ class Build(Node):
                 answer = agent.ask(self.profile, self._context(task, tasks[:n - 1], stories, found),
                                    self.contracts / "result.json", task_dir, "result", lambda a: _problems(a, task, used, task_dir),
                                    tools=("terminal", "file"),
-                                   turns=MAX_TURNS, cwd=self.project, yolo=True)
+                                   turns=MAX_TURNS, cwd=self.project, yolo=True,
+                                   retry_note="Your edits from the previous answer are still in the repos. Do not redo the work and do "
+                                              "not stop. Fix what was rejected, run again every proof step it names, then "
+                                              "return the corrected JSON.")
             except agent.AgentError:
                 _discard(task_dir, used)
                 raise

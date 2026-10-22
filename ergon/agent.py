@@ -264,7 +264,7 @@ def _extract(text: str):
 
 
 def ask(profile: str, prompt: str, contract: Path, run_dir: Path, name: str, extra_check=None, retries: int = 2,
-        **call):
+        retry_note: str = "Return the corrected JSON only.", **call):
     """Ask until the answer satisfies the contract and extra_check, at most retries+1 times."""
     contract_schema = schema.load(contract)
     contract_text = json.dumps(contract_schema, indent=2)
@@ -284,5 +284,5 @@ def ask(profile: str, prompt: str, contract: Path, run_dir: Path, name: str, ext
             (run_dir / f"{name}.json").write_text(json.dumps(data, indent=2) + "\n")
             return data
         current = (base + "\n# Your previous answer was rejected\n" + "\n".join(f"- {e}" for e in errs)
-                   + "\n\nPrevious answer:\n\n" + output[-20000:] + "\n\nReturn the corrected JSON only.\n")
+                   + "\n\nPrevious answer:\n\n" + output[-20000:] + f"\n\n{retry_note}\n")
     raise AgentError(f"{name}: no valid answer after {retries + 1} attempts: " + "; ".join(errs[:10]))
