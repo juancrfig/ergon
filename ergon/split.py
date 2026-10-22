@@ -27,7 +27,7 @@ class Split(Node):
         run_dir = self.belt.run_dir(rid)
         agent.scope(run_dir, self.wiki.pages_dir, repos=found)
         answer = agent.ask(self.profile, self._context(stories, found), self.contracts / "tasks.json", run_dir, "tasks",
-                           lambda a: _task_problems(a, stories, found))
+                           lambda a: _task_problems(a, stories, found), turns=25)
         if "stop" in answer:
             stop = answer["stop"]
             self.belt.reject(rid, "working", f"stopped: {stop['reason']}\nQuestion: {stop['question']}")
