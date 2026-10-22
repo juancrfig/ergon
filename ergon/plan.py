@@ -53,7 +53,7 @@ class Plan(Node):
             given = {a["question"]: a for a in answers}
             for q in questions:
                 a = given[q["id"]]
-                how = " (left unanswered: the planner's recommendation)" if a.get("skipped") else ""
+                how = " (the human accepted the planner's recommendation)" if a.get("skipped") else ""
                 lines += [f"## Round {i}, {q['id']}: {q['question']}", "", f"Answer{how}: {a['answer']}", ""]
         source = Path("wiki") / "raw" / f"plan-{rid}-decisions.md"
         (self.project / source).parent.mkdir(parents=True, exist_ok=True)
@@ -129,9 +129,9 @@ class Plan(Node):
                 reason = (intake.belt.run_dir(irid) / "rejected.txt").read_text().strip()
                 raise ValueError(f"the wiki update for this plan's decisions ({irid}) was rejected: {reason}\n"
                                  "Reject the plan and plan again.")
-            if state != "review":
+            if state not in ("review", "done"):
                 raise ValueError(f"the wiki update for this plan's decisions ({irid}) is not drafted yet: run Intake")
-            applied = "; wiki " + intake.approve(irid)
+            applied = "; wiki " + (intake.approve(irid) if state == "review" else "already applied")
         gone = sorted({s for story in stories for s in story["sources"]} - set(self.wiki.pages()))
         if gone:
             raise ValueError(f"wiki pages the stories cite no longer exist: {', '.join(gone)}; reject and plan again")
