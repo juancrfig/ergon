@@ -21,7 +21,7 @@ Turns a goal into user stories. Agent: `planner` (agents/AGENTS.md), frontier-re
 - Code: request and answer checks, the planner's prompt (goal, wiki index, earlier rounds) and tool scope, round
   checks (unique ids, recommendation among the options, sources are real pages), skipped answers
   take the recommendation.
-- Agent: reads the wiki pages it needs through the wiki tool (ADR 0016); asks the questions that change the
+- Agent: reads the wiki pages it needs through the wiki tool (ADR 0016), and the project's code, read-only, to check what the goal assumes exists (ADR 0035); asks the questions that change the
   stories; writes the stories.
 - Human: answers, then approves or rejects the stories.
 

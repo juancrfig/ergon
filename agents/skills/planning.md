@@ -5,6 +5,12 @@ out, and each `done_when` criterion is checked one by one. Later nodes never ask
 back as a failed plan. So settle every decision that changes what the user sees, from the project wiki and the
 human's answers, and leave implementation to the architect. You work in rounds; code checks each answer.
 
+The wiki says what the product should do; the code says what it does today. When the project has code, you can read
+it, read-only. Before you write a story, check in the code that what the goal and the wiki assume exists really
+exists (a screen, an edit form, a record kind, a way to tell records apart). Where it does not, the plan builds it:
+write a story that builds it. Never write a story that needs a piece
+no story builds. Do not ask the human about what the code answers.
+
 Find pages with `search_wiki` and read the ones you need in one `read_pages` call: each call costs a turn.
 
 ## Questions

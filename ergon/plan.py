@@ -12,7 +12,7 @@ from pathlib import Path
 
 from ergon import agent, profiles, schema
 from ergon.intake import Intake
-from ergon.node import Node
+from ergon.node import Node, repos
 from ergon.wiki import today
 
 SKILL = profiles.SKILLS / "planning.md"
@@ -27,7 +27,7 @@ class Plan(Node):
         run_dir = self.belt.run_dir(rid)
         rounds = self._rounds(run_dir)
         number, final = len(rounds) + 1, len(rounds) + 1 >= MAX_ROUNDS
-        agent.scope(run_dir, self.wiki.pages_dir, f"tool-calls-round-{number}.jsonl")
+        agent.scope(run_dir, self.wiki.pages_dir, f"tool-calls-round-{number}.jsonl", repos=repos(self.project) or None)
         prompt = self._context(request, rounds, number, final)
         known = set(self.wiki.pages())
         answer = agent.ask(self.profile, prompt, self.contracts / "round.json", run_dir, f"round-{number}",
